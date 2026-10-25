@@ -125,10 +125,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { profile } = useLocalProfile();
 
   return (
-    <div className="flex min-h-svh flex-col md:flex-row">
+    <div className="bg-satin flex min-h-svh flex-col md:flex-row">
       <aside
         style={{ width: collapsed ? SIDEBAR_COLLAPSED : width }}
-        className="relative hidden shrink-0 border-r border-sidebar-border md:sticky md:top-0 md:flex md:h-svh"
+        className="relative hidden shrink-0 md:sticky md:top-0 md:flex md:h-svh"
       >
         <ChatSidebar
           collapsed={collapsed}
@@ -138,7 +138,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border/70 bg-background/85 px-3 backdrop-blur supports-backdrop-filter:bg-background/70 md:px-4">
+        <header className="sticky top-3 z-30 mx-3 mt-3 flex h-14 shrink-0 items-center gap-2 rounded-full border border-border/60 bg-card/90 px-3 shadow-lift backdrop-blur supports-backdrop-filter:bg-card/80 md:mx-4 md:px-4">
           <Sheet
             open={mobileOpen}
             onOpenChange={setMobileOpen}

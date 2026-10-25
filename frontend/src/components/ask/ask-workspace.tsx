@@ -43,7 +43,7 @@ function prefersReducedMotion(): boolean {
 function UserTurn({ turn }: { turn: ChatTurn }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[85%] rounded-2xl rounded-br-sm border border-primary/25 bg-primary/10 px-4 py-2.5">
+      <div className="max-w-[85%] rounded-3xl rounded-br-md border border-border/60 bg-card px-4 py-3 shadow-lift">
         <p className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
           {turn.repo}
         </p>
@@ -269,13 +269,13 @@ function AskSession({
         <AuroraBackdrop />
         <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-4 py-10 sm:py-14">
           <div className="text-center">
-            <p className="inline-flex items-center rounded-full border border-white/15 bg-background/55 px-2.5 py-1 font-mono text-[11px] tracking-wide text-primary uppercase backdrop-blur-sm">
+            <p className="inline-flex items-center rounded-full border border-border/60 bg-card/70 px-2.5 py-1 font-mono text-[11px] tracking-wide text-primary uppercase shadow-lift backdrop-blur-sm">
               {repo}
             </p>
-            <h1 className="mt-3 font-heading text-2xl font-semibold text-balance text-foreground drop-shadow-[0_2px_18px_rgba(0,0,0,0.85)] sm:text-3xl">
+            <h1 className="mt-3 font-heading text-2xl font-semibold text-balance text-foreground sm:text-3xl">
               Ask why the code works this way
             </h1>
-            <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-foreground/85 drop-shadow-[0_1px_10px_rgba(0,0,0,0.85)] sm:text-base">
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
               Every answer is grounded in the pull requests, reviews and commits
               that decided it — and refused when the evidence does not support a
               claim.
@@ -330,7 +330,7 @@ function AskSession({
           <div ref={endRef} />
         </div>
 
-        <div className="sticky bottom-0 z-20 -mx-4 border-t border-border/70 bg-background/85 px-4 py-3 backdrop-blur supports-backdrop-filter:bg-background/70">
+        <div className="sticky bottom-3 z-20">
           <AskComposer
             value={value}
             onValueChange={setValue}

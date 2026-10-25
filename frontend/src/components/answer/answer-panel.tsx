@@ -64,7 +64,7 @@ export function AnswerPanel({ response }: { response: AskResponse }) {
   return (
     <section
       aria-label="Answer"
-      className="animate-rise overflow-hidden rounded-xl border border-border/70 bg-card"
+      className="animate-rise overflow-hidden rounded-3xl border border-border/60 bg-card shadow-lift"
     >
       <div className="flex flex-wrap items-center gap-2 border-b border-border/70 px-4 py-3">
         <AnswerStatusBadge status={response.status} />

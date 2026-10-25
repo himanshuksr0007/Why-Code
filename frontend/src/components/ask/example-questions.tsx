@@ -55,7 +55,7 @@ export function ExampleQuestions({
                 onLight &&
                   "border-zinc-900/20 bg-white/35 text-zinc-900 shadow-sm hover:border-zinc-900/30 hover:bg-white/55 hover:text-zinc-950",
                 onAurora &&
-                  "border-white/20 bg-background/60 text-foreground shadow-sm backdrop-blur-sm hover:border-white/30 hover:bg-background/80 hover:text-foreground",
+                  "border-border/60 bg-card/80 text-foreground shadow-lift backdrop-blur-sm hover:border-primary/40 hover:bg-card hover:text-foreground",
                 centered
                   ? "w-full items-start justify-start px-3 py-2.5 leading-relaxed"
                   : "max-w-full",

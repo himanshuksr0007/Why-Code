@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 
 import { AppShell } from "@/components/app-shell";
 import { Providers } from "@/components/providers";
 
 import "./globals.css";
 
-const plexSans = IBM_Plex_Sans({
-  variable: "--font-plex-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -33,7 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${plexSans.variable} ${jetbrainsMono.variable} h-full`}
+      className={`${inter.variable} ${jetbrainsMono.variable} h-full`}
     >
       <body className="min-h-full antialiased">
         <Providers>

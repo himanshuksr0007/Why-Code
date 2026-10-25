@@ -66,13 +66,13 @@ export function ChatSidebar({
 
   if (collapsed) {
     return (
-      <div className="flex h-full min-h-0 w-full min-w-0 flex-col items-center bg-sidebar text-sidebar-foreground">
+      <div className="flex h-full min-h-0 w-full min-w-0 flex-col items-center bg-transparent text-sidebar-foreground">
         <Link
           href="/dashboard"
           aria-label="Why-Code dashboard"
           title="Why-Code dashboard"
           onClick={onNavigate}
-          className="mt-3 flex size-10 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-primary/30 transition-colors outline-none hover:bg-primary/20 focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="mt-3 flex size-10 items-center justify-center rounded-full bg-foreground text-background shadow-lift transition-transform outline-none hover:scale-105 focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <Logo className="size-5" />
         </Link>
@@ -94,7 +94,7 @@ export function ChatSidebar({
           </Button>
         </div>
 
-        <div className="mt-auto flex w-full flex-col items-center gap-1 border-t border-sidebar-border py-2">
+        <div className="mt-auto flex w-full flex-col items-center gap-1 py-2">
           <ThemeToggle />
           {onToggleCollapse ? (
             <Button
@@ -124,47 +124,47 @@ export function ChatSidebar({
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 flex-col bg-sidebar text-sidebar-foreground">
-      <div className="relative flex w-full min-w-0 items-center">
-        <Link
-          href="/dashboard"
-          aria-label="Why-Code dashboard"
-          onClick={onNavigate}
-          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-4 py-4 pr-12 transition-colors outline-none hover:bg-sidebar-accent/50 focus-visible:ring-2 focus-visible:ring-ring/50"
-        >
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-primary/30">
-            <Logo className="size-5" />
-          </span>
-          <span className="min-w-0 flex-1 leading-tight">
-            <span className="block font-heading text-sm font-semibold">
-              Why-Code
-            </span>
-            <span className="block truncate text-xs text-muted-foreground">
-              Evidence explorer
-            </span>
-          </span>        </Link>
-        {onToggleCollapse ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Minimize sidebar"
-            aria-expanded={true}
-            title="Minimize sidebar"
-            onClick={onToggleCollapse}
-            className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground"
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-3 bg-transparent p-3 text-sidebar-foreground">
+      <div className="rounded-3xl border border-border/50 bg-card p-3 shadow-lift">
+        <div className="relative flex w-full min-w-0 items-center">
+          <Link
+            href="/dashboard"
+            aria-label="Why-Code dashboard"
+            onClick={onNavigate}
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-2xl px-1.5 py-1.5 pr-10 transition-colors outline-none hover:bg-sidebar-accent/50 focus-visible:ring-2 focus-visible:ring-ring/50"
           >
-            <PanelLeftCloseIcon aria-hidden="true" />
-          </Button>
-        ) : null}
-      </div>
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+              <Logo className="size-5" />
+            </span>
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="block font-heading text-sm font-semibold">
+                Why-Code
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">
+                Evidence explorer
+              </span>
+            </span>
+          </Link>
+          {onToggleCollapse ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Minimize sidebar"
+              aria-expanded={true}
+              title="Minimize sidebar"
+              onClick={onToggleCollapse}
+              className="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground"
+            >
+              <PanelLeftCloseIcon aria-hidden="true" />
+            </Button>
+          ) : null}
+        </div>
 
-      <div className="px-3">
         <Button
           render={<Link href="/" />}
           nativeButton={false}
-          variant="outline"
-          className="w-full justify-start"
+          className="mt-2.5 w-full justify-center rounded-full shadow-lift"
           onClick={() => {
             startNewChat();
             onNavigate?.();
@@ -175,11 +175,11 @@ export function ChatSidebar({
         </Button>
       </div>
 
-      <div className="mt-5 flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col rounded-3xl border border-border/50 bg-card py-3 shadow-lift">
         <p className="px-5 pb-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
           Chats
         </p>
-        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 pb-3">
+        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 pb-1">
           {chats.length === 0 ? (
             <p className="px-2 py-1 text-xs leading-relaxed text-muted-foreground">
               No conversations yet. Ask a question and it will appear here.
@@ -238,7 +238,7 @@ export function ChatSidebar({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 border-t border-sidebar-border p-3">
+      <div className="flex items-center gap-2 rounded-3xl border border-border/50 bg-card p-2.5 shadow-lift">
         <div className="min-w-0 flex-1">
           <UserMenu
             displayName={profile.display_name}

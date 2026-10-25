@@ -49,7 +49,7 @@ export function AskComposer({
         if (canSubmit) onSubmit(value);
       }}
     >
-      <div className="rounded-2xl border border-border/70 bg-card p-2 shadow-sm transition-colors focus-within:border-primary/50">
+      <div className="rounded-[1.75rem] border border-border/60 bg-card p-2 shadow-soft transition-colors focus-within:border-primary/60">
         <label htmlFor={id} className="sr-only">
           Your question
         </label>
