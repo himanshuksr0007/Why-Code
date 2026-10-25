@@ -42,13 +42,22 @@ Remove-Item Env:PYTHONPATH
 
 try {
     $healthy = $false
+    $lastError = ""
     foreach ($i in 1..30) {
         try {
-            $r = Invoke-WebRequest -UseBasicParsing "http://localhost:$ApiPort/health" -TimeoutSec 2
-            if ($r.StatusCode -eq 200) { $healthy = $true; break }
-        } catch { Start-Sleep -Seconds 1 }
+            # 127.0.0.1 with the proxy switched off on purpose: polling
+            # "localhost" through the system proxy can route this check
+            # away from the local server even when it is running fine.
+            $req = [System.Net.WebRequest]::Create("http://127.0.0.1:$ApiPort/health")
+            $req.Proxy = $null
+            $req.Timeout = 2000
+            $resp = $req.GetResponse()
+            if ([int]$resp.StatusCode -eq 200) { $healthy = $true }
+            $resp.Close()
+            if ($healthy) { break }
+        } catch { $lastError = $_.Exception.Message; Start-Sleep -Seconds 1 }
     }
-    if (-not $healthy) { throw "Backend did not come up - see the output above." }
+    if (-not $healthy) { throw "Backend health check failed. Last error: $lastError" }
     Write-Host "Backend is healthy."
 
     # --- frontend ----------------------------------------------------------
@@ -57,7 +66,7 @@ try {
         Push-Location frontend; npm install; Pop-Location
     }
     if (-not (Test-Path "frontend\.env.local")) {
-        "NEXT_PUBLIC_API_MODE=http`r`nNEXT_PUBLIC_API_BASE_URL=http://localhost:$ApiPort" |
+        "NEXT_PUBLIC_API_MODE=http`r`nNEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:$ApiPort" |
             Set-Content -Encoding ascii "frontend\.env.local"
         Write-Host "Wrote frontend/.env.local (points the UI at the local backend)."
     }

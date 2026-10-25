@@ -35,7 +35,7 @@ trap 'kill "$BACKEND_PID" 2>/dev/null || true' EXIT INT TERM
 
 healthy=""
 for _ in $(seq 1 30); do
-  if curl -sf "http://localhost:$API_PORT/health" >/dev/null 2>&1; then healthy=1; break; fi
+  if curl -sf --noproxy '*' "http://127.0.0.1:$API_PORT/health" >/dev/null 2>&1; then healthy=1; break; fi
   sleep 1
 done
 [ -n "$healthy" ] || { echo "Backend did not come up — see the output above."; exit 1; }
@@ -47,7 +47,7 @@ if [ ! -d "frontend/node_modules" ]; then
   (cd frontend && npm install)
 fi
 if [ ! -f "frontend/.env.local" ]; then
-  printf 'NEXT_PUBLIC_API_MODE=http\nNEXT_PUBLIC_API_BASE_URL=http://localhost:%s\n' "$API_PORT" > frontend/.env.local
+  printf 'NEXT_PUBLIC_API_MODE=http\nNEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:%s\n' "$API_PORT" > frontend/.env.local
   echo "Wrote frontend/.env.local (points the UI at the local backend)."
 fi
 
