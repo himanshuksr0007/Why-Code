@@ -1,7 +1,8 @@
-# Why-Code — start the demo backend and the frontend together.
+# Why-Code - start the demo backend and the frontend together.
 #
 #   .\start.ps1
-# (If scripts are blocked: powershell -ExecutionPolicy Bypass -File .\start.ps1)
+# (If scripts are blocked: powershell -ExecutionPolicy Bypass -File .\start.ps1,
+#  or just double-click start.bat, which does that for you.)
 #
 # Backend:  FastAPI demo app (offline fixture data, no Neo4j or API keys)
 #           http://localhost:8000   (health check: /health)
