@@ -6,6 +6,7 @@ import { useTheme } from "next-themes";
 import {
   ChevronsUpDownIcon,
   MoonIcon,
+  SettingsIcon,
   SunIcon,
   Trash2Icon,
   UserRoundIcon,
@@ -69,7 +70,11 @@ export function UserMenu({
         </div>
         <DropdownMenuItem render={<Link href="/profile" />}>
           <UserRoundIcon aria-hidden="true" />
-          Profile &amp; settings
+          Profile
+        </DropdownMenuItem>
+        <DropdownMenuItem render={<Link href="/settings" />}>
+          <SettingsIcon aria-hidden="true" />
+          Settings
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => {

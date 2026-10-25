@@ -57,7 +57,8 @@ explorer views are reached from inside an answer rather than from a menu.
 | --- | --- | --- |
 | `/` | **Ask (chat)** | Centred entrance with a **required repository selector** and example questions. Asking docks the composer to the bottom, shows a thinking state, then streams the answer into the conversation. Answers carry Evidence / Changes / Graph path / Decisions tabs, plus the refusal state. |
 | `/dashboard` | **Dashboard** | Overview of the repository in context: active decisions, code changes, contributors and pull requests, with recent decisions/changes and one-click example questions. Reached by clicking the Why-Code logo or name in the sidebar. |
-| `/profile` | **Profile & settings** | Your local display name, active repository, appearance (Light/System/Dark), activity stats and chat-history controls. |
+| `/profile` | **Profile** | Your local display name, active repository, appearance (Light/System/Dark), activity stats and chat-history controls. |
+| `/settings` | **Settings** | Appearance with Light / Dark / System (default) theme options, the answer-service configuration in use, and local-data controls. |
 | `/changes` | **Code changes** | What changed, the reasoning behind it, and the pull request that carried it (author, reviewers, participants). |
 | `/people` | **People** | Contributors with their roles and contribution counts. |
 | `/people/[login]` | **Person profile** | One person's code changes (with reasoning), authored PRs, reviews and participation. |
