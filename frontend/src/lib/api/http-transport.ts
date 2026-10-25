@@ -4,7 +4,7 @@
  * Endpoints follow the plan (§"API Integration"):
  *   POST /api/v1/ask
  *   GET  /api/v1/evidence/{evidence_id}
- *   GET  /api/v1/graph/path/{decision_id}
+ *   GET  /api/v1/decisions/{decision_id}   (detail incl. graph_path)
  *
  * The following are UI-driven extensions: the decision timeline needs more than
  * a single answer returns, and the people / changes screens need attribution
@@ -77,10 +77,12 @@ export function createHttpClient(): WhyCodeClient {
     },
 
     async getGraphPath(decisionId: string): Promise<GraphPath> {
-      const payload = await requestJson<unknown>(
-        `/api/v1/graph/path/${encodeURIComponent(decisionId)}`,
+      // The backend has no /graph/path route; the decision detail carries
+      // the same path as a list of labels, which coerceGraphPath expands.
+      const payload = await requestJson<{ graph_path?: unknown }>(
+        `/api/v1/decisions/${encodeURIComponent(decisionId)}`,
       );
-      const path = coerceGraphPath(payload);
+      const path = coerceGraphPath(payload?.graph_path);
       if (!path) {
         throw new Error(`No graph path found for decision ${decisionId}`);
       }
