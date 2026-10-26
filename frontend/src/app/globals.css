@@ -2,16 +2,19 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
   --font-mono: var(--font-jetbrains-mono);
   --font-heading: var(--font-inter);
-  --shadow-soft: 0 16px 40px -16px rgb(38 23 21 / 0.22);
-  --shadow-lift: 0 8px 24px -10px rgb(38 23 21 / 0.18);
+  
+  /* Neumorphic shadow system */
+  --shadow-neumorph-raised: 6px 6px 16px rgba(0,0,0,0.08), -4px -4px 12px rgba(255,255,255,0.7);
+  --shadow-neumorph-inset: inset 3px 3px 8px rgba(0,0,0,0.06), inset -2px -2px 6px rgba(255,255,255,0.6);
+  --shadow-floating: 0 4px 20px rgba(0,0,0,0.06);
+  --shadow-floating-lg: 0 8px 32px rgba(0,0,0,0.08);
+  
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -51,83 +54,101 @@
 }
 
 /*
- * Light theme — the default look (design reference: warm "satin" chat UI).
- * Warm beige ground, pale-cream surfaces, near-black-brown text and a
- * caramel-orange accent. Body text contrast stays >= 4.5:1.
+ * Light-only theme — warm neumorphic CodeEase design
+ * Matches UI Reference: cream/beige background, amber accents, dark code blocks
  */
 :root {
-  --background: #e9dfd3;
-  --foreground: #261715;
-  --card: #fbf7f1;
-  --card-foreground: #261715;
-  --popover: #fbf7f1;
-  --popover-foreground: #261715;
-  --primary: #bc651c;
-  --primary-foreground: #ffffff;
-  --secondary: #efe5d8;
-  --secondary-foreground: #261715;
-  --muted: #efe5d8;
-  --muted-foreground: #65544c;
-  --accent: #f3e9dc;
-  --accent-foreground: #261715;
-  --destructive: #b3261e;
-  --border: #dcc9b8;
-  --input: #cdb49e;
-  --ring: #bc651c;
-  --chart-1: #bc651c;
-  --chart-2: #7d9b5a;
-  --chart-3: #974117;
-  --chart-4: #c99a2e;
-  --chart-5: #b5526b;
+  --background: #FFFFFF;
+  --foreground: #242424;
+  --card: #F2EEE5;
+  --card-foreground: #242424;
+  --popover: #F2EEE5;
+  --popover-foreground: #242424;
+  
+  /* Amber/golden-orange primary accent from brand palette */
+  --primary: #CC8D51;
+  --primary-foreground: #FFFFFF;
+  --primary-gradient-start: #CC8D51;
+  --primary-gradient-end: #E1A46B;
+  
+  /* Dark charcoal for AI message containers */
+  --ai-container: #2A2A2A;
+  --ai-container-foreground: #F2EEE5;
+  --code-block: #1E1E1E;
+  --code-block-foreground: #F0F0F0;
+  
+  --secondary: #E8E0D6;
+  --secondary-foreground: #242424;
+  --muted: #D6CFC6;
+  --muted-foreground: #6B6B6B;
+  --accent: #E8E0D6;
+  --accent-foreground: #242424;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  
+  --border: #D6CFC6;
+  --input: #E8E0D6;
+  --ring: #CC8D51;
+  
+  --chart-1: #CC8D51;
+  --chart-2: #7EC8A0;
+  --chart-3: #E1A46B;
+  --chart-4: #F5C842;
+  --chart-5: #E08AA5;
+  
   --radius: 1rem;
-  --sidebar: #e3d5c3;
-  --sidebar-foreground: #261715;
-  --sidebar-primary: #bc651c;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f3e9dc;
-  --sidebar-accent-foreground: #261715;
-  --sidebar-border: #d8c3ac;
-  --sidebar-ring: #bc651c;
+  
+  --sidebar: transparent;
+  --sidebar-foreground: #242424;
+  --sidebar-primary: #CC8D51;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #E8E0D6;
+  --sidebar-accent-foreground: #242424;
+  --sidebar-border: #D6CFC6;
+  --sidebar-ring: #CC8D51;
 }
 
-/*
- * Dark theme — the warm counterpart: deep brown-black surfaces, warm cream
- * text, the same caramel accent lifted lighter so it pops on dark. The
- * assistant/code surfaces in the reference design (#261715 family) live here.
- */
+/* Force light mode always — override any dark class */
 .dark {
-  --background: #171210;
-  --foreground: #f0e6dc;
-  --card: #221a15;
-  --card-foreground: #f0e6dc;
-  --popover: #261d17;
-  --popover-foreground: #f0e6dc;
-  --primary: #e09a52;
-  --primary-foreground: #2a1a10;
-  --secondary: #2e241c;
-  --secondary-foreground: #f0e6dc;
-  --muted: #2a211a;
-  --muted-foreground: #bfae9f;
-  --accent: #2e241c;
-  --accent-foreground: #f0e6dc;
-  --destructive: #f26d64;
-  --border: #3a2c21;
-  --input: #4a3828;
-  --ring: #e09a52;
-  --chart-1: #e09a52;
-  --chart-2: #a3c585;
-  --chart-3: #d98a5f;
-  --chart-4: #e3c05c;
-  --chart-5: #e08aa5;
+  --background: #FFFFFF;
+  --foreground: #242424;
+  --card: #F2EEE5;
+  --card-foreground: #242424;
+  --popover: #F2EEE5;
+  --popover-foreground: #242424;
+  --primary: #CC8D51;
+  --primary-foreground: #FFFFFF;
+  --primary-gradient-start: #CC8D51;
+  --primary-gradient-end: #E1A46B;
+  --ai-container: #2A2A2A;
+  --ai-container-foreground: #F2EEE5;
+  --code-block: #1E1E1E;
+  --code-block-foreground: #F0F0F0;
+  --secondary: #E8E0D6;
+  --secondary-foreground: #242424;
+  --muted: #D6CFC6;
+  --muted-foreground: #6B6B6B;
+  --accent: #E8E0D6;
+  --accent-foreground: #242424;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --border: #D6CFC6;
+  --input: #E8E0D6;
+  --ring: #CC8D51;
+  --chart-1: #CC8D51;
+  --chart-2: #7EC8A0;
+  --chart-3: #E1A46B;
+  --chart-4: #F5C842;
+  --chart-5: #E08AA5;
   --radius: 1rem;
-  --sidebar: #1c1512;
-  --sidebar-foreground: #f0e6dc;
-  --sidebar-primary: #e09a52;
-  --sidebar-primary-foreground: #2a1a10;
-  --sidebar-accent: #2e241c;
-  --sidebar-accent-foreground: #f0e6dc;
-  --sidebar-border: #3a2c21;
-  --sidebar-ring: #e09a52;
+  --sidebar: transparent;
+  --sidebar-foreground: #242424;
+  --sidebar-primary: #CC8D51;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #E8E0D6;
+  --sidebar-accent-foreground: #242424;
+  --sidebar-border: #D6CFC6;
+  --sidebar-ring: #CC8D51;
 }
 
 @layer base {
@@ -139,19 +160,17 @@
   }
   html {
     @apply font-sans;
-    scroll-padding-top: 4.5rem; /* keep focused content clear of the sticky header */
+    scroll-padding-top: 4.5rem;
   }
   h1,
   h2,
   h3 {
     @apply font-heading tracking-tight;
   }
-  /* Clickable affordance for every enabled control (design-system rule). */
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]) {
     @apply cursor-pointer;
   }
-  /* Respect reduced-motion for every decorative animation we ship. */
   @media (prefers-reduced-motion: reduce) {
     *,
     ::before,
@@ -164,6 +183,7 @@
   }
 }
 
+/* Animation keyframes */
 @keyframes why-rise-in {
   from {
     opacity: 0;
@@ -184,39 +204,417 @@
   }
 }
 
-/* Subtle entrance motion (design-system "motion: subtle"). */
+@keyframes why-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Grid animation keyframes - drift effect */
+@keyframes grid-drift {
+  0% {
+    background-position: 0px 0px;
+  }
+  50% {
+    background-position: 10px 10px;
+  }
+  100% {
+    background-position: 0px 0px;
+  }
+}
+
+/* Custom thin scrollbar for file tree */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground);
+  opacity: 0.3;
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+  opacity: 0.5;
+}
+
+/* For Firefox */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted-foreground) transparent;
+}
+
+/* Wave animations for flowing water effect */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes wave-float {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-8px) translateX(10px) rotate(1deg);
+  }
+  50% {
+    transform: translateY(-15px) translateX(0px) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-8px) translateX(-10px) rotate(-1deg);
+  }
+}
+
+@keyframes wave-slow {
+  0% {
+    transform: translateX(0) translateY(0);
+  }
+  50% {
+    transform: translateX(-25px) translateY(-10px);
+  }
+  100% {
+    transform: translateX(0) translateY(0);
+  }
+}
+
+@keyframes wave-medium {
+  0% {
+    transform: translateX(0) translateY(0);
+  }
+  50% {
+    transform: translateX(25px) translateY(10px);
+  }
+  100% {
+    transform: translateX(0) translateY(0);
+  }
+}
+
+@keyframes wave-fast {
+  0% {
+    transform: translateX(0) translateY(0) scale(1);
+  }
+  50% {
+    transform: translateX(-15px) translateY(5px) scale(1.02);
+  }
+  100% {
+    transform: translateX(0) translateY(0) scale(1);
+  }
+}
+
+@keyframes wave-flow {
+  0% {
+    d: path("M0,200 C320,250 480,150 720,200 C960,250 1120,150 1440,200 L1440,800 L0,800 Z");
+  }
+  33% {
+    d: path("M0,180 C320,150 480,230 720,180 C960,150 1120,230 1440,180 L1440,800 L0,800 Z");
+  }
+  66% {
+    d: path("M0,220 C320,200 480,180 720,220 C960,200 1120,180 1440,220 L1440,800 L0,800 Z");
+  }
+  100% {
+    d: path("M0,200 C320,250 480,150 720,200 C960,250 1120,150 1440,200 L1440,800 L0,800 Z");
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(204, 141, 81, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(204, 141, 81, 0.4);
+  }
+}
+
+/* Utility animations */
 @utility animate-rise {
-  animation: why-rise-in 350ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: why-rise-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @utility animate-fade {
-  animation: why-fade-in 250ms ease-out both;
+  animation: why-fade-in 200ms ease-out both;
 }
 
-/* Minimal, intentional glow reserved for the primary CTA. */
-@utility glow-primary {
+@utility animate-scale {
+  animation: why-scale-in 250ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@utility animate-wave {
+  animation: wave-float 6s ease-in-out infinite;
+}
+
+@utility animate-shimmer {
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@utility animate-wave-slow {
+  animation: wave-slow 18s ease-in-out infinite;
+}
+
+@utility animate-wave-medium {
+  animation: wave-medium 14s ease-in-out infinite reverse;
+}
+
+@utility animate-wave-fast {
+  animation: wave-fast 10s ease-in-out infinite;
+}
+
+/* CSS Wave layers */
+.wave-container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.wave {
+  position: absolute;
+  width: 200%;
+  height: 100%;
+  background-repeat: repeat-x;
+  background-size: 50% 100%;
+}
+
+.wave-1 {
+  bottom: -20%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(232, 160, 48, 0.08) 25%,
+    rgba(245, 239, 230, 0.15) 50%,
+    rgba(232, 160, 48, 0.08) 75%,
+    transparent 100%
+  );
+  animation: wave-slow 18s linear infinite;
+  opacity: 0.6;
+  border-radius: 50% 50% 0 0;
+  filter: blur(20px);
+}
+
+.wave-2 {
+  bottom: -15%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(240, 230, 220, 0.12) 25%,
+    rgba(232, 160, 48, 0.06) 50%,
+    rgba(240, 230, 220, 0.12) 75%,
+    transparent 100%
+  );
+  animation: wave-medium 14s linear infinite reverse;
+  opacity: 0.5;
+  border-radius: 50% 50% 0 0;
+  filter: blur(15px);
+}
+
+.wave-3 {
+  bottom: -10%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(245, 239, 230, 0.1) 25%,
+    rgba(232, 160, 48, 0.04) 50%,
+    rgba(245, 239, 230, 0.1) 75%,
+    transparent 100%
+  );
+  animation: wave-fast 10s linear infinite;
+  opacity: 0.4;
+  border-radius: 50% 50% 0 0;
+  filter: blur(25px);
+}
+
+.wave-4 {
+  bottom: -5%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(232, 160, 48, 0.05) 0%,
+    transparent 70%
+  );
+  animation: wave-slow 20s ease-in-out infinite;
+  opacity: 0.3;
+  filter: blur(30px);
+}
+
+/* Dark mode wave adjustments */
+.dark .wave-1 {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(245, 179, 71, 0.05) 25%,
+    rgba(58, 47, 38, 0.2) 50%,
+    rgba(245, 179, 71, 0.05) 75%,
+    transparent 100%
+  );
+}
+
+.dark .wave-2 {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(42, 33, 26, 0.15) 25%,
+    rgba(245, 179, 71, 0.03) 50%,
+    rgba(42, 33, 26, 0.15) 75%,
+    transparent 100%
+  );
+}
+
+.dark .wave-3 {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(58, 47, 38, 0.1) 25%,
+    rgba(245, 179, 71, 0.02) 50%,
+    rgba(58, 47, 38, 0.1) 75%,
+    transparent 100%
+  );
+}
+
+.dark .wave-4 {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(245, 179, 71, 0.03) 0%,
+    transparent 70%
+  );
+}
+
+/* Neumorphic shadows */
+.shadow-neumorph {
+  box-shadow: var(--shadow-neumorph-raised);
+}
+
+.shadow-neumorph-inset {
+  box-shadow: var(--shadow-neumorph-inset);
+}
+
+.shadow-floating {
+  box-shadow: var(--shadow-floating);
+}
+
+.shadow-floating-lg {
+  box-shadow: var(--shadow-floating-lg);
+}
+
+/* Gradient utilities */
+.bg-primary-gradient {
+  background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+}
+
+/* 3D Satin wave background — soft flowing shapes matching the reference */
+.bg-waves {
+  background-color: #C4B5A3;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 8% 30%, rgba(225, 164, 107, 0.35) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 85% 15%, rgba(242, 238, 229, 0.4) 0%, transparent 55%),
+    radial-gradient(ellipse 90% 70% at 70% 85%, rgba(225, 164, 107, 0.25) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 45% at 25% 80%, rgba(242, 238, 229, 0.35) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 35% at 50% 50%, rgba(204, 141, 81, 0.08) 0%, transparent 50%);
+}
+
+/* Satin backdrop for hero/thinking states */
+.bg-satin {
+  background:
+    radial-gradient(ellipse 80% 60% at 10% 25%, rgba(225, 164, 107, 0.3) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 80% 70%, rgba(242, 238, 229, 0.35) 0%, transparent 50%),
+    radial-gradient(ellipse 70% 60% at 60% 10%, rgba(204, 141, 81, 0.12) 0%, transparent 55%);
+}
+
+/* Glassmorphism effect */
+.glass-effect {
+  background: rgba(242, 238, 229, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Primary glow for CTAs */
+.glow-primary {
   box-shadow:
-    0 0 0 1px color-mix(in oklab, var(--primary) 45%, transparent),
-    0 0 28px -10px var(--primary);
+    0 0 0 1px color-mix(in oklab, var(--primary) 35%, transparent),
+    0 0 20px -8px var(--primary);
 }
 
-/* Faint grid backdrop for the ask hero. */
-@utility bg-grid {
-  background-image:
-    linear-gradient(to right, color-mix(in oklab, var(--border) 55%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in oklab, var(--border) 55%, transparent) 1px, transparent 1px);
-  background-size: 2.5rem 2.5rem;
+.glow-primary-strong {
+  animation: pulse-glow 2s ease-in-out infinite;
 }
 
-/*
- * Soft "satin fold" backdrop from the design reference: large, diffused
- * diagonal light folds over the warm ground. Built from theme tokens so the
- * dark theme gets the same folds in shadow instead of light.
- */
-@utility bg-satin {
-  background-image:
-    radial-gradient(90% 70% at 12% -10%, color-mix(in oklab, var(--foreground) 7%, transparent) 0%, transparent 55%),
-    radial-gradient(70% 55% at 88% 8%, color-mix(in oklab, var(--primary) 13%, transparent) 0%, transparent 60%),
-    radial-gradient(110% 90% at 78% 108%, color-mix(in oklab, var(--primary) 9%, transparent) 0%, transparent 55%),
-    radial-gradient(60% 50% at 30% 90%, color-mix(in oklab, var(--foreground) 5%, transparent) 0%, transparent 60%);
+/* Message container styles */
+.ai-message-container {
+  background: var(--ai-container);
+  color: var(--ai-container-foreground);
+  border-radius: 1rem;
+  padding: 1.25rem;
+}
+
+.code-block-container {
+  background: var(--code-block);
+  color: var(--code-block-foreground);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+/* Hover lift effect */
+.hover-lift {
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-floating-lg);
+}
+
+/* Input pill style */
+.input-pill {
+  border-radius: 9999px;
+  padding: 0.75rem 1.5rem;
+  background: #F2EEE5;
+  border: 1px solid rgba(214, 207, 198, 0.6);
+}
+
+/* Shadow lift for user message bubbles */
+.shadow-lift {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* Scroll styles */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(204, 141, 81, 0.25);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(204, 141, 81, 0.45);
+}
+
+/* Premium plan card gradient */
+.premium-card {
+  background: linear-gradient(135deg, #CC8D51 0%, #E1A46B 100%);
+  color: white;
+  border-radius: 1rem;
+  padding: 1.25rem;
 }

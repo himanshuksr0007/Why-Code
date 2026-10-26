@@ -30,6 +30,14 @@ export function ConfidenceBadge({
   className?: string;
 }) {
   const tone = CONFIDENCE[confidence];
+  if (!tone) {
+    // Fallback for unknown confidence levels
+    return (
+      <Badge variant="outline" className={cn("gap-1", "border-border bg-muted text-muted-foreground", className)}>
+        {confidence}
+      </Badge>
+    );
+  }
   return (
     <Badge variant="outline" className={cn("gap-1", tone.className, className)}>
       {tone.label}
@@ -45,6 +53,14 @@ export function AnswerStatusBadge({
   className?: string;
 }) {
   const tone = ANSWER_STATUS[status];
+  if (!tone) {
+    // Fallback for unknown statuses
+    return (
+      <Badge variant="outline" className={cn("gap-1", "border-border bg-muted text-muted-foreground", className)}>
+        {status}
+      </Badge>
+    );
+  }
   return (
     <Badge variant="outline" className={cn("gap-1", tone.className, className)}>
       {tone.label}
@@ -60,6 +76,14 @@ export function DecisionStatusBadge({
   className?: string;
 }) {
   const tone = DECISION_STATUS[status];
+  if (!tone) {
+    // Fallback for unknown statuses
+    return (
+      <Badge variant="outline" className={cn("gap-1", "border-border bg-muted text-muted-foreground", className)}>
+        {status}
+      </Badge>
+    );
+  }
   return (
     <Badge variant="outline" className={cn("gap-1", tone.className, className)}>
       {tone.label}
@@ -89,6 +113,14 @@ export function ChangeKindBadge({
   className?: string;
 }) {
   const tone = CHANGE_KIND[kind];
+  if (!tone) {
+    // Fallback for unknown change kinds
+    return (
+      <Badge variant="outline" className={cn("gap-1", "border-border bg-muted text-muted-foreground", className)}>
+        {kind}
+      </Badge>
+    );
+  }
   return (
     <Badge variant="outline" className={cn("gap-1", tone.className, className)}>
       {tone.label}

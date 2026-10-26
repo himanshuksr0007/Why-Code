@@ -32,7 +32,7 @@ export function ThinkingIndicator({ className }: { className?: string }) {
       role="status"
       aria-live="polite"
       className={cn(
-        "flex items-start gap-3 rounded-xl border border-border/70 bg-card p-4",
+        "flex items-start gap-3 rounded-2xl bg-card shadow-neumorph p-4",
         className,
       )}
     >
@@ -49,7 +49,7 @@ export function ThinkingIndicator({ className }: { className?: string }) {
         ))}
       </span>
       <div className="min-w-0">
-        <p aria-hidden="true" className="font-heading text-sm font-medium">
+        <p aria-hidden="true" className="font-heading text-sm font-medium text-foreground">
           Thinking…
         </p>
         <p aria-hidden="true" className="mt-0.5 text-xs text-muted-foreground">

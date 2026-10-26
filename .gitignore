@@ -8,3 +8,9 @@ artifacts/
 .env
 node_modules/
 .next/
+*.egg-info/
+*.md
+start.sh
+start.ps1
+Ui Ref/
+.gitignore

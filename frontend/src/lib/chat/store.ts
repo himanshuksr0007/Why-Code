@@ -61,6 +61,12 @@ let snapshot: ChatSnapshot = SERVER_SNAPSHOT;
 
 const listeners = new Set<() => void>();
 
+/**
+ * A private in-memory chat used while incognito mode is enabled. It is never
+ * added to `chats` and is therefore never written to localStorage.
+ */
+let privateChat: Chat | null = null;
+
 function makeId(prefix: string): string {
   const random =
     typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -160,6 +166,83 @@ function newTurn(question: string, repo: string): ChatTurn {
   };
 }
 
+export function createIncognitoChat(
+  repo: string,
+  question: string,
+): { chat: Chat; turnId: string } {
+  const now = new Date().toISOString();
+  const turn = newTurn(question, repo);
+  const chat: Chat = {
+    id: makeId("incognito"),
+    title: titleFromQuestion(question),
+    repo,
+    created_at: now,
+    updated_at: now,
+    turns: [turn],
+  };
+  privateChat = chat;
+  return { chat, turnId: turn.id };
+}
+
+/** Returns the current private conversation without persisting it. */
+export function getIncognitoChat(chatId: string | null): Chat | null {
+  return privateChat?.id === chatId ? privateChat : null;
+}
+
+/** Append a turn to the ephemeral incognito conversation. */
+export function addIncognitoTurn(
+  chatId: string,
+  question: string,
+  repo: string,
+): string | null {
+  if (!privateChat || privateChat.id !== chatId) return null;
+  const turn = newTurn(question, repo);
+  privateChat = {
+    ...privateChat,
+    repo,
+    updated_at: turn.asked_at,
+    turns: [...privateChat.turns, turn],
+  };
+  return turn.id;
+}
+
+/** Resolve a private turn without writing conversation data to storage. */
+export function resolveIncognitoTurn(
+  chatId: string,
+  turnId: string,
+  response: AskResponse,
+): void {
+  if (!privateChat || privateChat.id !== chatId) return;
+  privateChat = {
+    ...privateChat,
+    updated_at: new Date().toISOString(),
+    turns: privateChat.turns.map((turn) =>
+      turn.id === turnId ? { ...turn, response, error: null } : turn,
+    ),
+  };
+}
+
+/** Mark a failed private turn without writing conversation data to storage. */
+export function failIncognitoTurn(
+  chatId: string,
+  turnId: string,
+  message: string,
+): void {
+  if (!privateChat || privateChat.id !== chatId) return;
+  privateChat = {
+    ...privateChat,
+    updated_at: new Date().toISOString(),
+    turns: privateChat.turns.map((turn) =>
+      turn.id === turnId ? { ...turn, response: null, error: message } : turn,
+    ),
+  };
+}
+
+/** Drop the in-memory incognito conversation as soon as private mode ends. */
+export function discardIncognitoChat(): void {
+  privateChat = null;
+}
+
 /** Create a chat with its first (pending) turn. Returns the fresh chat. */
 export function createChat(
   repo: string,
@@ -244,6 +327,20 @@ export function deleteChat(chatId: string): void {
   ensureLoaded();
   chats = chats.filter((chat) => chat.id !== chatId);
   if (activeId === chatId) activeId = null;
+  emit();
+}
+
+export function updateChatTitle(chatId: string, newTitle: string): void {
+  ensureLoaded();
+  chats = chats.map((chat) =>
+    chat.id === chatId
+      ? {
+          ...chat,
+          title: newTitle,
+          updated_at: new Date().toISOString(),
+        }
+      : chat,
+  );
   emit();
 }
 

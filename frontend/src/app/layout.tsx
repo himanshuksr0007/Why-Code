@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 
 import { AppShell } from "@/components/app-shell";
 import { Providers } from "@/components/providers";
+import { GridBackground } from "@/components/grid-background";
 
 import "./globals.css";
 
@@ -20,8 +21,8 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Why-Code — evidence explorer",
-    template: "%s · Why-Code",
+    default: "CodeEase — AI Workspace",
+    template: "%s · CodeEase",
   },
   description:
     "Ask why a codebase works the way it does, and see the pull requests, reviews and commits that decided it.",
@@ -31,10 +32,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      suppressHydrationWarning
       className={`${inter.variable} ${jetbrainsMono.variable} h-full`}
     >
       <body className="min-h-full antialiased">
+        <GridBackground />
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>

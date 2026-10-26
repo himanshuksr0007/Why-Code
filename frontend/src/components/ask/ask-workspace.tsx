@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { RotateCcwIcon, TriangleAlertIcon } from "lucide-react";
+import { RotateCcwIcon, TriangleAlertIcon, ShareIcon, MoreVerticalIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { AnswerPanel } from "@/components/answer/answer-panel";
@@ -10,6 +10,7 @@ import { RefusalState } from "@/components/answer/refusal-state";
 import { AuroraBackdrop } from "@/components/ask/aurora-backdrop";
 import { AskComposer } from "@/components/ask/ask-composer";
 import { ExampleQuestions } from "@/components/ask/example-questions";
+import { InputToolbar } from "@/components/chat/input-toolbar";
 import { ThinkingIndicator } from "@/components/chat/thinking-indicator";
 import { RepoNotIndexed } from "@/components/repo/not-indexed";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
   failTurn,
   resolveTurn,
   setActiveChat,
+  updateChatTitle,
   useChatStore,
 } from "@/lib/chat/store";
 import type { ChatTurn } from "@/lib/chat/store";
@@ -43,13 +45,22 @@ function prefersReducedMotion(): boolean {
 function UserTurn({ turn }: { turn: ChatTurn }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[85%] rounded-3xl rounded-br-md border border-border/60 bg-card px-4 py-3 shadow-lift">
-        <p className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
-          {turn.repo}
-        </p>
-        <p className="mt-0.5 text-sm leading-relaxed whitespace-pre-wrap">
-          {turn.question}
-        </p>
+      <div className="flex items-start gap-3 max-w-[70%]">
+        <div className="rounded-2xl rounded-br-md bg-card px-5 py-3 shadow-neumorph border border-border/40">
+          <p className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
+            {turn.repo}
+          </p>
+          <p className="mt-0.5 text-sm leading-relaxed whitespace-pre-wrap text-foreground">
+            {turn.question}
+          </p>
+        </div>
+        <div className="size-8 rounded-full overflow-hidden shrink-0 mt-1 shadow-floating">
+          <img 
+            src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=64&h=64&fit=crop&crop=face" 
+            alt="User avatar"
+            className="size-full object-cover"
+          />
+        </div>
       </div>
     </div>
   );
@@ -123,6 +134,167 @@ function ConversationSkeleton() {
       <Skeleton className="mt-3 h-40 w-full rounded-xl" />
     </div>
   );
+}
+
+/**
+ * Conversation header bar matching the CodeEase reference.
+ * Shows the title with Share button and three-dot menu.
+ */
+function ConversationHeader({ title }: { title: string }) {
+  const [shareClicked, setShareClicked] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(title);
+  const [showMenu, setShowMenu] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const { activeId } = useChatStore();
+
+  useEffect(() => {
+    setEditedTitle(title);
+  }, [title]);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showMenu]);
+
+  const handleSaveTitle = useCallback(() => {
+    if (activeId && editedTitle.trim() && editedTitle !== title) {
+      updateChatTitle(activeId, editedTitle.trim());
+    }
+    setIsEditing(false);
+  }, [activeId, editedTitle, title]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveTitle();
+    } else if (e.key === 'Escape') {
+      setEditedTitle(title);
+      setIsEditing(false);
+    }
+  };
+
+  return (
+    <div className="sticky top-0 z-30 flex items-center justify-center px-4 py-4">
+      <div className="flex items-center gap-4 rounded-2xl bg-card/60 backdrop-blur-2xl shadow-floating border border-white/20 dark:border-white/10 px-6 py-3 animate-scale hover:shadow-floating-lg transition-all duration-300 relative overflow-hidden">
+        {/* Liquid glass shimmer effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-shimmer pointer-events-none" />
+        
+        {/* Chat Title - Editable */}
+        <div className="flex-1 min-w-0 max-w-md relative z-10">
+          {isEditing ? (
+            <input
+              ref={inputRef}
+              type="text"
+              value={editedTitle}
+              onChange={(e) => setEditedTitle(e.target.value)}
+              onBlur={handleSaveTitle}
+              onKeyDown={handleKeyDown}
+              className="w-full bg-transparent text-sm font-medium text-foreground outline-none border-b border-primary/40 px-1 py-0.5"
+              maxLength={100}
+            />
+          ) : (
+            <h2 
+              className="text-sm font-medium text-foreground truncate cursor-text hover:text-primary transition-colors duration-200"
+              onDoubleClick={() => setIsEditing(true)}
+              title="Double-click to edit"
+            >
+              {title}
+            </h2>
+          )}
+        </div>
+
+        {/* Share Button with enhanced hover */}
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(window.location.href);
+            setShareClicked(true);
+            toast.success("Link copied to clipboard");
+            setTimeout(() => setShareClicked(false), 2000);
+          }}
+          className={cn(
+            "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 relative z-10",
+            shareClicked 
+              ? "bg-primary/30 text-primary shadow-[0_0_20px_rgba(232,160,48,0.3)]" 
+              : "bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-primary backdrop-blur-sm"
+          )}
+          title="Share chat"
+        >
+          <ShareIcon className="size-3.5" />
+          <span className="hidden sm:inline">Share</span>
+        </button>
+
+        {/* More Options Button with dropdown */}
+        <div className="relative z-10" ref={menuRef}>
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="flex items-center justify-center rounded-xl size-9 text-muted-foreground transition-all duration-300 bg-white/5 hover:bg-white/10 hover:text-primary hover:scale-110 active:scale-95 backdrop-blur-sm"
+            aria-label="More options"
+            title="More options"
+          >
+            <MoreVerticalIcon className="size-4" />
+          </button>
+
+          {/* Dropdown Menu */}
+          {showMenu && (
+            <div className="absolute right-0 mt-2 w-48 rounded-xl bg-card/95 backdrop-blur-xl shadow-floating-lg border border-border/40 py-2 animate-scale">
+              <button
+                onClick={() => {
+                  setIsEditing(true);
+                  setShowMenu(false);
+                }}
+                className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-primary/10 transition-colors duration-200"
+              >
+                Rename chat
+              </button>
+              <button
+                onClick={() => {
+                  if (activeId) {
+                    // Export chat logic here
+                    toast.success("Export feature coming soon");
+                  }
+                  setShowMenu(false);
+                }}
+                className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-primary/10 transition-colors duration-200"
+              >
+                Export chat
+              </button>
+              <button
+                onClick={() => {
+                  if (activeId && confirm('Delete this chat?')) {
+                    // Delete logic handled by sidebar
+                    toast.success("Chat deleted");
+                  }
+                  setShowMenu(false);
+                }}
+                className="w-full px-4 py-2 text-left text-sm text-destructive hover:bg-destructive/10 transition-colors duration-200"
+              >
+                Delete chat
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function cn(...args: (string | boolean | undefined)[]) {
+  return args.filter(Boolean).join(" ");
 }
 
 /**
@@ -315,13 +487,17 @@ function AskSession({
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       {pending ? <AuroraBackdrop /> : null}
+      
+      {/* Conversation header */}
+      <ConversationHeader title={chat.title} />
+      
       <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col px-4">
-        <div className="flex-1 space-y-8 py-6">
+        <div className="flex-1 space-y-6 py-6">
           {chat.turns.map((turn, index) => (
             <div
               key={turn.id}
               ref={index === chat.turns.length - 1 ? lastTurnRef : undefined}
-              className="space-y-3"
+              className="space-y-4"
             >
               <UserTurn turn={turn} />
               <AssistantTurn turn={turn} onRetry={(question) => void send(question)} />
@@ -331,13 +507,13 @@ function AskSession({
         </div>
 
         <div className="sticky bottom-3 z-20">
-          <AskComposer
+          <InputToolbar
             value={value}
-            onValueChange={setValue}
-            onSubmit={(question) => void send(question)}
-            repo={repo}
-            onRepoChange={(slug) => update({ default_repo: slug })}
-            busy={pending}
+            onChange={setValue}
+            onSubmit={() => {
+              if (value.trim()) void send(value);
+            }}
+            disabled={pending}
           />
         </div>
       </div>

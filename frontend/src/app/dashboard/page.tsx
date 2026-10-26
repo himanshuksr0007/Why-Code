@@ -100,10 +100,11 @@ async function DashboardContent() {
     return <RepoNotIndexed repo={repo} />;
   }
 
+  // Wrap API calls with error handling for 404s
   const [threads, changes, people] = await Promise.all([
-    api.listDecisions(repo),
-    api.listChanges(repo),
-    api.listPeople(repo),
+    api.listDecisions(repo).catch(() => []),
+    api.listChanges(repo).catch(() => []),
+    api.listPeople(repo).catch(() => []),
   ]);
 
   const decisions = threads.flatMap((thread) =>

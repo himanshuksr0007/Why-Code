@@ -2,12 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
 import {
   ChevronsUpDownIcon,
-  MoonIcon,
   SettingsIcon,
-  SunIcon,
   Trash2Icon,
   UserRoundIcon,
 } from "lucide-react";
@@ -25,7 +22,7 @@ import { clearChats, useChatStore } from "@/lib/chat/store";
 
 /**
  * The account row at the bottom of the sidebar. There is no auth in this demo,
- * so it exposes the local profile, a theme switch and history cleanup.
+ * so it exposes the local profile and history cleanup.
  */
 export function UserMenu({
   displayName,
@@ -35,14 +32,13 @@ export function UserMenu({
   handle: string;
 }) {
   const { chats } = useChatStore();
-  const { setTheme } = useTheme();
   const router = useRouter();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="Open profile menu"
-        className="flex w-full min-w-0 items-center gap-2 rounded-lg p-1.5 text-left transition-colors outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring/50"
+        className="flex w-full min-w-0 items-center gap-2 rounded-lg p-1.5 text-left transition-colors outline-none hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring/50"
       >
         <PersonAvatar login={handle || displayName} />
         <span className="min-w-0 flex-1">
@@ -75,16 +71,6 @@ export function UserMenu({
         <DropdownMenuItem render={<Link href="/settings" />}>
           <SettingsIcon aria-hidden="true" />
           Settings
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => {
-            const isDark = document.documentElement.classList.contains("dark");
-            setTheme(isDark ? "light" : "dark");
-          }}
-        >
-          <SunIcon className="hidden dark:block" aria-hidden="true" />
-          <MoonIcon className="block dark:hidden" aria-hidden="true" />
-          Toggle theme
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
