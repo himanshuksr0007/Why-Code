@@ -67,8 +67,20 @@ export function AnswerPanel({ response }: { response: AskResponse }) {
       className="animate-rise overflow-hidden rounded-3xl border border-border/60 bg-card shadow-lift"
     >
       <div className="flex flex-wrap items-center gap-2 border-b border-border/70 px-4 py-3">
-        <AnswerStatusBadge status={response.status} />
-        <ConfidenceBadge confidence={response.confidence} />
+        <div className="flex items-center gap-2 mr-1">
+          <div className="size-6 rounded-full overflow-hidden shrink-0 border border-border/60 shadow-xs bg-muted">
+            <img
+              src="/WhyAgent.png"
+              alt="WhyAgent logo"
+              className="size-full object-cover"
+            />
+          </div>
+          <span className="text-xs font-semibold text-foreground tracking-tight">
+            WhyAgent
+          </span>
+        </div>
+        {response.status ? <AnswerStatusBadge status={response.status} /> : null}
+        {response.confidence ? <ConfidenceBadge confidence={response.confidence} /> : null}
         {latency ? (
           <span className="text-xs text-muted-foreground">{latency}</span>
         ) : null}

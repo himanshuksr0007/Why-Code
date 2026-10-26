@@ -36,22 +36,31 @@ export function ThinkingIndicator({ className }: { className?: string }) {
         className,
       )}
     >
-      <span
-        aria-hidden="true"
-        className="mt-1.5 flex shrink-0 items-center gap-1"
-      >
-        {[0, 1, 2].map((index) => (
+      <div className="size-8 rounded-full overflow-hidden shrink-0 border border-border/60 shadow-xs bg-muted mt-0.5">
+        <img
+          src="/WhyAgent.png"
+          alt="WhyAgent logo"
+          className="size-full object-cover"
+        />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p aria-hidden="true" className="font-heading text-sm font-medium text-foreground">
+            WhyAgent is thinking…
+          </p>
           <span
-            key={index}
-            className="size-1.5 rounded-full bg-primary motion-safe:animate-bounce"
-            style={{ animationDelay: `${index * 160}ms` }}
-          />
-        ))}
-      </span>
-      <div className="min-w-0">
-        <p aria-hidden="true" className="font-heading text-sm font-medium text-foreground">
-          Thinking…
-        </p>
+            aria-hidden="true"
+            className="flex shrink-0 items-center gap-1"
+          >
+            {[0, 1, 2].map((index) => (
+              <span
+                key={index}
+                className="size-1.5 rounded-full bg-primary motion-safe:animate-bounce"
+                style={{ animationDelay: `${index * 160}ms` }}
+              />
+            ))}
+          </span>
+        </div>
         <p aria-hidden="true" className="mt-0.5 text-xs text-muted-foreground">
           {STEPS[step]}
         </p>

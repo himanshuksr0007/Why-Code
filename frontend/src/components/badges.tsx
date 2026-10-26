@@ -29,6 +29,7 @@ export function ConfidenceBadge({
   confidence: Confidence;
   className?: string;
 }) {
+  if (!confidence) return null;
   const tone = CONFIDENCE[confidence];
   if (!tone) {
     // Fallback for unknown confidence levels
@@ -52,6 +53,7 @@ export function AnswerStatusBadge({
   status: AnswerStatus;
   className?: string;
 }) {
+  if (!status) return null;
   const tone = ANSWER_STATUS[status];
   if (!tone) {
     // Fallback for unknown statuses

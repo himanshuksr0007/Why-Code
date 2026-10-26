@@ -54,11 +54,15 @@ function UserTurn({ turn }: { turn: ChatTurn }) {
             {turn.question}
           </p>
         </div>
-        <div className="size-8 rounded-full overflow-hidden shrink-0 mt-1 shadow-floating">
+        <div className="size-8 rounded-full overflow-hidden shrink-0 mt-1 shadow-floating bg-primary/15 border border-primary/20 flex items-center justify-center font-heading text-xs font-semibold text-primary select-none relative">
+          <span className="text-[11px] font-bold">U</span>
           <img 
             src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=64&h=64&fit=crop&crop=face" 
             alt="User avatar"
-            className="size-full object-cover"
+            className="absolute inset-0 size-full object-cover"
+            onError={(e) => {
+              (e.currentTarget as HTMLElement).style.display = "none";
+            }}
           />
         </div>
       </div>

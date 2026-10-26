@@ -43,14 +43,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${inter.variable} ${jetbrainsMono.variable} h-full`}
     >
       <body className="min-h-full antialiased bg-app-gradient relative">
-        <div
-          className="fixed inset-0 -z-20 bg-app-gradient pointer-events-none"
-          aria-hidden="true"
-        />
         <GridBackground />
-        <Providers>
-          <AppShell>{children}</AppShell>
-        </Providers>
+        <div className="relative z-10 min-h-full">
+          <Providers>
+            <AppShell>{children}</AppShell>
+          </Providers>
+        </div>
       </body>
     </html>
   );

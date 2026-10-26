@@ -118,6 +118,10 @@
     radial-gradient(ellipse 70% 60% at 100% 100%, rgba(204, 141, 81, 0.25) 0%, rgba(242, 238, 229, 0.35) 40%, transparent 65%),
     radial-gradient(ellipse 55% 45% at 50% 50%, rgba(225, 164, 107, 0.08) 0%, transparent 60%),
     linear-gradient(135deg, #f6ede3 0%, #ffffff 40%, #faf5ee 75%, #f1e5d8 100%);
+
+  --grid-line: rgba(215, 135, 75, 0.42);
+  --grid-glow-center: rgba(230, 145, 70, 0.16);
+  --grid-glow-mid: rgba(220, 135, 60, 0.04);
 }
 
 /*
@@ -189,6 +193,10 @@
     radial-gradient(ellipse 70% 60% at 100% 100%, rgba(204, 141, 81, 0.12) 0%, rgba(35, 28, 23, 0.5) 40%, transparent 65%),
     radial-gradient(ellipse 55% 45% at 50% 50%, rgba(224, 154, 82, 0.03) 0%, transparent 60%),
     linear-gradient(135deg, #181310 0%, #120e0c 40%, #15100e 75%, #0f0c0a 100%);
+
+  --grid-line: rgba(245, 145, 50, 0.36);
+  --grid-glow-center: rgba(255, 140, 40, 0.18);
+  --grid-glow-mid: rgba(240, 120, 20, 0.05);
 }
 
 @layer base {
