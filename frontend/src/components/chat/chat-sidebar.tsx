@@ -1,35 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
-  MessageSquareIcon,
   SquarePenIcon,
-  Trash2Icon,
   SearchIcon,
-  SettingsIcon,
   LogOutIcon,
   UserIcon,
   LayoutGridIcon,
-  WrenchIcon,
-  CpuIcon,
   PanelLeftOpenIcon,
-  FolderIcon,
-  FileIcon,
-  ChevronRightIcon,
-  ChevronDownIcon,
 } from "lucide-react";
 
 import { PersonAvatar } from "@/components/people/person-avatar";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
-import {
-  deleteChat,
-  setActiveChat,
-  startNewChat,
-  useChatStore,
-} from "@/lib/chat/store";
+import { startNewChat } from "@/lib/chat/store";
 import { useLocalProfile } from "@/lib/local/profile";
-import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 function Logo({ className }: { className?: string }) {
@@ -38,21 +24,21 @@ function Logo({ className }: { className?: string }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="2.2"
       strokeLinecap="round"
+      strokeLinejoin="round"
       className={className}
       aria-hidden="true"
     >
       <circle cx="12" cy="12" r="9" />
-      <line x1="8" y1="8" x2="8" y2="8.01" strokeWidth="2.5" />
-      <line x1="16" y1="8" x2="16" y2="8.01" strokeWidth="2.5" />
-      <path d="M9 15c1 1 2.5 1.5 3 1.5s2-0.5 3-1.5" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <line x1="12" y1="17" x2="12.01" y2="17" strokeWidth="2.5" />
     </svg>
   );
 }
 
 /**
- * The redesigned chat sidebar matching the CodeEase UI reference.
+ * The redesigned chat sidebar matching the WhyCode UI reference.
  * Warm cream cards, amber accent "New Chat" button, nav items with icons,
  * and Log Out link directly below Profile.
  */
@@ -66,18 +52,15 @@ export function ChatSidebar({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { chats, activeId } = useChatStore();
   const { profile } = useLocalProfile();
-  const onChatsRoute = pathname === "/";
 
   if (collapsed) {
     return (
       <div className="flex h-full min-h-0 w-full min-w-0 flex-col items-center bg-transparent text-sidebar-foreground p-3">
         <Link
           href="/dashboard"
-          aria-label="CodeEase dashboard"
-          title="CodeEase dashboard"
+          aria-label="WhyCode dashboard"
+          title="WhyCode dashboard"
           onClick={onNavigate}
           className="flex size-12 items-center justify-center rounded-full bg-primary-gradient text-white shadow-neumorph transition-transform outline-none hover:scale-105 hover-lift"
         >
@@ -114,6 +97,7 @@ export function ChatSidebar({
         </div>
 
         <div className="mt-auto flex w-full flex-col items-center gap-2 py-2">
+          <ThemeToggle />
           <Link
             href="/profile"
             aria-label="Open your profile"
@@ -143,7 +127,7 @@ export function ChatSidebar({
               className="block outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded"
             >
               <h1 className="font-heading text-base font-bold text-foreground tracking-tight">
-                CodeEase
+                WhyCode
               </h1>
             </Link>
           </div>
@@ -214,10 +198,10 @@ export function ChatSidebar({
           </nav>
         </div>
 
-        {/* Log Out - Separate card */}
-        <div className="rounded-2xl bg-card shadow-neumorph p-3 animate-scale" style={{ animationDelay: "100ms" }}>
+        {/* Log Out & Theme Toggle */}
+        <div className="flex items-center justify-between rounded-2xl bg-card shadow-neumorph p-3 animate-scale" style={{ animationDelay: "100ms" }}>
           <button
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-all duration-150"
+            className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-all duration-150"
             onClick={() => {
               // Log out action placeholder
             }}
@@ -225,6 +209,7 @@ export function ChatSidebar({
             <LogOutIcon className="size-4" />
             <span>Log out</span>
           </button>
+          <ThemeToggle />
         </div>
       </div>
     </div>

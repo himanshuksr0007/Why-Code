@@ -118,12 +118,8 @@ export function InputToolbar({
               "flex-1 resize-none bg-transparent text-[15px] leading-relaxed",
               "placeholder:text-muted-foreground/60",
               "focus:outline-none",
-              "min-h-[40px] max-h-[200px] py-2"
+              "min-h-[40px] max-h-[200px] overflow-y-auto py-2"
             )}
-            style={{
-              height: "auto",
-              overflowY: textareaRef.current && textareaRef.current.scrollHeight > 200 ? "auto" : "hidden",
-            }}
             onInput={(e) => {
               const target = e.target as HTMLTextAreaElement;
               target.style.height = "auto";

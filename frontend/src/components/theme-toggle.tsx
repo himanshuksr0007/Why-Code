@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
  * mismatch. The click handler reads the live class list, so the label does not
  * depend on a possibly-undefined resolved theme.
  */
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string }) {
   const { setTheme } = useTheme();
 
   return (
@@ -21,13 +21,14 @@ export function ThemeToggle() {
       size="icon-sm"
       aria-label="Toggle colour theme"
       title="Toggle colour theme"
+      className={className}
       onClick={() => {
         const isDark = document.documentElement.classList.contains("dark");
         setTheme(isDark ? "light" : "dark");
       }}
     >
-      <SunIcon className="hidden dark:block" aria-hidden="true" />
-      <MoonIcon className="block dark:hidden" aria-hidden="true" />
+      <SunIcon className="hidden dark:block size-4 text-primary" aria-hidden="true" />
+      <MoonIcon className="block dark:hidden size-4 text-muted-foreground hover:text-foreground" aria-hidden="true" />
     </Button>
   );
 }

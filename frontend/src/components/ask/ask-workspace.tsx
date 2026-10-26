@@ -137,21 +137,23 @@ function ConversationSkeleton() {
 }
 
 /**
- * Conversation header bar matching the CodeEase reference.
+ * Conversation header bar matching the WhyCode reference.
  * Shows the title with Share button and three-dot menu.
  */
 function ConversationHeader({ title }: { title: string }) {
   const [shareClicked, setShareClicked] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title);
+  const [prevTitle, setPrevTitle] = useState(title);
   const [showMenu, setShowMenu] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const { activeId } = useChatStore();
 
-  useEffect(() => {
+  if (prevTitle !== title) {
+    setPrevTitle(title);
     setEditedTitle(title);
-  }, [title]);
+  }
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -438,7 +440,6 @@ function AskSession({
   if (!chat) {
     return (
       <div className="relative flex w-full flex-1 flex-col">
-        <AuroraBackdrop />
         <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-4 py-10 sm:py-14">
           <div className="text-center">
             <p className="inline-flex items-center rounded-full border border-border/60 bg-card/70 px-2.5 py-1 font-mono text-[11px] tracking-wide text-primary uppercase shadow-lift backdrop-blur-sm">

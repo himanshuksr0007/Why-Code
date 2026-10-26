@@ -12,8 +12,39 @@ import { createHttpClient } from "./http-transport";
 import { createMockClient } from "./mock-transport";
 import type { WhyCodeClient } from "./types";
 
-export const api: WhyCodeClient =
-  API_MODE === "http" ? createHttpClient() : createMockClient();
+function createResilientClient(): WhyCodeClient {
+  const mock = createMockClient();
+  if (API_MODE !== "http") return mock;
+
+  const http = createHttpClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const wrap = <T extends (...args: any[]) => Promise<any>>(
+    httpFn: T,
+    mockFn: T,
+  ): T => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (async (...args: any[]) => {
+      try {
+        return await httpFn(...args);
+      } catch {
+        return await mockFn(...args);
+      }
+    }) as T;
+  };
+
+  return {
+    ask: wrap(http.ask, mock.ask),
+    getEvidence: wrap(http.getEvidence, mock.getEvidence),
+    getGraphPath: wrap(http.getGraphPath, mock.getGraphPath),
+    listDecisions: wrap(http.listDecisions, mock.listDecisions),
+    listChanges: wrap(http.listChanges, mock.listChanges),
+    listPeople: wrap(http.listPeople, mock.listPeople),
+    getPerson: wrap(http.getPerson, mock.getPerson),
+    getPullRequest: wrap(http.getPullRequest, mock.getPullRequest),
+  };
+}
+
+export const api: WhyCodeClient = createResilientClient();
 
 export {
   ACTIVE_REPO_COOKIE,

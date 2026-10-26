@@ -21,20 +21,32 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "CodeEase — AI Workspace",
-    template: "%s · CodeEase",
+    default: "WhyCode — AI Workspace",
+    template: "%s · WhyCode",
   },
   description:
     "Ask why a codebase works the way it does, and see the pull requests, reviews and commits that decided it.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico" },
+    ],
+    apple: "/apple-icon.png",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${inter.variable} ${jetbrainsMono.variable} h-full`}
     >
-      <body className="min-h-full antialiased">
+      <body className="min-h-full antialiased bg-app-gradient relative">
+        <div
+          className="fixed inset-0 -z-20 bg-app-gradient pointer-events-none"
+          aria-hidden="true"
+        />
         <GridBackground />
         <Providers>
           <AppShell>{children}</AppShell>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTheme } from "next-themes";
 import {
   Background,
   BackgroundVariant,
@@ -81,6 +82,7 @@ export function GraphPathView({
   path: GraphPath;
   className?: string;
 }) {
+  const { resolvedTheme } = useTheme();
   const nodes = useMemo<WhyNodeType[]>(
     () =>
       path.nodes.map((node, index) => ({
@@ -120,7 +122,7 @@ export function GraphPathView({
   return (
     <div className={cn("space-y-4", className)}>
       <div
-        className="h-[360px] w-full overflow-hidden rounded-xl border border-border/70 bg-muted/20"
+        className="h-[360px] w-full overflow-hidden rounded-xl border border-border/70 bg-card/60"
         role="img"
         aria-label={`Graph path with ${path.nodes.length} nodes`}
       >
@@ -128,6 +130,7 @@ export function GraphPathView({
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
+          colorMode={resolvedTheme === "dark" ? "dark" : "light"}
           fitView
           fitViewOptions={{ padding: 0.25 }}
           nodesDraggable={false}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTheme } from "next-themes";
 import {
   UserIcon,
   BellIcon,
@@ -13,10 +14,15 @@ import {
   SaveIcon,
   CpuIcon,
   MonitorIcon,
+  MoonIcon,
+  SunIcon,
+  CheckIcon,
   LockIcon,
-  XIcon
+  XIcon,
+  SettingsIcon
 } from "lucide-react";
 import { useLocalProfile } from "@/lib/local/profile";
+import { useMounted } from "@/hooks/use-mounted";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -25,6 +31,8 @@ type TabType = "profile" | "system" | "security" | "appearance";
 
 export default function SettingsPage() {
   const { profile, update } = useLocalProfile();
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const mounted = useMounted();
   const [activeTab, setActiveTab] = useState<TabType>("profile");
   const [displayName, setDisplayName] = useState(profile.display_name || "");
   const [handle, setHandle] = useState(profile.handle || "");
@@ -35,7 +43,6 @@ export default function SettingsPage() {
     mentions: true,
     updates: false
   });
-  const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
   const [language, setLanguage] = useState("en");
   const [autoSave, setAutoSave] = useState(true);
 
@@ -59,7 +66,7 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `codeease-data-${Date.now()}.json`;
+    a.download = `whycode-data-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Data exported successfully");
@@ -82,30 +89,95 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col min-h-0">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border/40 px-6 py-4">
-        <div className="max-w-5xl mx-auto">
-          <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage your account, preferences, and system settings
-          </p>
+    <div className="flex flex-1 flex-col min-h-0 w-full max-w-4xl mx-auto py-6 sm:py-8 md:pl-[67px]">
+      {/* 3D Floating Liquid Glass Bubble Header */}
+      <div className="relative mb-6 overflow-hidden rounded-3xl liquid-glass-bubble p-5 sm:p-6 transition-all duration-300 hover:translate-y-[-2px]">
+        {/* Specular gloss highlights & reflections */}
+        <div
+          className="absolute top-0 inset-x-0 h-1/2 bg-gradient-to-b from-white/75 via-white/25 to-transparent dark:from-white/10 dark:via-white/5 pointer-events-none rounded-t-3xl"
+          aria-hidden="true"
+        />
+        <div
+          className="absolute -top-12 -left-12 size-36 rounded-full bg-primary/20 blur-2xl pointer-events-none"
+          aria-hidden="true"
+        />
+        <div
+          className="absolute -bottom-8 -right-8 size-28 rounded-full bg-[#E1A46B]/25 blur-xl pointer-events-none"
+          aria-hidden="true"
+        />
+
+        {/* Content inside the floating bubble */}
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="relative flex size-12 sm:size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#CC8D51] to-[#E1A46B] text-white shadow-[0_8px_20px_rgba(204,141,81,0.35),inset_0_1.5px_2px_rgba(255,255,255,0.7)] shrink-0">
+              <SettingsIcon className="size-6 sm:size-7 drop-shadow-sm" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h1 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                  Settings
+                </h1>
+                <span className="hidden sm:inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-[11px] font-mono font-medium text-primary uppercase tracking-wider shadow-sm">
+                  Preferences
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                Manage your account, preferences, and system settings
+              </p>
+            </div>
+          </div>
+
+          <div className="hidden md:flex items-center gap-2 rounded-full border border-border/80 bg-card/60 dark:border-white/10 dark:bg-white/5 px-3.5 py-1.5 text-xs text-muted-foreground backdrop-blur-md shadow-sm">
+            <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Active Session</span>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-6 py-8">
-          {/* Tabs */}
-          <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+      {/* Desktop Vertical Navigation Stack in the right empty area */}
+      <nav
+        aria-label="Settings navigation"
+        className="hidden xl:flex fixed top-28 right-6 xl:right-10 2xl:right-16 z-30 flex-col gap-2.5 w-44 xl:w-48"
+      >
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "group flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-all duration-200 text-left w-full shadow-neumorph",
+                isActive
+                  ? "bg-primary text-white shadow-floating font-semibold scale-[1.02]"
+                  : "bg-card/90 text-muted-foreground hover:bg-card hover:text-foreground hover:shadow-floating hover:translate-x-[-2px]"
+              )}
+            >
+              <Icon
+                className={cn(
+                  "size-4 shrink-0 transition-transform duration-200 group-hover:scale-110",
+                  isActive ? "text-white" : "text-muted-foreground group-hover:text-foreground"
+                )}
+              />
+              <span className="truncate">{tab.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="flex-1">
+        <div>
+          {/* Mobile / Tablet Tabs (Hidden on Desktop) */}
+          <div className="flex xl:hidden gap-2 mb-6 overflow-x-auto pb-2">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap",
+                  "flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap shadow-sm",
                   activeTab === tab.id
                     ? "bg-primary text-white shadow-floating"
-                    : "bg-card text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                    : "bg-card/90 text-muted-foreground hover:bg-card hover:text-foreground"
                 )}
               >
                 <tab.icon className="size-4" />
@@ -395,33 +467,81 @@ export default function SettingsPage() {
                     <PaletteIcon className="size-5 text-primary" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-foreground">Theme</h2>
-                    <p className="text-sm text-muted-foreground">Customize the appearance</p>
+                    <h2 className="text-lg font-semibold text-foreground">Theme &amp; Appearance</h2>
+                    <p className="text-sm text-muted-foreground">Select your interface appearance across WhyCode</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {[
-                    { value: "light", label: "Light" },
-                    { value: "dark", label: "Dark" },
-                    { value: "system", label: "System" }
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => {
-                        setTheme(option.value as typeof theme);
-                        toast.success(`Theme changed to ${option.label}`);
-                      }}
-                      className={cn(
-                        "px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200",
-                        theme === option.value
-                          ? "bg-primary text-white shadow-floating"
-                          : "bg-accent/40 hover:bg-accent/60 text-foreground"
-                      )}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+                    {
+                      value: "light",
+                      label: "Light Mode",
+                      icon: SunIcon,
+                      description: "Warm cream & caramel neumorphic theme",
+                    },
+                    {
+                      value: "dark",
+                      label: "Dark Mode",
+                      icon: MoonIcon,
+                      description: "Deep warm obsidian & glowing amber theme",
+                    },
+                    {
+                      value: "system",
+                      label: "System",
+                      icon: MonitorIcon,
+                      description: "Syncs automatically with your device settings",
+                    },
+                  ].map((option) => {
+                    const active = mounted && theme === option.value;
+                    const Icon = option.icon;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setTheme(option.value);
+                          toast.success(`Theme set to ${option.label}`);
+                        }}
+                        className={cn(
+                          "relative flex flex-col items-start p-4 rounded-2xl text-left border transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                          active
+                            ? "border-primary bg-primary/10 text-foreground shadow-floating ring-1 ring-primary/40"
+                            : "border-border/60 bg-card/60 hover:bg-card text-muted-foreground hover:text-foreground shadow-neumorph hover:translate-y-[-1px]"
+                        )}
+                      >
+                        <div className="flex items-center justify-between w-full mb-3">
+                          <div
+                            className={cn(
+                              "flex size-9 items-center justify-center rounded-xl transition-colors",
+                              active
+                                ? "bg-primary text-white"
+                                : "bg-muted text-muted-foreground"
+                            )}
+                          >
+                            <Icon className="size-4" />
+                          </div>
+                          {active && (
+                            <span className="flex items-center gap-1 text-[11px] font-medium text-primary">
+                              <CheckIcon className="size-3.5" />
+                              Active
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-sm font-semibold text-foreground">
+                          {option.label}
+                        </span>
+                        <span className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                          {option.description}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Current effective theme: <strong className="text-foreground capitalize">{mounted ? (resolvedTheme ?? theme) : "..."}</strong></span>
+                  <span>Persisted in browser storage</span>
                 </div>
               </div>
             </div>

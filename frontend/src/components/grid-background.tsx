@@ -62,13 +62,16 @@ export function GridBackground({ className }: { className?: string }) {
     // Draw grid with smooth animations
     const drawGrid = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "#FFFFFF";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const isDark = document.documentElement.classList.contains("dark");
+      const lineWidth = isDark ? 1.5 : 3;
+      const alphaMid = isDark ? "0.22" : "0.5";
+      const alphaEdge = isDark ? "0.06" : "0.2";
 
       // Draw vertical lines
       for (let x = 0; x <= canvas.width; x += gridSize) {
         ctx.beginPath();
-        ctx.lineWidth = 3;
+        ctx.lineWidth = lineWidth;
 
         for (let y = 0; y <= canvas.height; y += 5) {
           const displacement = getDisplacement(x, y);
@@ -84,9 +87,9 @@ export function GridBackground({ className }: { className?: string }) {
 
         // Gradient stroke
         const gradient = ctx.createLinearGradient(x, 0, x + 4, 0);
-        gradient.addColorStop(0, "rgba(204, 141, 81, 0.2)");
-        gradient.addColorStop(0.5, "rgba(225, 164, 107, 0.5)");
-        gradient.addColorStop(1, "rgba(204, 141, 81, 0.2)");
+        gradient.addColorStop(0, `rgba(204, 141, 81, ${alphaEdge})`);
+        gradient.addColorStop(0.5, `rgba(225, 164, 107, ${alphaMid})`);
+        gradient.addColorStop(1, `rgba(204, 141, 81, ${alphaEdge})`);
         ctx.strokeStyle = gradient;
         ctx.stroke();
       }
@@ -94,7 +97,7 @@ export function GridBackground({ className }: { className?: string }) {
       // Draw horizontal lines
       for (let y = 0; y <= canvas.height; y += gridSize) {
         ctx.beginPath();
-        ctx.lineWidth = 3;
+        ctx.lineWidth = lineWidth;
 
         for (let x = 0; x <= canvas.width; x += 5) {
           const displacement = getDisplacement(x, y);
@@ -110,9 +113,9 @@ export function GridBackground({ className }: { className?: string }) {
 
         // Gradient stroke
         const gradient = ctx.createLinearGradient(0, y, 0, y + 4);
-        gradient.addColorStop(0, "rgba(204, 141, 81, 0.2)");
-        gradient.addColorStop(0.5, "rgba(225, 164, 107, 0.5)");
-        gradient.addColorStop(1, "rgba(204, 141, 81, 0.2)");
+        gradient.addColorStop(0, `rgba(204, 141, 81, ${alphaEdge})`);
+        gradient.addColorStop(0.5, `rgba(225, 164, 107, ${alphaMid})`);
+        gradient.addColorStop(1, `rgba(204, 141, 81, ${alphaEdge})`);
         ctx.strokeStyle = gradient;
         ctx.stroke();
       }

@@ -2,16 +2,8 @@
 
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { MenuIcon } from "lucide-react";
-
 import { ChatSidebar } from "@/components/chat/chat-sidebar";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet } from "@/components/ui/sheet";
 import {
   toggleSidebarCollapsed,
   useSidebarCollapsed,
@@ -48,8 +40,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* ... existing Sheet code ... */}
       </Sheet>
 
-      {/* Center Column - Constrained width and auto margins for perfect centering */}
-      <main className="flex-1 w-full max-w-4xl mx-auto flex flex-col px-4">
+      {/* Center Column - Constrained width and centered */}
+      <main className="flex-1 w-full max-w-4xl mx-auto flex flex-col px-4 transition-all duration-300 ease-in-out">
         {children}
       </main>
 
