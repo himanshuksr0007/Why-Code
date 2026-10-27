@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import TextAnimation from "@/components/ui/staggerText";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { AskResponse } from "@/lib/api/types";
+import { coerceCitations } from "@/lib/api/normalize";
 import { formatLatency } from "@/lib/format";
 
 /**
@@ -46,7 +47,8 @@ function splitLead(markdown: string): { lead: string | null; rest: string } {
 }
 
 export function AnswerPanel({ response }: { response: AskResponse }) {
-  const { citations, graph_path, decisions, changes } = response;
+  const citations = coerceCitations(response);
+  const { graph_path, decisions, changes } = response;
   const latency = formatLatency(response.latency_ms);
   const decisionList = decisions ?? [];
   const changeList = changes ?? [];

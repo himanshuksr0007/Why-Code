@@ -49,7 +49,8 @@ class DemoBackend:
     def exact_search(
         self, *, repo: str, identifiers: Sequence[str], limit: int
     ) -> Sequence[DecisionCandidate]:
-        del repo
+        if repo and repo not in {"encode/httpx", "httpx"}:
+            return []
         selected: list[str] = []
         for identifier in identifiers:
             for decision_id in self._exact_index.get(identifier.strip(), []):
@@ -60,7 +61,8 @@ class DemoBackend:
     def fulltext_search(
         self, *, repo: str, query: str, limit: int
     ) -> Sequence[DecisionCandidate]:
-        del repo
+        if repo and repo not in {"encode/httpx", "httpx"}:
+            return []
         forms = _query_forms(query)
         if not forms:
             return []
@@ -80,7 +82,8 @@ class DemoBackend:
     def vector_search(
         self, *, repo: str, embedding: Sequence[float], limit: int
     ) -> Sequence[DecisionCandidate]:
-        del repo
+        if repo and repo not in {"encode/httpx", "httpx"}:
+            return []
         query = list(embedding)
         scored = [
             (cosine(query, vector), decision_id)

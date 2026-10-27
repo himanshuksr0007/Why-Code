@@ -75,21 +75,28 @@ class CitationValidator:
 
         evidence_by_id = {item.evidence_id: item for item in pack.evidence}
         selected_decisions = {item.decision_id for item in pack.decisions}
+        decision_by_alias = {
+            alias.upper(): dec_id for alias, dec_id in pack.decision_alias_map.items()
+        }
         declared = list(draft.citations)
         inline = _tokens(draft.answer)
         invalid: list[str] = []
         valid_ids: list[str] = []
         for token in [*declared, *inline]:
+            cleaned = token.strip().strip("[]").strip()
+            if not cleaned:
+                continue
+            if cleaned.upper() in decision_by_alias:
+                # Valid decision reference from the evidence pack
+                continue
             resolved = pack.resolve_citation(token)
             if resolved is None or resolved not in evidence_by_id:
-                cleaned = token.strip().strip("[]")
                 if cleaned and cleaned not in invalid:
                     invalid.append(cleaned)
                 continue
             if not _belongs_to_selection(
                 evidence_by_id[resolved], selected_decisions
             ):
-                cleaned = token.strip().strip("[]")
                 if cleaned and cleaned not in invalid:
                     invalid.append(cleaned)
                 continue
@@ -102,8 +109,12 @@ class CitationValidator:
         for claim in claims:
             if not _is_factual(claim):
                 continue
-            resolved_ids = _resolved(_tokens(claim), pack, evidence_by_id)
-            if not resolved_ids:
+            claim_tokens = _tokens(claim)
+            resolved_ids = _resolved(claim_tokens, pack, evidence_by_id)
+            has_decision_ref = any(
+                t.strip().strip("[]").upper() in decision_by_alias for t in claim_tokens
+            )
+            if not resolved_ids and not has_decision_ref:
                 unsupported.append(claim)
                 continue
             cited = [evidence_by_id[evidence_id] for evidence_id in resolved_ids]

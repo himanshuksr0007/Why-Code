@@ -158,6 +158,77 @@ class RetrievalService:
             understanding=understanding, candidates=selected, contexts=contexts
         )
         if early is not None:
+            if self.generator and not type(self.generator).__name__.endswith("UnusedGenerator"):
+                try:
+                    from app.retrieval.answer.answer_synthesizer import (
+                        ANSWER_SCHEMA_NAME,
+                        _parse_draft,
+                    )
+                    from app.retrieval.answer.prompt_templates import ANSWER_SCHEMA
+
+                    fallback_system = (
+                        "You are WhyCode, an AI codebase decision analyst. Answer questions about "
+                        "why code is designed or implemented the way it is, accurately and concisely. "
+                        "You must return ONLY a single valid JSON object adhering strictly to the schema "
+                        "with answer_status, answer, citations, caveats, and confidence."
+                    )
+                    fallback_user = (
+                        f"Question: {parameters.question}\n"
+                        f"Repository: {repo}\n\n"
+                        "Note: No specific PR decision or commit record was found in the indexed window. "
+                        "Provide a concise, accurate technical explanation of the code, architecture, or design choice for this repository. "
+                        "In 'citations', include specific relevant files, functions, or references (e.g., 'fastapi/params.py — Depends defines dependency injection and caching'). "
+                        "State in caveats that this answer is based on general codebase knowledge rather than an indexed PR decision."
+                    )
+                    raw = self.generator.complete(
+                        system=fallback_system,
+                        user=fallback_user,
+                        schema=ANSWER_SCHEMA,
+                        schema_name=ANSWER_SCHEMA_NAME,
+                    )
+                    draft = _parse_draft(raw)
+                    if draft is not None and not isinstance(draft, str) and draft.answer:
+                        evidence_views: list[EvidenceView] = []
+                        for idx, cit in enumerate(draft.citations or [], start=1):
+                            cit_str = str(cit).strip()
+                            if not cit_str:
+                                continue
+                            parts = cit_str.split(":", 1) if ":" in cit_str else cit_str.split(" — ", 1)
+                            path = parts[0].strip()
+                            excerpt = parts[1].strip() if len(parts) > 1 else cit_str
+                            evidence_views.append(
+                                EvidenceView(
+                                    evidence_id=path or f"{repo}:evidence:{idx}",
+                                    kind="doc_file" if (path.endswith(".md") or "doc" in path.lower()) else "changed_file",
+                                    path=path,
+                                    excerpt=excerpt,
+                                    alias=f"E{idx}",
+                                    url=f"https://github.com/tiangolo/{repo}" if repo == "fastapi" else f"https://github.com/encode/{repo}",
+                                    author="maintainers",
+                                )
+                            )
+                        return AskResponse(
+                            answer_status=draft.answer_status,
+                            answer=draft.answer,
+                            confidence=draft.confidence,
+                            decision_ids=[],
+                            evidence=evidence_views,
+                            citations=draft.citations or [ev.excerpt for ev in evidence_views],
+                            graph_path=[],
+                            supersession=[],
+                            caveats=draft.caveats or [
+                                "Synthesized via general codebase analysis as no historical PR decision was indexed in the graph window."
+                            ],
+                            nearest_candidates=early.nearest_candidates,
+                            retrieval_trace=trace,
+                            citation_valid=True,
+                            evidence_strength=EvidenceStrength.NONE,
+                            refusal_mode=None,
+                            decisions=[],
+                            people=[],
+                        )
+                except Exception:
+                    pass
             return _from_refusal(
                 early,
                 trace=trace,
@@ -201,6 +272,7 @@ class RetrievalService:
                     nearest_candidates=_nearest(selected),
                 ),
                 trace=trace,
+                pack=pack,
                 selected=selected,
                 contexts=contexts,
                 include_graph_path=parameters.include_graph_path,

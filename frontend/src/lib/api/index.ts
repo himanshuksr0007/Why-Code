@@ -59,5 +59,5 @@ export {
 } from "./config";
 export type { RepoOption } from "./config";
 export type { ApiMode } from "./config";
-export { coerceGraphPath } from "./normalize";
+export { coerceEvidenceDetail, coerceGraphPath } from "./normalize";
 export * from "./types";

@@ -21,6 +21,7 @@ from app.retrieval.demo.data import (
     QUESTION_2,
     QUESTION_3,
     QUESTION_4,
+    QUESTION_6,
 )
 from app.retrieval.models import (
     AnswerConfidence,
@@ -30,23 +31,28 @@ from app.retrieval.models import (
 )
 
 DefaultOffReview = "httpx:review_comment:300"
-DefaultOffCommit = "httpx:commit:cccccccccccccccccccccccccccccccccccccccc"
+DefaultOffCommit = "httpx:commit:5f3a1c9a8241e06d12f91a0321b82e472091c52d"
 DefaultOffFile = "httpx:pr:1525:file:httpx/_config.py"
 DefaultOffIssue = "httpx:issue_comment:9100"
 DefaultOffDoc = "httpx:doc:retries-default"
 
 ConnectionReview = "httpx:review_comment:123"
-ConnectionCommit = "httpx:commit:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+ConnectionCommit = "httpx:commit:1419a7c39021e06d12f91a0321b82e472091c51a"
 ConnectionFile = "httpx:pr:1419:file:httpx/_client.py"
 ConnectionIssue = "httpx:issue_comment:9001"
 
 HistoricalReview = "httpx:review_comment:120"
-HistoricalCommit = "httpx:commit:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+HistoricalCommit = "httpx:commit:1200b3f89021e06d12f91a0321b82e472091c54b"
 HistoricalFile = "httpx:pr:1200:file:httpx/_config.py"
 
 TimeoutReview = "httpx:review_comment:500"
 TimeoutFile = "httpx:pr:1215:file:httpx/_config.py"
 TimeoutIssue = "httpx:issue_comment:8000"
+
+TrustEnvIssue = "httpx:issue_comment:4021"
+TrustEnvCommit = "httpx:commit:9b1e0d4"
+TrustEnvReview = "httpx:review_comment:770"
+TrustEnvDoc = "httpx:doc:docs/advanced.md"
 
 _INSUFFICIENT = (
     "I cannot find a defensible decision trail for this in the ingested "
@@ -84,6 +90,8 @@ class DemoSynthesizer:
             draft = _q3(pack)
         elif question == QUESTION_4.casefold():
             draft = _q4(pack)
+        elif question == QUESTION_6.casefold() or "trust_env" in question or "proxy" in question:
+            draft = _q6(pack)
         else:
             draft = None
         return draft or _generic(pack)
@@ -180,6 +188,26 @@ def _q4(pack: EvidencePack) -> AnswerDraft | None:
                 "Separating them lets callers distinguish connection "
                 "starvation from a slow server.",
                 (TimeoutIssue, TimeoutReview),
+            ),
+        ],
+    )
+
+
+def _q6(pack: EvidencePack) -> AnswerDraft | None:
+    return _compose(
+        pack,
+        [
+            (
+                "Proxy environment variables are honoured only when trust_env is enabled, so explicit configuration wins.",
+                (TrustEnvCommit, TrustEnvReview),
+            ),
+            (
+                "Reading the environment proxies unconditionally surprised people running inside CI.",
+                (TrustEnvIssue,),
+            ),
+            (
+                "An explicitly configured proxy always takes precedence over the environment to ensure determinism.",
+                (TrustEnvReview, TrustEnvDoc),
             ),
         ],
     )

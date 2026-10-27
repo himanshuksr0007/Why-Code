@@ -36,22 +36,41 @@ class _UnusedGenerator:
 def create_demo_service(
     config: RetrievalConfig | None = None,
 ) -> RetrievalService:
-    resolved = config or RetrievalConfig(
-        repo=DEMO_REPO,
-        enable_llm_entity_extraction=False,
-    )
+    from app.intent.llm.provider import OpenAICompatibleProvider
+
+    resolved = config or RetrievalConfig.from_env(repo=DEMO_REPO)
     if not resolved.repo:
         resolved = resolved.model_copy(update={"repo": DEMO_REPO})
+
+    generator: Any = _UnusedGenerator()
+    synthesizer_factory: Any = DemoSynthesizer
+    entity_llm = None
+
+    if resolved.llm_api_key:
+        live_generator = OpenAICompatibleProvider(
+            api_key=resolved.llm_api_key,
+            model=resolved.llm_model,
+            base_url=resolved.llm_base_url,
+            timeout_seconds=resolved.llm_timeout_seconds,
+            temperature=resolved.llm_temperature,
+            seed=resolved.llm_seed,
+            max_output_tokens=resolved.llm_max_output_tokens,
+        )
+        generator = live_generator
+        entity_llm = live_generator
+        synthesizer_factory = None
+
     embedder = DemoEmbeddingProvider()
     backend = DemoBackend(contexts=build_contexts(), embedder=embedder)
     return RetrievalService(
         backend=backend,
         embedder=embedder,
-        generator=_UnusedGenerator(),
+        generator=generator,
         config=resolved,
         index=build_entity_index(),
+        entity_llm=entity_llm,
         lookup=backend,
-        synthesizer_factory=DemoSynthesizer,
+        synthesizer_factory=synthesizer_factory,
     )
 
 

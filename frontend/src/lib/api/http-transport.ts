@@ -19,7 +19,12 @@
  */
 
 import { API_BASE_URL } from "./config";
-import { coerceGraphPath } from "./normalize";
+import {
+  coerceCitations,
+  coerceDecisions,
+  coerceEvidenceDetail,
+  coerceGraphPath,
+} from "./normalize";
 import type {
   AskRequest,
   AskResponse,
@@ -63,17 +68,23 @@ export function createHttpClient(): WhyCodeClient {
           include_graph_path: request.include_graph_path ?? true,
         }),
       });
+      const raw = payload as unknown as Record<string, unknown>;
       return {
         ...payload,
+        status: (payload.status ?? raw.answer_status ?? "answered") as AskResponse["status"],
+        citations: coerceCitations(payload),
         graph_path: coerceGraphPath(payload.graph_path),
+        decisions: coerceDecisions(payload.decisions),
+        retrieval_trace_id: String(raw.retrieval_trace_id ?? "trace_live"),
         latency_ms: payload.latency_ms ?? Date.now() - startedAt,
       };
     },
 
-    getEvidence(evidenceId: string): Promise<EvidenceDetail> {
-      return requestJson<EvidenceDetail>(
+    async getEvidence(evidenceId: string): Promise<EvidenceDetail> {
+      const payload = await requestJson<Record<string, unknown>>(
         `/api/v1/evidence/${encodeURIComponent(evidenceId)}`,
       );
+      return coerceEvidenceDetail(payload, evidenceId);
     },
 
     async getGraphPath(decisionId: string): Promise<GraphPath> {

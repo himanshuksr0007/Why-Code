@@ -20,10 +20,11 @@ Rules:
 2. Cite every factual statement with evidence IDs.
 3. If evidence conflicts, explain the conflict.
 4. If a decision was reversed or revised, say so.
-5. If evidence is insufficient, return INSUFFICIENT_EVIDENCE.
+5. If evidence is insufficient, set answer_status to "insufficient_evidence".
 6. Never invent file names, PR numbers, people, dates, or quotes.
 7. Do not use knowledge outside the supplied context.
-8. Be concise and technical."""
+8. Be concise and technical.
+9. You must ALWAYS output ONLY a single valid JSON object adhering to the schema. Do not return plain text or markdown fences outside the JSON."""
 
 # The provider-facing contract. It is deliberately decoupled from
 # ``AnswerDraft.model_json_schema()``: generation is constrained to this
@@ -69,8 +70,8 @@ def build_user_prompt(
         "",
         "Return JSON with:",
         "- answer_status: answered | insufficient_evidence | contested",
-        "- answer",
-        "- citations: list of evidence IDs used (for example [E1])",
+        "- answer: Every factual sentence in the answer MUST include at least one inline citation like [E1] from the evidence pack. Cite evidence using [E#] aliases.",
+        "- citations: list of evidence aliases used (for example [\"E1\", \"E2\"])",
         "- caveats",
         "- confidence: high | medium | low | none",
         f"- Keep the answer under approximately {max_answer_tokens} tokens.",

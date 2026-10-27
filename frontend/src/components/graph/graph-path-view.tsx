@@ -30,14 +30,58 @@ type WhyNodeType = Node<WhyNodeData, "why">;
 function WhyNode({ data }: NodeProps<WhyNodeType>) {
   return (
     <div
-      className="w-[190px] rounded-lg border bg-card px-3 py-2 text-left shadow-sm"
+      className="relative w-[180px] rounded-lg border bg-card px-3 py-2 text-left shadow-sm"
       style={{ borderColor: `color-mix(in oklab, ${data.color} 55%, transparent)` }}
     >
       <Handle
         type="target"
         position={Position.Left}
+        id="left-t"
         className="!size-1.5 !border-0 !bg-border"
       />
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="left-s"
+        className="!size-1.5 !border-0 !bg-border"
+      />
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="right-t"
+        className="!size-1.5 !border-0 !bg-border"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right-s"
+        className="!size-1.5 !border-0 !bg-border"
+      />
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="top-t"
+        className="!size-1.5 !border-0 !bg-border"
+      />
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="top-s"
+        className="!size-1.5 !border-0 !bg-border"
+      />
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="bottom-t"
+        className="!size-1.5 !border-0 !bg-border"
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="bottom-s"
+        className="!size-1.5 !border-0 !bg-border"
+      />
+
       <p
         className="font-mono text-[10px] font-medium tracking-wide uppercase"
         style={{ color: data.color }}
@@ -45,15 +89,13 @@ function WhyNode({ data }: NodeProps<WhyNodeType>) {
         {data.label}
       </p>
       {data.caption ? (
-        <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
+        <p
+          className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground"
+          title={data.caption}
+        >
           {data.caption}
         </p>
       ) : null}
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="!size-1.5 !border-0 !bg-border"
-      />
     </div>
   );
 }
@@ -61,8 +103,8 @@ function WhyNode({ data }: NodeProps<WhyNodeType>) {
 const nodeTypes = { why: WhyNode };
 
 const COLUMNS = 3;
-const X_GAP = 230;
-const Y_GAP = 140;
+const X_GAP = 285;
+const Y_GAP = 145;
 
 /**
  * Snake layout: row 0 runs left→right, row 1 right→left, and so on, so each
@@ -99,30 +141,79 @@ export function GraphPathView({
     [path.nodes],
   );
 
+  const nodeMap = useMemo(() => {
+    const map = new Map<string, WhyNodeType>();
+    for (const node of nodes) {
+      map.set(node.id, node);
+    }
+    return map;
+  }, [nodes]);
+
   const edges = useMemo<Edge[]>(
     () =>
-      path.edges.map((edge) => ({
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-        type: "smoothstep",
-        animated: false,
-        label: edge.rel_type,
-        labelStyle: {
-          fontFamily: "var(--font-jetbrains-mono)",
-          fontSize: 10,
-          fill: "var(--muted-foreground)",
-        },
-        labelBgStyle: { fill: "var(--background)", fillOpacity: 0.9 },
-        style: { stroke: "var(--border)" },
-      })),
-    [path.edges],
+      path.edges.map((edge) => {
+        const sourceNode = nodeMap.get(edge.source);
+        const targetNode = nodeMap.get(edge.target);
+
+        let sourceHandle = "right-s";
+        let targetHandle = "left-t";
+
+        if (sourceNode && targetNode) {
+          const dx = targetNode.position.x - sourceNode.position.x;
+          const dy = targetNode.position.y - sourceNode.position.y;
+
+          if (Math.abs(dx) >= Math.abs(dy)) {
+            if (dx >= 0) {
+              sourceHandle = "right-s";
+              targetHandle = "left-t";
+            } else {
+              sourceHandle = "left-s";
+              targetHandle = "right-t";
+            }
+          } else {
+            if (dy >= 0) {
+              sourceHandle = "bottom-s";
+              targetHandle = "top-t";
+            } else {
+              sourceHandle = "top-s";
+              targetHandle = "bottom-t";
+            }
+          }
+        }
+
+        return {
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          sourceHandle,
+          targetHandle,
+          type: "smoothstep",
+          animated: false,
+          label: edge.rel_type,
+          labelStyle: {
+            fontFamily: "var(--font-jetbrains-mono)",
+            fontSize: 10,
+            fontWeight: 600,
+            fill: "var(--foreground)",
+          },
+          labelBgPadding: [6, 3] as [number, number],
+          labelBgBorderRadius: 4,
+          labelBgStyle: {
+            fill: "var(--card)",
+            stroke: "var(--border)",
+            strokeWidth: 1,
+            fillOpacity: 0.96,
+          },
+          style: { stroke: "var(--border)", strokeWidth: 1.5 },
+        };
+      }),
+    [path.edges, nodeMap],
   );
 
   return (
     <div className={cn("space-y-4", className)}>
       <div
-        className="h-[360px] w-full overflow-hidden rounded-xl border border-border/70 bg-card/60"
+        className="h-[380px] w-full overflow-hidden rounded-xl border border-border/70 bg-card/60"
         role="img"
         aria-label={`Graph path with ${path.nodes.length} nodes`}
       >
@@ -132,7 +223,7 @@ export function GraphPathView({
           nodeTypes={nodeTypes}
           colorMode={resolvedTheme === "dark" ? "dark" : "light"}
           fitView
-          fitViewOptions={{ padding: 0.25 }}
+          fitViewOptions={{ padding: 0.2 }}
           nodesDraggable={false}
           nodesConnectable={false}
           elementsSelectable={false}

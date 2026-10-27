@@ -16,6 +16,19 @@ import { formatDate } from "@/lib/format";
 export function DecisionCard({ decision }: { decision: Decision }) {
   const { openPullRequest } = usePullRequestPanel();
 
+  const targets =
+    decision.targets ??
+    decision.target_ids?.map((id: string) => {
+      const strId = String(id);
+      const colon = strId.indexOf(":");
+      return colon > 0
+        ? { type: strId.slice(0, colon), identifier: strId.slice(colon + 1) }
+        : { type: "Symbol", identifier: strId };
+    }) ??
+    [];
+
+  const evidenceIds = decision.evidence_ids ?? [];
+
   return (
     <article className="rounded-xl border border-border/70 bg-card p-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -45,23 +58,33 @@ export function DecisionCard({ decision }: { decision: Decision }) {
         {decision.claim}
       </p>
 
-      {decision.targets.length > 0 ? (
+      {targets.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {decision.targets.map((target, idx) => (
-            <span
-              key={`${target.type}:${target.identifier}-${idx}`}
-              className="rounded-md border border-border/70 bg-muted/40 px-2 py-0.5 font-mono text-[11px] text-muted-foreground"
-            >
-              {target.identifier}
-            </span>
-          ))}
+          {targets.map((target, idx) => {
+            const rawId = target.identifier;
+            const isCommitLike =
+              target.type === "Commit" ||
+              (/^[0-9a-fA-F]{10,}$/.test(rawId) &&
+                !rawId.includes(":") &&
+                !rawId.includes("/"));
+            const displayId = isCommitLike ? rawId.slice(0, 7) : rawId;
+            return (
+              <span
+                key={`${target.type}:${target.identifier}-${idx}`}
+                className="rounded-md border border-border/70 bg-muted/40 px-2 py-0.5 font-mono text-[11px] text-muted-foreground"
+                title={rawId}
+              >
+                {displayId}
+              </span>
+            );
+          })}
         </div>
       ) : null}
 
       <div className="mt-3 flex items-center gap-2">
         <span className="font-mono text-[11px] text-muted-foreground">
-          {decision.evidence_ids.length} evidence
-          {decision.evidence_ids.length === 1 ? "" : " items"}
+          {evidenceIds.length} evidence
+          {evidenceIds.length === 1 ? "" : " items"}
         </span>
         <Button
           render={<Link href={`/graph?decision=${decision.decision_id}`} />}

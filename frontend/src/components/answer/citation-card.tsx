@@ -27,9 +27,34 @@ export function CitationCard({
 }) {
   const { openEvidence } = useEvidencePanel();
 
-  const meta = [citation.author, formatDate(citation.created_at)]
+  const raw = citation as unknown as Record<string, unknown> | string;
+  const isStr = typeof raw === "string";
+  const obj = !isStr && raw ? (raw as Record<string, unknown>) : {};
+
+  const evidenceId = String(
+    isStr ? raw : obj.evidence_id || obj.alias || obj.title || `evidence-${(index ?? 0) + 1}`,
+  );
+  const title = (obj.title ? String(obj.title) : null) || (isStr ? raw : null) || (obj.path ? String(obj.path) : null) || evidenceId;
+  const excerpt = String(obj.excerpt || (isStr ? raw : "") || title || "");
+  const sourceType = (obj.source_type || obj.kind || "changed_file") as Citation["source_type"];
+  const url = obj.url ? String(obj.url) : null;
+  const author = obj.author ? String(obj.author) : null;
+  const createdAt = obj.created_at ? String(obj.created_at) : null;
+
+  const formattedDate = createdAt ? formatDate(createdAt) : null;
+  const meta = [author, formattedDate !== "—" ? formattedDate : null]
     .filter(Boolean)
     .join(" · ");
+
+  const normalizedCitation: Citation = {
+    evidence_id: evidenceId,
+    source_type: sourceType,
+    url,
+    excerpt,
+    title,
+    author,
+    created_at: createdAt,
+  };
 
   return (
     <li
@@ -45,18 +70,18 @@ export function CitationCard({
             {index + 1}
           </span>
         ) : null}
-        <SourceTypeBadge type={citation.source_type} />
+        <SourceTypeBadge type={sourceType} />
         {meta ? (
           <span className="truncate text-xs text-muted-foreground">{meta}</span>
         ) : null}
-        {citation.url ? (
+        {url ? (
           <Button
             render={
               <a
-                href={citation.url}
+                href={url}
                 target="_blank"
                 rel="noreferrer"
-                aria-label={`Open ${citation.title ?? citation.evidence_id} on GitHub`}
+                aria-label={`Open ${title} on GitHub`}
               />
             }
             nativeButton={false}
@@ -71,17 +96,17 @@ export function CitationCard({
 
       <button
         type="button"
-        onClick={() => openEvidence(citation.evidence_id)}
+        onClick={() => openEvidence(evidenceId, normalizedCitation)}
         className="mt-2 block w-full cursor-pointer rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {citation.title ? (
-          <p className="text-sm font-medium">{citation.title}</p>
+        <p className="text-sm font-medium">{title}</p>
+        {excerpt && excerpt !== title ? (
+          <p className="mt-0.5 line-clamp-3 text-sm text-muted-foreground">
+            {excerpt}
+          </p>
         ) : null}
-        <p className="mt-0.5 line-clamp-3 text-sm text-muted-foreground">
-          {citation.excerpt}
-        </p>
         <span className="mt-2 block font-mono text-[11px] text-muted-foreground">
-          {citation.evidence_id}
+          {evidenceId}
         </span>
         <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary">
           View evidence

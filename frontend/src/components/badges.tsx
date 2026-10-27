@@ -97,12 +97,13 @@ export function SourceTypeBadge({
   type,
   className,
 }: {
-  type: RecordType;
+  type?: RecordType;
   className?: string;
 }) {
+  const label = type ? (RECORD_TYPE_LABEL[type] ?? String(type).replace(/_/g, " ")) : "Evidence";
   return (
-    <Badge variant="secondary" className={cn("gap-1", className)}>
-      {RECORD_TYPE_LABEL[type]}
+    <Badge variant="secondary" className={cn("gap-1 text-[11px] capitalize", className)}>
+      {label}
     </Badge>
   );
 }

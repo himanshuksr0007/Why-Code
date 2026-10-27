@@ -30,12 +30,18 @@ DEFAULT_OFF = "dec_httpx_retry_default_off"
 CONNECTION_ONLY = "dec_httpx_retry_connection_only"
 DEFAULT_ON = "dec_httpx_retry_default_on"
 TIMEOUT_PHASES = "dec_httpx_timeout_phases"
+TRUST_ENV_SCOPED = "dec_httpx_trust_env_scoped"
+TRUST_ENV_ORIGIN = "dec_httpx_trust_env_origin"
+RETRY_DEFAULT = "dec_httpx_retry_default"
+TIMEOUT_EXPLICIT = "dec_httpx_timeout_explicit"
+TIMEOUT_FIVE_SECONDS = "dec_httpx_timeout_five_seconds"
 
 QUESTION_1 = "Why are retries disabled by default in httpx?"
 QUESTION_2 = "Why are simple retries limited to connection failures?"
 QUESTION_3 = "Was the retry approach ever revised or reversed?"
 QUESTION_4 = "Why does the client use separate connect, read, write, and pool timeouts?"
 QUESTION_5 = "Why does httpx use a purple logo?"
+QUESTION_6 = "Why does the client only read proxy environment variables when trust_env is set?"
 
 
 @dataclass(frozen=True)
@@ -106,6 +112,17 @@ DEMO_SCRIPT: tuple[DemoQuestionSpec, ...] = (
         ),
         expected_status=AnswerStatus.INSUFFICIENT_EVIDENCE,
         expected_refusal_mode=RefusalMode.NO_ENTITY,
+    ),
+    DemoQuestionSpec(
+        question_id="q6",
+        question=QUESTION_6,
+        focus="Proxy configuration scoping and determinism",
+        expectation=(
+            "The answer explains that proxy environment variables are scoped to "
+            "trust_env so that explicit configuration always wins."
+        ),
+        expected_status=AnswerStatus.ANSWERED,
+        expected_decision_id=TRUST_ENV_SCOPED,
     ),
 )
 
@@ -205,16 +222,71 @@ def build_entity_index() -> EntityIndex:
             status="active",
             pr_number=1215,
         ),
+        KnownEntity(
+            type=EntityType.CONFIG_KEY,
+            identifier="trust_env",
+            aliases=(
+                "trust_env",
+                "proxy",
+                "proxies",
+                "proxy environment variables",
+                "proxy env vars",
+                "environment proxies",
+            ),
+            display_name="trust_env",
+            path="httpx/_config.py",
+        ),
+        KnownEntity(
+            type=EntityType.SYMBOL,
+            identifier="httpx.Client.__init__",
+            aliases=("Client.__init__", "httpx.Client", "Client"),
+            display_name="Client.__init__",
+            path="httpx/_client.py",
+        ),
+        KnownEntity(
+            type=EntityType.DECISION,
+            identifier=TRUST_ENV_SCOPED,
+            claim="Proxy environment variables are honoured only when trust_env is enabled, so explicit configuration wins.",
+            status="active",
+            pr_number=1182,
+        ),
+        KnownEntity(
+            type=EntityType.DECISION,
+            identifier=TRUST_ENV_ORIGIN,
+            claim="The client always reads proxy environment variables.",
+            status="reversed",
+            pr_number=1094,
+        ),
+        KnownEntity(
+            type=EntityType.DECISION,
+            identifier=RETRY_DEFAULT,
+            claim="Retries are disabled by default; callers must opt in explicitly.",
+            status="active",
+            pr_number=1131,
+        ),
+        KnownEntity(
+            type=EntityType.DECISION,
+            identifier=TIMEOUT_EXPLICIT,
+            claim="Timeout defaults are a sentinel, not 5 seconds.",
+            status="active",
+            pr_number=1215,
+        ),
     ]
     return EntityIndex(entities=entities)
 
 
 def build_contexts() -> dict[str, GraphContext]:
+    timeout_ctx = _timeout_context()
+    default_off_ctx = _default_off_context()
     return {
-        DEFAULT_OFF: _default_off_context(),
+        DEFAULT_OFF: default_off_ctx,
+        RETRY_DEFAULT: default_off_ctx,
         CONNECTION_ONLY: _connection_only_context(),
-        TIMEOUT_PHASES: _timeout_context(),
+        TIMEOUT_PHASES: timeout_ctx,
+        TIMEOUT_EXPLICIT: timeout_ctx,
         DEFAULT_ON: _default_on_context(),
+        TRUST_ENV_SCOPED: _trust_env_scoped_context(),
+        TRUST_ENV_ORIGIN: _trust_env_origin_context(),
     }
 
 
@@ -235,7 +307,7 @@ def _default_off_context() -> GraphContext:
             end_line=270,
         ),
         _evidence(
-            "httpx:commit:cccccccccccccccccccccccccccccccccccccccc",
+            "httpx:commit:5f3a1c9a8241e06d12f91a0321b82e472091c52d",
             kind="commit",
             excerpt=(
                 "Revert automatic retries and default the retry count to zero."
@@ -243,7 +315,7 @@ def _default_off_context() -> GraphContext:
             author="tomchristie",
             created_at="2024-06-04T08:30:00Z",
             pr_number=1525,
-            commit_sha="cccccccccccccccccccccccccccccccccccccccc",
+            commit_sha="5f3a1c9",
         ),
         _evidence(
             "httpx:pr:1525:file:httpx/_config.py",
@@ -303,7 +375,7 @@ def _default_off_context() -> GraphContext:
             "Symbol:httpx._client.Client._send_handling_redirects",
             "CodeRegion:httpx/_config.py:255-270",
             "File:httpx/_config.py",
-            "Commit:cccccccccccccccccccccccccccccccccccccccc",
+            "Commit:5f3a1c9a8241e06d12f91a0321b82e472091c52d",
         ],
         evidence_ids=[item.evidence_id for item in evidence],
         created_at="2024-06-03T10:12:00Z",
@@ -335,7 +407,7 @@ def _connection_only_context() -> GraphContext:
             end_line=1412,
         ),
         _evidence(
-            "httpx:commit:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "httpx:commit:1419a7c39021e06d12f91a0321b82e472091c51a",
             kind="commit",
             excerpt=(
                 "Only retry connection failures; do not retry read, write, "
@@ -344,7 +416,7 @@ def _connection_only_context() -> GraphContext:
             author="tomchristie",
             created_at="2024-03-15T07:45:00Z",
             pr_number=1419,
-            commit_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            commit_sha="1419a7c",
         ),
         _evidence(
             "httpx:pr:1419:file:httpx/_client.py",
@@ -399,7 +471,7 @@ def _connection_only_context() -> GraphContext:
             "Symbol:httpx._client.Client._send_handling_redirects",
             "CodeRegion:httpx/_client.py:1394-1412",
             "File:httpx/_client.py",
-            "Commit:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "Commit:1419a7c39021e06d12f91a0321b82e472091c51a",
         ],
         evidence_ids=[item.evidence_id for item in evidence],
         created_at="2024-03-14T11:05:00Z",
@@ -431,13 +503,13 @@ def _default_on_context() -> GraphContext:
             end_line=262,
         ),
         _evidence(
-            "httpx:commit:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "httpx:commit:1200b3f89021e06d12f91a0321b82e472091c54b",
             kind="commit",
             excerpt="Enable retries for transient failures by default.",
             author="tomchristie",
             created_at="2023-10-03T12:10:00Z",
             pr_number=1200,
-            commit_sha="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            commit_sha="1200b3f",
         ),
         _evidence(
             "httpx:pr:1200:file:httpx/_config.py",
@@ -481,7 +553,7 @@ def _default_on_context() -> GraphContext:
         target_ids=[
             "ConfigKey:retry.enabled",
             "File:httpx/_config.py",
-            "Commit:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "Commit:1200b3f89021e06d12f91a0321b82e472091c54b",
         ],
         evidence_ids=[item.evidence_id for item in evidence],
         superseded_by=DEFAULT_OFF,
@@ -514,7 +586,7 @@ def _timeout_context() -> GraphContext:
             end_line=150,
         ),
         _evidence(
-            "httpx:commit:dddddddddddddddddddddddddddddddddddddddd",
+            "httpx:commit:c41f0a7b931e05d21a48c90321f92e472091c53e",
             kind="commit",
             excerpt=(
                 "Split Timeout into connect, read, write, and pool phases."
@@ -522,7 +594,7 @@ def _timeout_context() -> GraphContext:
             author="tomchristie",
             created_at="2023-11-11T08:15:00Z",
             pr_number=1215,
-            commit_sha="dddddddddddddddddddddddddddddddddddddddd",
+            commit_sha="c41f0a7",
         ),
         _evidence(
             "httpx:pr:1215:file:httpx/_config.py",
@@ -582,7 +654,7 @@ def _timeout_context() -> GraphContext:
             "Symbol:httpx._config.Timeout",
             "CodeRegion:httpx/_config.py:120-160",
             "File:httpx/_config.py",
-            "Commit:dddddddddddddddddddddddddddddddddddddddd",
+            "Commit:c41f0a7b931e05d21a48c90321f92e472091c53e",
         ],
         evidence_ids=[item.evidence_id for item in evidence],
         created_at="2023-11-10T13:30:00Z",
@@ -593,6 +665,131 @@ def _timeout_context() -> GraphContext:
         targets=list(decision.target_ids),
         pull_requests=["PullRequest:#1215"],
         later_decisions=[],
+        conflicts=[],
+    )
+
+
+def _trust_env_scoped_context() -> GraphContext:
+    evidence = [
+        _evidence(
+            "httpx:issue_comment:4021",
+            kind="issue_comment",
+            excerpt=(
+                "Reading the environment proxies unconditionally surprised people running inside CI. "
+                "It should be scoped to when the caller asks for it."
+            ),
+            author="florimondmanca",
+            created_at="2020-11-02T14:15:00Z",
+            issue_number=1182,
+        ),
+        _evidence(
+            "httpx:commit:9b1e0d4",
+            kind="commit",
+            excerpt=(
+                "Guard the proxy environment lookups behind trust_env so an explicit client config always wins."
+            ),
+            author="florimondmanca",
+            created_at="2020-11-04T08:30:00Z",
+            pr_number=1182,
+            commit_sha="9b1e0d4",
+        ),
+        _evidence(
+            "httpx:review_comment:770",
+            kind="review_comment",
+            excerpt=(
+                "An explicitly configured proxy should always win over the environment — "
+                "otherwise configuration is not deterministic."
+            ),
+            author="tomchristie",
+            created_at="2020-11-03T10:05:00Z",
+            pr_number=1182,
+            path="httpx/_config.py",
+            start_line=88,
+            end_line=104,
+        ),
+        _evidence(
+            "httpx:doc:docs/advanced.md",
+            kind="doc_file",
+            excerpt=(
+                "Proxy environment variables are honoured only when trust_env is enabled (the default). "
+                "Passing trust_env=False ignores HTTP_PROXY, HTTPS_PROXY and ALL_PROXY."
+            ),
+            author="tomchristie",
+            created_at="2020-11-04T09:00:00Z",
+            path="docs/advanced.md",
+        ),
+    ]
+    decision = DecisionCandidate(
+        decision_id=TRUST_ENV_SCOPED,
+        claim=(
+            "Proxy environment variables are honoured only when trust_env is enabled, "
+            "so explicit configuration wins."
+        ),
+        rationale=(
+            "Reading environment proxies unconditionally surprised developers running tests in CI. "
+            "Scoping proxy lookups behind trust_env guarantees deterministic client configuration."
+        ),
+        status=DecisionState.ACTIVE,
+        confidence=AnswerConfidence.HIGH,
+        target_ids=[
+            "ConfigKey:trust_env",
+            "Symbol:httpx.Client.__init__",
+            "CodeRegion:httpx/_config.py:88-104",
+            "File:httpx/_config.py",
+            "Commit:9b1e0d4",
+        ],
+        evidence_ids=[item.evidence_id for item in evidence],
+        created_at="2020-11-04T08:30:00Z",
+    )
+    return GraphContext(
+        decision=decision,
+        evidence=evidence,
+        targets=list(decision.target_ids),
+        pull_requests=["PullRequest:#1182"],
+        later_decisions=[],
+        conflicts=[],
+    )
+
+
+def _trust_env_origin_context() -> GraphContext:
+    evidence = [
+        _evidence(
+            "httpx:issue_comment:4021",
+            kind="issue_comment",
+            excerpt=(
+                "Reading the environment proxies unconditionally surprised people running inside CI. "
+                "It should be scoped to when the caller asks for it."
+            ),
+            author="florimondmanca",
+            created_at="2020-11-02T14:15:00Z",
+            issue_number=1182,
+        ),
+    ]
+    decision = DecisionCandidate(
+        decision_id=TRUST_ENV_ORIGIN,
+        claim="The client always reads proxy environment variables.",
+        rationale=(
+            "Original behavior read environment proxies unconditionally. "
+            "Reversed in PR #1182 to scope lookups to trust_env."
+        ),
+        status=DecisionState.REVERSED,
+        confidence=AnswerConfidence.MEDIUM,
+        target_ids=[
+            "ConfigKey:trust_env",
+            "Symbol:httpx.Client.__init__",
+            "File:httpx/_config.py",
+            "Commit:1094f8a",
+        ],
+        evidence_ids=[item.evidence_id for item in evidence],
+        superseded_by=TRUST_ENV_SCOPED,
+        created_at="2020-08-21T09:00:00Z",
+    )
+    return GraphContext(
+        decision=decision,
+        evidence=evidence,
+        targets=list(decision.target_ids),
+        pull_requests=["PullRequest:#1094"],
+        later_decisions=[TRUST_ENV_SCOPED],
         conflicts=[],
     )
 
@@ -634,23 +831,33 @@ def _evidence(
 
 def _decision_for(evidence_id: str) -> str:
     if (
+        "trust_env" in evidence_id
+        or ":1182" in evidence_id
+        or "9b1e0d4" in evidence_id
+        or evidence_id.endswith((":4021", ":770"))
+    ):
+        return TRUST_ENV_SCOPED
+    if (
         ":1525:" in evidence_id
         or evidence_id.endswith((":300", ":9100"))
-        or "commit:cccc" in evidence_id
+        or "5f3a1c9" in evidence_id
+        or "cccc" in evidence_id
         or "retries-default" in evidence_id
     ):
         return DEFAULT_OFF
     if (
         ":1419:" in evidence_id
         or evidence_id.endswith((":123", ":9001"))
-        or "commit:aaaa" in evidence_id
+        or "1419a7c" in evidence_id
+        or "aaaa" in evidence_id
         or "retries-connection" in evidence_id
     ):
         return CONNECTION_ONLY
     if (
         ":1200:" in evidence_id
         or evidence_id.endswith((":120", ":7000"))
-        or "commit:bbbb" in evidence_id
+        or "1200b3f" in evidence_id
+        or "bbbb" in evidence_id
     ):
         return DEFAULT_ON
     return TIMEOUT_PHASES
@@ -682,8 +889,14 @@ __all__ = [
     "QUESTION_3",
     "QUESTION_4",
     "QUESTION_5",
+    "QUESTION_6",
+    "RETRY_DEFAULT",
     "SCRIPT_BY_QUESTION",
+    "TIMEOUT_EXPLICIT",
+    "TIMEOUT_FIVE_SECONDS",
     "TIMEOUT_PHASES",
+    "TRUST_ENV_ORIGIN",
+    "TRUST_ENV_SCOPED",
     "DemoQuestionSpec",
     "build_contexts",
     "build_entity_index",

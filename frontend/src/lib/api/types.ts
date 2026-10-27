@@ -101,6 +101,7 @@ export interface Decision {
   status: DecisionStatus;
   confidence: Confidence;
   targets: DecisionTarget[];
+  target_ids?: string[];
   evidence_ids: string[];
   supersedes?: string | null;
   superseded_by?: string | null;

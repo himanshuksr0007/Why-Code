@@ -73,9 +73,11 @@ function DetailSkeleton() {
 
 export function EvidenceSheet({
   evidenceId,
+  initialDetail,
   onOpenChange,
 }: {
   evidenceId: string | null;
+  initialDetail?: Partial<EvidenceDetail>;
   onOpenChange: (open: boolean) => void;
 }) {
   const [result, setResult] = useState<{
@@ -104,14 +106,40 @@ export function EvidenceSheet({
     };
   }, [evidenceId, attempt]);
 
-  // Derived, never set synchronously in the effect.
-  const detail = result && result.id === evidenceId ? result.detail : null;
+  // Derived, falling back to initialDetail when available so synthetic/local evidence loads instantly.
+  const fetchedDetail = result && result.id === evidenceId ? result.detail : null;
+  const rawDetail =
+    fetchedDetail ??
+    (initialDetail
+      ? {
+          evidence_id: evidenceId ?? "evidence",
+          source_type: initialDetail.source_type ?? "changed_file",
+          record_type: (initialDetail.record_type ?? initialDetail.source_type ?? "changed_file") as EvidenceDetail["record_type"],
+          repo: initialDetail.repo ?? "",
+          url: initialDetail.url ?? null,
+          excerpt: initialDetail.excerpt ?? initialDetail.title ?? evidenceId ?? "",
+          title: initialDetail.title ?? null,
+          author: initialDetail.author ?? null,
+          created_at: initialDetail.created_at ?? null,
+          body: initialDetail.body ?? initialDetail.excerpt ?? null,
+          payload: initialDetail.payload,
+        }
+      : null);
+
+  const detail: EvidenceDetail | null = rawDetail
+    ? {
+        ...rawDetail,
+        record_type: (rawDetail.record_type ?? rawDetail.source_type ?? "changed_file") as EvidenceDetail["record_type"],
+        source_type: rawDetail.source_type ?? rawDetail.record_type ?? "changed_file",
+      }
+    : null;
+
   const state: PanelState = !evidenceId
     ? "idle"
-    : failedId === evidenceId
-      ? "error"
-      : detail
-        ? "ready"
+    : detail
+      ? "ready"
+      : failedId === evidenceId
+        ? "error"
         : "loading";
 
   const copyId = async () => {
@@ -220,8 +248,10 @@ export function EvidenceSheet({
 
         <Separator />
         <SheetFooter className="flex-row items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            {detail ? detail.record_type.replace(/_/g, " ") : "—"}
+          <p className="text-xs text-muted-foreground capitalize">
+            {detail
+              ? String(detail.record_type ?? detail.source_type ?? "evidence").replace(/_/g, " ")
+              : "—"}
           </p>
           <Button
             variant="ghost"

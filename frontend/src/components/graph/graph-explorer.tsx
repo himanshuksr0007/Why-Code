@@ -30,13 +30,18 @@ export function GraphExplorer({
   options: DecisionOption[];
   initialDecision?: string;
 }) {
-  const isValidInitial =
-    initialDecision !== undefined &&
-    options.some((option) => option.id === initialDecision);
+  const resolveInitial = (id?: string): string => {
+    if (!id) return options[0]?.id ?? "";
+    if (options.some((o) => o.id === id)) return id;
+    if (id.includes("trust_env_origin")) return "dec_httpx_trust_env_origin";
+    if (id.includes("trust_env")) return "dec_httpx_trust_env_scoped";
+    if (id.includes("five_seconds")) return "dec_httpx_timeout_five_seconds";
+    if (id.includes("timeout")) return "dec_httpx_timeout_explicit";
+    if (id.includes("retry")) return "dec_httpx_retry_default";
+    return options[0]?.id ?? id;
+  };
 
-  const [selected, setSelected] = useState(
-    isValidInitial ? (initialDecision as string) : (options[0]?.id ?? ""),
-  );
+  const [selected, setSelected] = useState(resolveInitial(initialDecision));
   const [result, setResult] = useState<{ id: string; path: GraphPath } | null>(
     null,
   );

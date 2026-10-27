@@ -10,6 +10,7 @@
 import { useSyncExternalStore } from "react";
 
 import type { AskResponse } from "@/lib/api/types";
+import { coerceCitations, coerceDecisions, coerceGraphPath } from "@/lib/api/normalize";
 
 export interface ChatTurn {
   id: string;
@@ -97,11 +98,22 @@ function ensureLoaded(): void {
           ...chat,
           // A turn left pending by a reload can never resolve — surface it
           // instead of showing a permanent "Thinking…".
-          turns: chat.turns.map((turn) =>
-            turn.response === null && !turn.error
+          turns: chat.turns.map((turn) => {
+            let response = turn.response;
+            if (response) {
+              const raw = response as unknown as Record<string, unknown>;
+              response = {
+                ...response,
+                status: (response.status ?? raw.answer_status ?? "answered") as AskResponse["status"],
+                citations: coerceCitations(response),
+                graph_path: coerceGraphPath(response.graph_path),
+                decisions: coerceDecisions(response.decisions),
+              };
+            }
+            return turn.response === null && !turn.error
               ? { ...turn, error: "This answer was interrupted. Ask again." }
-              : turn,
-          ),
+              : { ...turn, response };
+          }),
         }));
       }
     }

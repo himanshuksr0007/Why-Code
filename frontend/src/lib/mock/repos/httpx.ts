@@ -364,7 +364,50 @@ const graphPaths: Record<string, GraphPath> = {
       ["dec", "ev", "SUPPORTED_BY"],
     ],
   ),
+  dec_httpx_trust_env_origin: chain(
+    [
+      ["key", "ConfigKey", "trust_env"],
+      ["sym", "Symbol", "httpx.Client.__init__"],
+      ["reg", "CodeRegion", "httpx/_config.py:70-85"],
+      ["commit", "Commit", "1094f8a"],
+      ["pr", "PullRequest", "#1094"],
+      ["dec", "Decision", "dec_httpx_trust_env_origin"],
+      ["ev", "Evidence", "httpx:issue_comment:4021"],
+    ],
+    [
+      ["key", "sym", "USED_BY"],
+      ["sym", "reg", "HAS_REGION"],
+      ["commit", "reg", "CHANGED_REGION"],
+      ["pr", "commit", "HAS_COMMIT"],
+      ["pr", "dec", "HAS_DECISION"],
+      ["dec", "ev", "SUPPORTED_BY"],
+    ],
+  ),
+  dec_httpx_timeout_five_seconds: chain(
+    [
+      ["key", "ConfigKey", "timeout = 5.0"],
+      ["sym", "Symbol", "httpx._config.Timeout"],
+      ["reg", "CodeRegion", "httpx/_config.py:110-125"],
+      ["commit", "Commit", "981a2f3"],
+      ["pr", "PullRequest", "#981"],
+      ["dec", "Decision", "dec_httpx_timeout_five_seconds"],
+      ["ev", "Evidence", "httpx:issue:108"],
+    ],
+    [
+      ["key", "sym", "USED_BY"],
+      ["sym", "reg", "HAS_REGION"],
+      ["commit", "reg", "CHANGED_REGION"],
+      ["pr", "commit", "HAS_COMMIT"],
+      ["pr", "dec", "HAS_DECISION"],
+      ["dec", "ev", "SUPPORTED_BY"],
+    ],
+  ),
 };
+
+graphPaths.dec_httpx_timeout_phases = graphPaths.dec_httpx_timeout_explicit;
+graphPaths.dec_httpx_retry_default_off = graphPaths.dec_httpx_retry_default;
+graphPaths.dec_httpx_retry_default_on = graphPaths.dec_httpx_retry_default;
+graphPaths.dec_httpx_retry_connection_only = graphPaths.dec_httpx_retry_default;
 
 /* ------------------------------------------------------------------ */
 /* Pull requests                                                       */

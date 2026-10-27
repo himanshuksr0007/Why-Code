@@ -3,6 +3,10 @@ touch Neo4j, or CI would depend on a paid cloud database being awake."""
 
 from __future__ import annotations
 
+from dotenv import find_dotenv, load_dotenv
+
+load_dotenv(find_dotenv(usecwd=True))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 

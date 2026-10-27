@@ -88,6 +88,8 @@ class DecisionDetail(BaseModel):
 class EvidenceDetail(BaseModel):
     evidence_id: str
     kind: str
+    record_type: str | None = None
+    source_type: str | None = None
     url: str | None = None
     excerpt: str = ""
     author: str | None = None

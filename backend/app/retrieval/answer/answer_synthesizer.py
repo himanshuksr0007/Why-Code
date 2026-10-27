@@ -126,9 +126,13 @@ def _slice_object(text: str) -> str | None:
 
 
 def _normalize(draft: AnswerDraft) -> AnswerDraft:
-    if draft.answer_status is AnswerStatus.INSUFFICIENT_EVIDENCE:
-        return draft.model_copy(update={"confidence": AnswerConfidence.NONE})
-    return draft
+    # If citations are placed after a period, e.g. "default. [E1]", move them before the period
+    # so sentence-boundary splitting correctly attaches the citation to the preceding sentence.
+    norm_answer = re.sub(r'\.\s*(\[(?:E\d+(?:[\s,;]+E\d+)*)\])', r' \1.', draft.answer)
+    updated = draft.model_copy(update={"answer": norm_answer})
+    if updated.answer_status is AnswerStatus.INSUFFICIENT_EVIDENCE:
+        return updated.model_copy(update={"confidence": AnswerConfidence.NONE})
+    return updated
 
 
 def _insufficient(message: str, *, caveat: str | None = None) -> AnswerDraft:

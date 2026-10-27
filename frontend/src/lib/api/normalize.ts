@@ -7,7 +7,15 @@
  * into a chain.
  */
 
-import type { GraphNodeLabel, GraphPath } from "./types";
+import type {
+  Citation,
+  Decision,
+  DecisionTarget,
+  EvidenceDetail,
+  GraphNodeLabel,
+  GraphPath,
+  RecordType,
+} from "./types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -36,24 +44,293 @@ export function coerceGraphPath(value: unknown): GraphPath | null {
     return { nodes, edges };
   }
 
-  // Bare list of labels: expand into a linear chain.
+  // Bare list of labels or target/node strings: expand into a linear chain.
   if (Array.isArray(value)) {
-    const labels = value.filter(
+    const rawItems = value.filter(
       (item): item is string => typeof item === "string",
     );
-    if (labels.length === 0) return null;
-    const nodes = labels.map((label, index) => ({
-      id: `node-${index}`,
-      label: label as GraphNodeLabel,
-    }));
-    const edges = labels.slice(0, -1).map((_, index) => ({
+    if (rawItems.length === 0) return null;
+    const nodes = rawItems.map((raw, index) => {
+      let label: GraphNodeLabel = "Symbol";
+      let caption: string | undefined = raw;
+      const colonIdx = raw.indexOf(":");
+      if (colonIdx > 0) {
+        label = raw.slice(0, colonIdx) as GraphNodeLabel;
+        caption = raw.slice(colonIdx + 1);
+      } else {
+        label = raw as GraphNodeLabel;
+      }
+      return {
+        id: `node-${index}`,
+        label,
+        caption,
+      };
+    });
+    const edges = rawItems.slice(0, -1).map((_, index) => ({
       id: `node-${index}->node-${index + 1}`,
       source: `node-${index}`,
       target: `node-${index + 1}`,
-      rel_type: "NEXT",
+      rel_type: "CONNECTED_TO",
     }));
     return { nodes, edges };
   }
 
   return null;
 }
+
+export function coerceDecisions(value: unknown): Decision[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isRecord).map((item) => {
+    const rawTargets = Array.isArray(item.targets) ? item.targets : [];
+    const rawTargetIds = Array.isArray(item.target_ids) ? item.target_ids : [];
+    const targets: DecisionTarget[] =
+      rawTargets.length > 0
+        ? rawTargets.filter(isRecord).map((t) => ({
+            type: (t.type ?? "Symbol") as GraphNodeLabel,
+            identifier: String(t.identifier ?? ""),
+          }))
+        : rawTargetIds.map((id) => {
+            const strId = String(id);
+            const colon = strId.indexOf(":");
+            if (colon > 0) {
+              return {
+                type: strId.slice(0, colon) as GraphNodeLabel,
+                identifier: strId.slice(colon + 1),
+              };
+            }
+            return {
+              type: "Symbol" as GraphNodeLabel,
+              identifier: strId,
+            };
+          });
+
+    return {
+      decision_id: String(item.decision_id ?? ""),
+      claim: String(item.claim ?? ""),
+      status: (item.status ?? "active") as Decision["status"],
+      confidence: (item.confidence ?? "medium") as Decision["confidence"],
+      targets,
+      target_ids: rawTargetIds.map(String),
+      evidence_ids: Array.isArray(item.evidence_ids)
+        ? item.evidence_ids.map(String)
+        : [],
+      supersedes: item.supersedes ? String(item.supersedes) : null,
+      superseded_by: item.superseded_by ? String(item.superseded_by) : null,
+      pr_number: typeof item.pr_number === "number" ? item.pr_number : null,
+      created_at: item.created_at ? String(item.created_at) : null,
+      title: item.title ? String(item.title) : null,
+    };
+  });
+}
+
+export function coerceCitations(payload: unknown): Citation[] {
+  if (!isRecord(payload)) return [];
+
+  const rawEvidence = Array.isArray(payload.evidence) ? payload.evidence : [];
+  const rawCitations = Array.isArray(payload.citations) ? payload.citations : [];
+
+  const parseRecordType = (kind: unknown): RecordType => {
+    const s = String(kind ?? "").toLowerCase();
+    if (s.includes("pull") || s === "pr") return "pull_request";
+    if (s.includes("commit")) return "commit";
+    if (s.includes("review_comment")) return "review_comment";
+    if (s.includes("review")) return "review";
+    if (s.includes("issue_comment")) return "issue_comment";
+    if (s.includes("issue")) return "issue";
+    if (s.includes("doc")) return "doc_file";
+    if (s.includes("person")) return "person";
+    return "changed_file";
+  };
+
+  const toCitationFromEvidence = (
+    item: Record<string, unknown>,
+    index: number,
+  ): Citation => {
+    const id = String(item.evidence_id || item.alias || `evidence-${index + 1}`);
+    const path = item.path ? String(item.path) : null;
+    const prNum = typeof item.pr_number === "number" ? item.pr_number : null;
+    const title =
+      (item.title ? String(item.title) : null) ||
+      path ||
+      (prNum ? `PR #${prNum}` : null) ||
+      (item.alias ? String(item.alias) : id);
+    const excerpt = String(item.excerpt || item.body || path || title || id);
+
+    return {
+      evidence_id: id,
+      source_type: parseRecordType(item.kind || item.source_type),
+      url: item.url ? String(item.url) : null,
+      excerpt,
+      author: item.author ? String(item.author) : null,
+      created_at: item.created_at ? String(item.created_at) : null,
+      title,
+    };
+  };
+
+  // Index evidence items by id or alias for quick lookup
+  const evidenceMap = new Map<string, Record<string, unknown>>();
+  for (const item of rawEvidence) {
+    if (isRecord(item)) {
+      if (item.evidence_id) evidenceMap.set(String(item.evidence_id), item);
+      if (item.alias) evidenceMap.set(String(item.alias), item);
+      if (item.path) evidenceMap.set(String(item.path), item);
+    }
+  }
+
+  // If citations are provided
+  if (rawCitations.length > 0) {
+    return rawCitations.map((item, index) => {
+      // If already a structured object
+      if (isRecord(item)) {
+        const id = String(item.evidence_id || item.id || `citation-${index + 1}`);
+        const matched = evidenceMap.get(id);
+        const merged = matched ? { ...matched, ...item } : item;
+        return toCitationFromEvidence(merged, index);
+      }
+
+      // If it's a string: e.g. "fastapi/params.py — Depends with cache" or an ID
+      if (typeof item === "string") {
+        const str = item.trim();
+        const matched = evidenceMap.get(str);
+        if (matched) {
+          return toCitationFromEvidence(matched, index);
+        }
+
+        let title: string | null = null;
+        let excerpt = str;
+        let inferredType: RecordType = "changed_file";
+
+        if (str.includes(" — ")) {
+          const parts = str.split(" — ");
+          title = parts[0].trim();
+          excerpt = parts.slice(1).join(" — ").trim();
+        } else if (str.includes(": ") && !str.startsWith("http")) {
+          const parts = str.split(": ");
+          title = parts[0].trim();
+          excerpt = parts.slice(1).join(": ").trim();
+        } else if (str.includes(" - ") && !str.startsWith("http")) {
+          const parts = str.split(" - ");
+          title = parts[0].trim();
+          excerpt = parts.slice(1).join(" - ").trim();
+        } else {
+          title = str;
+        }
+
+        if (str.startsWith("http://") || str.startsWith("https://")) {
+          return {
+            evidence_id: `evidence-${index + 1}`,
+            source_type: "doc_file",
+            url: str,
+            excerpt: str,
+            title: title || str,
+            author: null,
+            created_at: null,
+          };
+        }
+
+        if (title && (title.endsWith(".md") || title.toLowerCase().includes("doc"))) {
+          inferredType = "doc_file";
+        } else if (
+          title &&
+          (title.toLowerCase().includes("pr") || title.toLowerCase().includes("pull"))
+        ) {
+          inferredType = "pull_request";
+        } else if (title && title.toLowerCase().includes("commit")) {
+          inferredType = "commit";
+        } else if (title && title.toLowerCase().includes("issue")) {
+          inferredType = "issue";
+        }
+
+        return {
+          evidence_id: title || `evidence-${index + 1}`,
+          source_type: inferredType,
+          url: null,
+          excerpt: excerpt || title || `Evidence #${index + 1}`,
+          title: title || `Evidence #${index + 1}`,
+          author: null,
+          created_at: null,
+        };
+      }
+
+      return {
+        evidence_id: `evidence-${index + 1}`,
+        source_type: "changed_file",
+        url: null,
+        excerpt: "Referenced codebase evidence",
+        title: `Evidence #${index + 1}`,
+        author: null,
+        created_at: null,
+      };
+    });
+  }
+
+  // If citations array was empty, but evidence array exists, use evidence:
+  if (rawEvidence.length > 0) {
+    return rawEvidence.filter(isRecord).map(toCitationFromEvidence);
+  }
+
+  return [];
+}
+
+export function coerceEvidenceDetail(
+  raw: unknown,
+  fallbackId: string,
+): EvidenceDetail {
+  if (!isRecord(raw)) {
+    return {
+      evidence_id: fallbackId,
+      source_type: "changed_file",
+      record_type: "changed_file",
+      repo: "",
+      url: null,
+      excerpt: fallbackId,
+      title: fallbackId,
+      author: null,
+      created_at: null,
+    };
+  }
+
+  const rawKind = raw.record_type || raw.source_type || raw.kind;
+  const s = String(rawKind ?? "").toLowerCase();
+  let recordType: RecordType = "changed_file";
+  if (s.includes("pull") || s === "pr") recordType = "pull_request";
+  else if (s.includes("commit")) recordType = "commit";
+  else if (s.includes("review_comment")) recordType = "review_comment";
+  else if (s.includes("review")) recordType = "review";
+  else if (s.includes("issue_comment")) recordType = "issue_comment";
+  else if (s.includes("issue")) recordType = "issue";
+  else if (s.includes("doc")) recordType = "doc_file";
+  else if (s.includes("person")) recordType = "person";
+
+  const id = String(raw.evidence_id || fallbackId);
+  const path = raw.path ? String(raw.path) : null;
+  const prNum = typeof raw.pr_number === "number" ? raw.pr_number : null;
+  const title =
+    (raw.title ? String(raw.title) : null) ||
+    path ||
+    (prNum ? `PR #${prNum}` : null) ||
+    id;
+
+  return {
+    evidence_id: id,
+    source_type: recordType,
+    record_type: recordType,
+    repo: typeof raw.repo === "string" ? raw.repo : "",
+    url: typeof raw.url === "string" ? raw.url : null,
+    excerpt: String(raw.excerpt || raw.body || path || title || id),
+    title,
+    author: raw.author ? String(raw.author) : null,
+    created_at: raw.created_at ? String(raw.created_at) : null,
+    pr_number: prNum,
+    body:
+      typeof raw.body === "string"
+        ? raw.body
+        : typeof raw.excerpt === "string"
+          ? raw.excerpt
+          : null,
+    payload: isRecord(raw.payload)
+      ? (raw.payload as Record<string, unknown>)
+      : undefined,
+  };
+}
+
