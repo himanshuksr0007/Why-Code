@@ -77,7 +77,7 @@ def create_app(
             from app.retrieval.config import RetrievalConfig
             from app.retrieval.live_service import LiveService
 
-            cfg = RetrievalConfig.from_env()
+            cfg = RetrievalConfig.from_env(repo="encode/httpx")
             logger.info(f"RetrievalConfig loaded - Neo4j URI present: {bool(cfg.neo4j_uri)}")
             logger.info(f"RetrievalConfig loaded - LLM API key present: {bool(cfg.llm_api_key)}")
 
