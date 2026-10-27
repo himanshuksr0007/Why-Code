@@ -19,8 +19,15 @@ cd "$(dirname "$0")"
 API_PORT=8000
 WEB_PORT=3000
 
+# Load backend/.env if present
+if [ -f "backend/.env" ]; then
+    set -a
+    source "backend/.env"
+    set +a
+fi
+
 # Check for required Neo4j environment variables
-if [ -z "$WHYCODE_NEO4J_URI" ] || [ -z "$WHYCODE_NEO4J_USER" ] || [ -z "$WHYCODE_NEO4J_PASSWORD" ]; then
+if [ -z "${WHYCODE_NEO4J_URI:-}" ] || [ -z "${WHYCODE_NEO4J_USER:-}" ] || [ -z "${WHYCODE_NEO4J_PASSWORD:-}" ]; then
     echo "ERROR: Neo4j credentials not configured."
     echo "Please set WHYCODE_NEO4J_URI, WHYCODE_NEO4J_USER, and WHYCODE_NEO4J_PASSWORD in backend/.env"
     echo ""
@@ -62,10 +69,8 @@ if [ ! -d "frontend/node_modules" ]; then
     echo "Installing frontend dependencies (first run)..."
     (cd frontend && npm install)
 fi
-if [ ! -f "frontend/.env.local" ]; then
-    printf 'NEXT_PUBLIC_API_MODE=http\nNEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:%s\n' "$API_PORT" > frontend/.env.local
-    echo "Wrote frontend/.env.local (points the UI at the local backend)."
-fi
+printf 'NEXT_PUBLIC_API_MODE=http\nNEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:%s\n' "$API_PORT" > frontend/.env.local
+echo "Configured frontend/.env.local (API_MODE=http, BASE_URL=http://127.0.0.1:$API_PORT)."
 
 echo "Starting frontend — open http://localhost:$WEB_PORT"
 cd frontend && npm run dev
