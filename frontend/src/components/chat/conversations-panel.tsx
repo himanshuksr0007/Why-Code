@@ -5,7 +5,18 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { MessageSquareIcon, Trash2Icon, MoreVerticalIcon, Trash2Icon as TrashAllIcon, EyeOffIcon, XIcon } from "lucide-react";
 import { useChatStore, deleteChat, setActiveChat, clearChats } from "@/lib/chat/store";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { formatRelativeTime } from "@/lib/format";
+import {
+  setConversationsOpen,
+  useConversationsOpen,
+} from "@/lib/local/panels";
 import { cn } from "@/lib/utils";
 
 export function ConversationsPanel() {
@@ -13,7 +24,7 @@ export function ConversationsPanel() {
   const router = useRouter();
   const { chats, activeId } = useChatStore();
   const onChatsRoute = pathname === "/";
-  const [showMenu, setShowMenu] = useState(false);
+  const conversationsOpen = useConversationsOpen();
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [isIncognito, setIsIncognito] = useState(false);
@@ -22,6 +33,7 @@ export function ConversationsPanel() {
     if (confirmText.toLowerCase() === "confirm") {
       clearChats();
       setShowClearDialog(false);
+      setConversationsOpen(false);
       setConfirmText("");
       router.push("/");
     }
@@ -29,47 +41,50 @@ export function ConversationsPanel() {
 
   return (
     <>
-      <aside className="fixed right-4 top-1/2 -translate-y-1/2 w-72 z-50 flex flex-col gap-4"  aria-label="Conversations"
+      {/* Mobile backdrop: tapping anywhere outside the panel closes it. */}
+      {conversationsOpen && (
+        <button
+          type="button"
+          aria-label="Close conversations"
+          onClick={() => setConversationsOpen(false)}
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] lg:hidden"
+        />
+      )}
+      <aside
+        className={cn(
+          "fixed right-4 top-1/2 z-50 max-h-[88svh] w-72 max-w-[86vw] -translate-y-1/2 flex-col gap-4",
+          conversationsOpen ? "flex" : "hidden",
+          "lg:flex",
+        )}
+        aria-label="Conversations"
       >
         {/* Header Bubble */}
         <div className="rounded-2xl bg-card/95 backdrop-blur-sm border border-border/40 px-4 py-3 flex items-center justify-between shadow-none">
           <h2 className="text-sm font-medium text-foreground">
             Conversations
           </h2>
-          <div className="relative">
-            <button 
-              onClick={() => setShowMenu(!showMenu)}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Conversation options"
             >
               <MoreVerticalIcon className="size-4" />
-            </button>
-
-            {/* Dropdown Menu */}
-            {showMenu && (
-              <div className="absolute right-0 top-full mt-2 w-48 rounded-xl bg-card/95 backdrop-blur-sm border border-border/40 py-2 shadow-none z-50">
-                <button
-                  onClick={() => {
-                    setIsIncognito(!isIncognito);
-                    setShowMenu(false);
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-primary/10 transition-colors duration-200 flex items-center gap-2"
-                >
-                  <EyeOffIcon className="size-4" />
-                  {isIncognito ? "Exit Incognito" : "Incognito Mode"}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowMenu(false);
-                    setShowClearDialog(true);
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm text-destructive hover:bg-destructive/10 transition-colors duration-200 flex items-center gap-2"
-                >
-                  <TrashAllIcon className="size-4" />
-                  Clear All Chats
-                </button>
-              </div>
-            )}
-          </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => setIsIncognito((v) => !v)}>
+                <EyeOffIcon className="size-4" />
+                {isIncognito ? "Exit incognito" : "Incognito mode"}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => setShowClearDialog(true)}
+              >
+                <TrashAllIcon className="size-4" />
+                Clear all chats
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Incognito Badge */}
@@ -104,6 +119,7 @@ export function ConversationsPanel() {
                         aria-current={isActive ? "page" : undefined}
                         onClick={() => {
                           setActiveChat(chat.id);
+                          setConversationsOpen(false);
                         }}
                         className={cn(
                           "flex items-start gap-3 rounded-xl p-3 transition-all duration-200",

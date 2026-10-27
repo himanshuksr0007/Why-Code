@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { RotateCcwIcon, TriangleAlertIcon, ShareIcon, MoreVerticalIcon } from "lucide-react";
+import { RotateCcwIcon, TriangleAlertIcon, ShareIcon, MoreVerticalIcon, PencilIcon, DownloadIcon, Trash2Icon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { AnswerPanel } from "@/components/answer/answer-panel";
@@ -15,10 +16,27 @@ import { ThinkingIndicator } from "@/components/chat/thinking-indicator";
 import { RepoNotIndexed } from "@/components/repo/not-indexed";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PersonAvatar } from "@/components/people/person-avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { api, findRepo } from "@/lib/api";
 import {
   addTurn,
   createChat,
+  deleteChat,
   failTurn,
   resolveTurn,
   setActiveChat,
@@ -47,6 +65,7 @@ function prefersReducedMotion(): boolean {
 }
 
 function UserTurn({ turn }: { turn: ChatTurn }) {
+  const { profile } = useLocalProfile();
   return (
     <div className="flex justify-end">
       <div className="flex items-start gap-3 max-w-[70%]">
@@ -58,17 +77,10 @@ function UserTurn({ turn }: { turn: ChatTurn }) {
             {turn.question}
           </p>
         </div>
-        <div className="size-8 rounded-full overflow-hidden shrink-0 mt-1 shadow-floating bg-primary/15 border border-primary/20 flex items-center justify-center font-heading text-xs font-semibold text-primary select-none relative">
-          <span className="text-[11px] font-bold">U</span>
-          <img 
-            src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=64&h=64&fit=crop&crop=face" 
-            alt="User avatar"
-            className="absolute inset-0 size-full object-cover"
-            onError={(e) => {
-              (e.currentTarget as HTMLElement).style.display = "none";
-            }}
-          />
-        </div>
+        <PersonAvatar
+          login={profile.handle || profile.display_name}
+          className="mt-1 size-8 shadow-floating"
+        />
       </div>
     </div>
   );
@@ -153,10 +165,10 @@ function ConversationHeader({ title }: { title: string }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title);
   const [prevTitle, setPrevTitle] = useState(title);
-  const [showMenu, setShowMenu] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const { activeId } = useChatStore();
+  const { activeId, chats } = useChatStore();
+  const router = useRouter();
 
   if (prevTitle !== title) {
     setPrevTitle(title);
@@ -170,24 +182,52 @@ function ConversationHeader({ title }: { title: string }) {
     }
   }, [isEditing]);
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowMenu(false);
-      }
-    };
-    if (showMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showMenu]);
-
   const handleSaveTitle = useCallback(() => {
     if (activeId && editedTitle.trim() && editedTitle !== title) {
       updateChatTitle(activeId, editedTitle.trim());
     }
     setIsEditing(false);
   }, [activeId, editedTitle, title]);
+
+  const handleShare = useCallback(() => {
+    navigator.clipboard.writeText(window.location.href);
+    setShareClicked(true);
+    toast.success("Link copied to clipboard");
+    setTimeout(() => setShareClicked(false), 2000);
+  }, []);
+
+  const handleExport = useCallback(() => {
+    const chat = chats.find((c) => c.id === activeId);
+    if (!chat) return;
+    const lines: string[] = [`# ${chat.title}`, ""];
+    for (const turn of chat.turns) {
+      lines.push("## You", "", turn.question, "", "## WhyAgent", "");
+      if (turn.response) lines.push(turn.response.answer);
+      else if (turn.error) lines.push(`_Error: ${turn.error}_`);
+      else lines.push("_No answer yet._");
+      lines.push("", "---", "");
+    }
+    const blob = new Blob([lines.join("\n")], {
+      type: "text/markdown;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${
+      chat.title.replace(/[^\w\- ]+/g, "").trim().slice(0, 60) || "whycode-chat"
+    }.md`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    toast.success("Chat exported as Markdown");
+  }, [activeId, chats]);
+
+  const handleDelete = useCallback(() => {
+    if (!activeId) return;
+    deleteChat(activeId);
+    setShowDeleteDialog(false);
+    toast.success("Chat deleted");
+    router.push("/");
+  }, [activeId, router]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -199,6 +239,7 @@ function ConversationHeader({ title }: { title: string }) {
   };
 
   return (
+    <>
     <div className="sticky top-0 z-30 flex items-center justify-center px-4 py-4">
       <div className="flex items-center gap-4 rounded-2xl bg-card/60 backdrop-blur-2xl shadow-floating border border-white/20 dark:border-white/10 px-6 py-3 animate-scale hover:shadow-floating-lg transition-all duration-300 relative overflow-hidden">
         {/* Liquid glass shimmer effect */}
@@ -230,12 +271,7 @@ function ConversationHeader({ title }: { title: string }) {
 
         {/* Share Button with enhanced hover */}
         <button
-          onClick={() => {
-            navigator.clipboard.writeText(window.location.href);
-            setShareClicked(true);
-            toast.success("Link copied to clipboard");
-            setTimeout(() => setShareClicked(false), 2000);
-          }}
+          onClick={handleShare}
           className={cn(
             "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 relative z-10",
             shareClicked 
@@ -248,58 +284,61 @@ function ConversationHeader({ title }: { title: string }) {
           <span className="hidden sm:inline">Share</span>
         </button>
 
-        {/* More Options Button with dropdown */}
-        <div className="relative z-10" ref={menuRef}>
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="flex items-center justify-center rounded-xl size-9 text-muted-foreground transition-all duration-300 bg-white/5 hover:bg-white/10 hover:text-primary hover:scale-110 active:scale-95 backdrop-blur-sm"
+        {/* More options: portaled menu, so the pill's overflow clipping and
+            neighbouring stacking contexts can never hide it. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="relative z-10 flex size-9 items-center justify-center rounded-xl bg-white/5 text-muted-foreground backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:bg-white/10 hover:text-primary active:scale-95"
             aria-label="More options"
             title="More options"
           >
             <MoreVerticalIcon className="size-4" />
-          </button>
-
-          {/* Dropdown Menu */}
-          {showMenu && (
-            <div className="absolute right-0 mt-2 w-48 rounded-xl bg-card/95 backdrop-blur-xl shadow-floating-lg border border-border/40 py-2 animate-scale">
-              <button
-                onClick={() => {
-                  setIsEditing(true);
-                  setShowMenu(false);
-                }}
-                className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-primary/10 transition-colors duration-200"
-              >
-                Rename chat
-              </button>
-              <button
-                onClick={() => {
-                  if (activeId) {
-                    // Export chat logic here
-                    toast.success("Export feature coming soon");
-                  }
-                  setShowMenu(false);
-                }}
-                className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-primary/10 transition-colors duration-200"
-              >
-                Export chat
-              </button>
-              <button
-                onClick={() => {
-                  if (activeId && confirm('Delete this chat?')) {
-                    // Delete logic handled by sidebar
-                    toast.success("Chat deleted");
-                  }
-                  setShowMenu(false);
-                }}
-                className="w-full px-4 py-2 text-left text-sm text-destructive hover:bg-destructive/10 transition-colors duration-200"
-              >
-                Delete chat
-              </button>
-            </div>
-          )}
-        </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={() => setIsEditing(true)}>
+              <PencilIcon className="size-4" />
+              Rename chat
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleShare}>
+              <ShareIcon className="size-4" />
+              Share chat
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExport}>
+              <DownloadIcon className="size-4" />
+              Export as Markdown
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              <Trash2Icon className="size-4" />
+              Delete chat
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
+
+    <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete this chat?</DialogTitle>
+          <DialogDescription>
+            “{title}” will be permanently deleted. This cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={handleDelete}>
+            Delete chat
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
