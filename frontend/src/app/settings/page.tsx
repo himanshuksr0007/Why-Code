@@ -538,11 +538,6 @@ export default function SettingsPage() {
                     );
                   })}
                 </div>
-
-                <div className="mt-4 pt-4 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Current effective theme: <strong className="text-foreground capitalize">{mounted ? (resolvedTheme ?? theme) : "..."}</strong></span>
-                  <span>Persisted in browser storage</span>
-                </div>
               </div>
             </div>
           )}

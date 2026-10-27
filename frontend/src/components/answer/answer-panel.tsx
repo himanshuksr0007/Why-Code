@@ -128,17 +128,17 @@ export function AnswerPanel({ response }: { response: AskResponse }) {
       <Tabs defaultValue="evidence" className="border-t border-border/70">
         <div className="px-4 pt-3">
           <TabsList variant="line">
-            <TabsTrigger value="evidence">
+            <TabsTrigger key="evidence" value="evidence">
               Evidence
               <span className="ml-1 font-mono text-[11px] text-muted-foreground">
                 {citations.length}
               </span>
             </TabsTrigger>
             {graph_path ? (
-              <TabsTrigger value="graph">Graph path</TabsTrigger>
+              <TabsTrigger key="graph" value="graph">Graph path</TabsTrigger>
             ) : null}
             {changeList.length > 0 ? (
-              <TabsTrigger value="changes">
+              <TabsTrigger key="changes" value="changes">
                 Changes
                 <span className="ml-1 font-mono text-[11px] text-muted-foreground">
                   {changeList.length}
@@ -146,7 +146,7 @@ export function AnswerPanel({ response }: { response: AskResponse }) {
               </TabsTrigger>
             ) : null}
             {decisionList.length > 0 ? (
-              <TabsTrigger value="decisions">
+              <TabsTrigger key="decisions" value="decisions">
                 Decisions
                 <span className="ml-1 font-mono text-[11px] text-muted-foreground">
                   {decisionList.length}
@@ -156,12 +156,12 @@ export function AnswerPanel({ response }: { response: AskResponse }) {
           </TabsList>
         </div>
 
-        <TabsContent value="evidence" className="px-4 pt-3 pb-4">
+        <TabsContent key="evidence" value="evidence" className="px-4 pt-3 pb-4">
           {citations.length > 0 ? (
             <ul className="space-y-2">
               {citations.map((citation, index) => (
                 <CitationCard
-                  key={citation.evidence_id}
+                  key={citation.evidence_id ? `${citation.evidence_id}-${index}` : `citation-${index}`}
                   citation={citation}
                   index={index}
                 />
@@ -175,26 +175,32 @@ export function AnswerPanel({ response }: { response: AskResponse }) {
         </TabsContent>
 
         {graph_path ? (
-          <TabsContent value="graph" className="px-4 pt-3 pb-4">
+          <TabsContent key="graph" value="graph" className="px-4 pt-3 pb-4">
             <GraphPathView path={graph_path} />
           </TabsContent>
         ) : null}
 
         {changeList.length > 0 ? (
-          <TabsContent value="changes" className="px-4 pt-3 pb-4">
+          <TabsContent key="changes" value="changes" className="px-4 pt-3 pb-4">
             <div className="space-y-3">
-              {changeList.map((change) => (
-                <CodeChangeCard key={change.change_id} change={change} />
+              {changeList.map((change, index) => (
+                <CodeChangeCard
+                  key={change.change_id ? `${change.change_id}-${index}` : `change-${index}`}
+                  change={change}
+                />
               ))}
             </div>
           </TabsContent>
         ) : null}
 
         {decisionList.length > 0 ? (
-          <TabsContent value="decisions" className="px-4 pt-3 pb-4">
+          <TabsContent key="decisions" value="decisions" className="px-4 pt-3 pb-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              {decisionList.map((decision) => (
-                <DecisionCard key={decision.decision_id} decision={decision} />
+              {decisionList.map((decision, index) => (
+                <DecisionCard
+                  key={decision.decision_id ? `${decision.decision_id}-${index}` : `decision-${index}`}
+                  decision={decision}
+                />
               ))}
             </div>
           </TabsContent>

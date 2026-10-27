@@ -281,6 +281,7 @@ export function GridBackground({ className }: { className?: string }) {
     <canvas
       ref={canvasRef}
       aria-hidden="true"
+      suppressHydrationWarning
       className={cn(
         "fixed inset-0 pointer-events-none z-0",
         className

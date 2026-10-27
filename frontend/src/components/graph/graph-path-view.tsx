@@ -150,7 +150,7 @@ export function GraphPathView({
         {path.nodes.map((node, index) => {
           const nextEdge = path.edges.find((edge) => edge.source === node.id);
           return (
-            <li key={node.id} className="flex items-start gap-2 text-sm">
+            <li key={`${node.id}-${index}`} className="flex items-start gap-2 text-sm">
               <span
                 aria-hidden="true"
                 className="mt-1.5 size-2 shrink-0 rounded-full"

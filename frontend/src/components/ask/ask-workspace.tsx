@@ -500,7 +500,7 @@ function AskSession({
         <div className="flex-1 space-y-6 py-6">
           {chat.turns.map((turn, index) => (
             <div
-              key={turn.id}
+              key={turn.id ? `${turn.id}-${index}` : `turn-${index}`}
               ref={index === chat.turns.length - 1 ? lastTurnRef : undefined}
               className="space-y-4"
             >

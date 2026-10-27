@@ -54,8 +54,8 @@ export function RefusalState({
             Try one of these instead
           </p>
           <ul className="mt-2 flex flex-wrap gap-2">
-            {suggestions.map((suggestion) => (
-              <li key={suggestion}>
+            {suggestions.map((suggestion, index) => (
+              <li key={`${suggestion}-${index}`}>
                 <Button
                   variant="outline"
                   size="sm"
@@ -75,9 +75,9 @@ export function RefusalState({
             Nearest candidates — related, but not sufficient to answer
           </p>
           <ul className="mt-2 space-y-2">
-            {refusal.nearest_candidates.map((candidate) => (
+            {refusal.nearest_candidates.map((candidate, index) => (
               <CitationCard
-                key={candidate.evidence_id}
+                key={candidate.evidence_id ? `${candidate.evidence_id}-${index}` : `candidate-${index}`}
                 citation={candidate}
                 muted
               />

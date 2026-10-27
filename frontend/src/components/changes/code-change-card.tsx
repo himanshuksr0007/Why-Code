@@ -147,9 +147,9 @@ export function CodeChangeCard({
                   <span className="text-[10px] tracking-wide text-muted-foreground uppercase">
                     Evidence
                   </span>
-                  {evidenceIds.map((evidenceId) => (
+                  {evidenceIds.map((evidenceId, idx) => (
                     <button
-                      key={evidenceId}
+                      key={`${evidenceId}-${idx}`}
                       type="button"
                       onClick={() => openEvidence(evidenceId)}
                       className="rounded-md border border-border/70 bg-background/60 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
@@ -198,8 +198,8 @@ export function CodeChangeCard({
 
             <Field label={`Reviewed by (${reviewers.length})`}>
               {reviewers.length > 0 ? (
-                reviewers.map((reviewer) => (
-                  <PersonChip key={reviewer.login} person={reviewer} />
+                reviewers.map((reviewer, idx) => (
+                  <PersonChip key={`${reviewer.login}-${idx}`} person={reviewer} />
                 ))
               ) : (
                 <span className="text-xs text-muted-foreground">

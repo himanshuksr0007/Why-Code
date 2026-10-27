@@ -47,9 +47,9 @@ export function DecisionCard({ decision }: { decision: Decision }) {
 
       {decision.targets.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {decision.targets.map((target) => (
+          {decision.targets.map((target, idx) => (
             <span
-              key={`${target.type}:${target.identifier}`}
+              key={`${target.type}:${target.identifier}-${idx}`}
               className="rounded-md border border-border/70 bg-muted/40 px-2 py-0.5 font-mono text-[11px] text-muted-foreground"
             >
               {target.identifier}
