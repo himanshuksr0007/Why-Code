@@ -61,6 +61,7 @@ VERSION = "0.0.1"
 _DEMO_ORIGINS = (
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://why-code-ten.vercel.app",
 )
 
 
@@ -78,7 +79,7 @@ def create_app(
             from app.retrieval.live_service import LiveService
 
             cfg = RetrievalConfig.from_env(repo="encode/httpx")
-            logger.info(f"RetrievalConfig loaded - Neo4j URI present: {bool(cfg.neo4j_uri)}")
+            logger.info(f"RetrievalConfig loaded - repo: {cfg.repo}")
             logger.info(f"RetrievalConfig loaded - LLM API key present: {bool(cfg.llm_api_key)}")
 
             generator = None
