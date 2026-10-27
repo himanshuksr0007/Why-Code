@@ -23,27 +23,35 @@
 
 ## Screenshots
 
-The UI below is the current **local prototype**, running on bundled fixture data. The local frontend source lives in `frontend/` (currently excluded from the published tree), and its `/demo` route calls the prepared backend directly; the screenshots show the intended product experience.
+WhyCode provides a rich, responsive interface with seamless **Dark Mode** and **Light Mode** support. Toggle modes instantly using the theme button or match your system preferences.
 
-<p align="center">
-  <img src="assets/readme/ask.png" alt="WhyCode ask screen with repository selector and example questions" width="100%" />
-</p>
-<p align="center"><sub><b>Ask.</b> Pick a repository, ask a “why” question, or start from an example.</sub></p>
+### Ask & GraphRAG Synthesis with WhyAgent
 
-<p align="center">
-  <img src="assets/readme/answer.png" alt="Answer with evidence citations, confidence and graph path" width="75%" />
-</p>
-<p align="center"><sub><b>Answer with evidence.</b> Confidence is categorical, every citation opens, and the graph path is inspectable.</sub></p>
-
-| Dashboard | Decision timeline |
+| Dark Mode (Obsidian & Orange Grid) | Light Mode (Warm Canvas & Orange Grid) |
 | :---: | :---: |
-| <img src="assets/readme/dashboard.png" alt="Repository dashboard" width="440" /> | <img src="assets/readme/decisions.png" alt="Decision timeline with reversal" width="440" /> |
-| Active decisions, changes and contributors at a glance. | Decisions keep their history — including reversals. |
+| <img src="assets/readme/ask-dark.png" alt="WhyCode Ask and Answer in Dark Mode" width="100%" /> | <img src="assets/readme/ask-light.png" alt="WhyCode Ask and Answer in Light Mode" width="100%" /> |
+| Synthesis with WhyAgent avatar, decision cards & categorical confidence | Crystal-clear typography, citations & structured evidence links |
 
-| Code changes | Graph path |
+### Interactive Graph Path Explorer
+
+| Dark Mode Graph | Light Mode Graph |
 | :---: | :---: |
-| <img src="assets/readme/changes.png" alt="Code change with before/after and the reason" width="440" /> | <img src="assets/readme/graph.png" alt="Graph path from config key to evidence" width="440" /> |
-| The diff, the reason and the people behind it. | Config key → symbol → region → commit → PR → evidence. |
+| <img src="assets/readme/graph-dark.png" alt="Graph Path Explorer in Dark Mode" width="100%" /> | <img src="assets/readme/graph-light.png" alt="Graph Path Explorer in Light Mode" width="100%" /> |
+| Visual path from ConfigKey → Symbol → Region → Commit → PR | 4-sided dynamic directional handles with inspectable nodes |
+
+### Decision Timeline & History
+
+| Decisions (Dark Mode) | Decisions (Light Mode) |
+| :---: | :---: |
+| <img src="assets/readme/decisions-dark.png" alt="Decisions Timeline in Dark Mode" width="100%" /> | <img src="assets/readme/decisions-light.png" alt="Decisions Timeline in Light Mode" width="100%" /> |
+| Chronological decisions tracking origins, revisions and reversals | Complete timeline with confidence ratings and commit/PR links |
+
+### Contributor Profile & Evidence Inspection
+
+| Profile with Connected Vertical Nav | Evidence Sheet Inspector |
+| :---: | :---: |
+| <img src="assets/readme/profile-dark.png" alt="Profile in Dark Mode" width="100%" /> | <img src="assets/readme/evidence-sheet.png" alt="Evidence Sheet Inspector" width="100%" /> |
+| Interactive vertical connected icon nav with hover labels | Slide-out evidence inspector with diffs, payloads & source links |
 
 ## How it works
 
@@ -56,10 +64,39 @@ The LLM is a **proposer**, never the authority: deterministic code validates eve
 
 ## Quick start
 
-**Prerequisites:** Python 3.12+, a GitHub token, a Neo4j AuraDB (or local Neo4j) instance, and an OpenAI-compatible API key.
+### 🚀 One-Command Launchers
+
+You can launch both the backend and frontend together with a single script:
+
+#### 1. Demo Mode (Zero Configuration)
+Runs the demo version using offline fixture data. **No Neo4j database or API keys required**:
+- **Windows (Command Prompt / Double Click):** `startdemo.bat`
+- **Windows (PowerShell):** `.\startdemo.ps1`
+- **macOS / Linux:** `./startdemo.sh`
+
+> Automatically starts the backend at `http://localhost:8000` and frontend at `http://localhost:3000`.
+
+#### 2. Production Mode (Full GraphRAG + Live Neo4j)
+Runs the production version with live Neo4j database and LLM decision extraction:
+> [!IMPORTANT]
+> **Production mode requires all keys to be set** in `backend/.env` before running:
+> - `WHYCODE_NEO4J_URI`, `WHYCODE_NEO4J_USER`, `WHYCODE_NEO4J_PASSWORD`
+> - `WHYCODE_LLM_API_KEY` (and optionally `WHYCODE_LLM_MODEL`, `WHYCODE_LLM_BASE_URL`)
+> - `WHYCODE_GITHUB_TOKEN` (for repository ingestion)
+
+Run the production launcher:
+- **Windows (Command Prompt / Double Click):** `startprod.bat`
+- **Windows (PowerShell):** `.\startprod.ps1`
+- **macOS / Linux:** `./startprod.sh`
+
+---
+
+### Manual Setup
+
+**Prerequisites:** Python 3.12+, Node.js 20+, a GitHub token, a Neo4j AuraDB (or local Neo4j) instance, and an OpenAI-compatible API key.
 
 ```bash
-git clone https://github.com/shivamsingh-007/Why-Code.git
+git clone https://github.com/himanshuksr0007/Why-Code.git
 cd Why-Code/backend
 
 python3 -m venv .venv
@@ -94,7 +131,7 @@ curl -X POST http://localhost:8000/demo/rehearse \
   -H 'content-type: application/json' -d '{}'
 ```
 
-In another (local working tree — `frontend/` is not in the published tree yet):
+In another:
 
 ```bash
 cd frontend
@@ -162,7 +199,7 @@ Current result: **1030 passed, 9 skipped**, ruff clean, mypy clean. Eight skips 
 | **3 · Structural enricher** | ✅ | Tree-sitter Python symbols/imports/references, YAML/TOML/env config keys, docs, regions, validation | Python only; JS/TS/Rust and lock files are skipped by design |
 | **4 · Decision extractor** | ✅ | Candidate detection, context packing, strict schemas, evidence/claim/rule gates, confidence, supersession, dedupe, review queue, Neo4j writer, hand-curated golden set + deterministic evaluation | Live LLM acceptance and the public golden-suite run are not demonstrated in this repo (public cases are curated but unexecuted) |
 | **5 · GraphRAG retrieval** | ✅ | Fixed retrieval pipeline (exact + full-text + vector + graph expansion), static read-only Neo4j `GraphBackend`/`LookupBackend` adapter, WRRF fusion, reranking, evidence packing, constrained synthesis, citation/quote validation, four refusal modes, `/ask` and supporting API routes, deterministic Phase 10 judge demo, 321 retrieval contract tests | A production embedding model and the golden-question acceptance run are not included; live latency is not measured |
-| **6 · Evidence UI** | 🟡 | Local Next.js source in `frontend/` (currently excluded from the published tree), including the `/demo` judge workspace and the fixture-mode product screens | Only `/demo` is wired to the prepared backend; the general screens still use fixtures, and nothing is deployed |
+| **6 · Evidence UI** | ✅ | Full Next.js frontend with live GraphRAG ask/answer, interactive ReactFlow graph explorer, decision timeline, evidence sheet inspector, Dark/Light themes, WhyAgent integration, and connected vertical-line profile navigation | Production deployment |
 
 **Also not done:** production embedding provider, retrieval golden-question acceptance run, Aura Agent/MCP integration, CI and Docker, live acceptance evidence for Components 1–5.
 
