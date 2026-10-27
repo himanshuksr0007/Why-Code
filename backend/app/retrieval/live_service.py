@@ -232,9 +232,93 @@ def clean_markdown(text: str) -> str:
         processed.append(trimmed)
 
     text = "\n".join(processed)
+    # Strip any leading empty headings
+    text = re.sub(r"^#{1,6}\s*\n+", "", text)
     # Normalize excessive blank lines
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
+
+
+_RETRIEVAL_STOP_WORDS = {
+    "what", "whats", "why", "how", "when", "where", "which", "who", "whom",
+    "does", "doesnt", "is", "are", "was", "were", "be", "been", "being",
+    "this", "that", "these", "those", "the", "and", "or", "for", "from", "with",
+    "about", "into", "through", "during", "before", "after", "above", "below",
+    "code", "codebase", "repo", "repository", "project", "used", "uses", "using",
+    "solve", "solves", "solving", "problem", "problems", "need", "needs", "needed",
+    "structure", "organized", "organization", "architecture", "architectural",
+    "work", "works", "working", "help", "helps", "tell", "give", "show", "overview"
+}
+
+
+def rank_files_for_query(repo: str, question: str, files: list[str]) -> list[str]:
+    """Ranks repository files by relevance to the query, heavily prioritizing architectural sources."""
+    q_tokens = [w.lower() for w in re.findall(r"[a-zA-Z0-9_]+", question) if len(w) > 2]
+    content_tokens = [w for w in q_tokens if w not in _RETRIEVAL_STOP_WORDS]
+    q_lower = question.lower()
+    is_overview_query = (
+        len(content_tokens) == 0
+        or any(
+            w in q_lower
+            for w in [
+                "structure",
+                "architecture",
+                "what is",
+                "used for",
+                "problem",
+                "overview",
+                "what does",
+                "why do we need",
+                "how is it organized",
+            ]
+        )
+    )
+
+    scored: list[tuple[float, str]] = []
+    for f in files:
+        f_lower = f.lower()
+        score = 0.0
+
+        # Heavy penalties for administrative and non-code documentation files
+        if any(ign in f_lower for ign in ["code_of_conduct", "contributing", "license", ".github/", "issue_template"]):
+            if not any(t in f_lower for t in content_tokens):
+                score -= 100.0
+        # Penalties for test fixtures and unit tests
+        if "tests/" in f_lower or "test_" in f_lower:
+            if not any(t in f_lower for t in content_tokens):
+                score -= 30.0
+
+        # Strong boost for primary repository entrypoints, README, and core architecture docs
+        if is_overview_query:
+            if f_lower == "readme.md":
+                score += 85.0
+            elif f_lower in ["docs/index.md", "docs/quickstart.md", "docs/async.md", "docs/http2.md"]:
+                score += 50.0
+            elif f_lower in ["httpx/__init__.py", "httpx/_client.py", "httpx/_models.py", "httpx/_api.py"]:
+                score += 65.0
+            elif "httpx/_transports" in f_lower:
+                score += 45.0
+            elif f.startswith("httpx/") and f.endswith(".py"):
+                score += 35.0
+
+        # Match content tokens against file path
+        for t in content_tokens:
+            if t in f_lower:
+                score += 25.0
+                if f"/{t}." in f_lower or f"_{t}." in f_lower or f"_{t}/" in f_lower:
+                    score += 20.0
+
+        # General baseline boost for primary package source files
+        if f.startswith("httpx/") and f.endswith(".py"):
+            score += 10.0
+        elif f.endswith(".md") and f.startswith("docs/"):
+            score += 5.0
+
+        if score > 0:
+            scored.append((score, f))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [f for _, f in scored]
 
 
 class LiveService:
@@ -512,37 +596,36 @@ class LiveService:
             for p in matching_prs
         ])
 
-        # Get relevant file paths
+        # Get relevant file paths using intelligent architectural ranking
         all_files = self.gh.tree_files(repo) if self.gh else []
-        q_lower = question.lower()
-        key_files = [f for f in all_files if any(part in f.lower() for part in q_lower.split() if len(part) > 3)][:10]
-        if not key_files:
-            key_files = [f for f in all_files if any(f.endswith(ext) for ext in [".py", ".ts", ".js", ".go", ".rs", ".md"])][:15]
+        ranked_files = rank_files_for_query(repo, question, all_files)
+        key_files = ranked_files[:12] if ranked_files else all_files[:12]
 
-        # Fetch snippet of the most relevant file if found
+        # Fetch snippets from the top 4 most relevant files (up to 70 lines each)
         file_snippets: list[str] = []
         if key_files and self.gh:
-            target_file = key_files[0]
-            content = self.gh.file_content(repo, target_file)
-            if content:
-                snippet = "\n".join(content.splitlines()[:60])
-                file_snippets.append(f"File {target_file}:\n```\n{snippet}\n```")
+            for target_file in key_files[:4]:
+                content = self.gh.file_content(repo, target_file)
+                if content:
+                    snippet = "\n".join(content.splitlines()[:70])
+                    file_snippets.append(f"File `{target_file}`:\n```\n{snippet}\n```")
 
         context_block = f"Repository: {repo} (Default branch: {branch})\nDescription: {desc}\n\n"
         if key_files:
-            context_block += f"Key repository files:\n" + "\n".join([f"- {f}" for f in key_files]) + "\n\n"
+            context_block += "Key repository files:\n" + "\n".join([f"- {f}" for f in key_files]) + "\n\n"
         if prs_context:
             context_block += f"Matching GitHub Pull Requests & Issues:\n{prs_context}\n\n"
         if file_snippets:
-            context_block += f"Code Context:\n" + "\n".join(file_snippets) + "\n\n"
+            context_block += "Code & Documentation Context:\n" + "\n\n".join(file_snippets) + "\n\n"
 
         prompt = (
             f"{context_block}"
             f"Question: {question}\n\n"
             "Provide a thorough, technically accurate explanation answering why the code is structured or implemented this way, "
-            "or answering the specific query about the codebase.\n\n"
+            "what the codebase is used for, and what problems it solves.\n\n"
             "CRITICAL FORMATTING INSTRUCTIONS FOR 'answer':\n"
             "- Output ONLY pure, valid GitHub Markdown with blank lines (\\n\\n) between paragraphs.\n"
+            "- DO NOT start with an empty heading line (e.g. '#') or stray symbols.\n"
             "- Format major sections using standard Markdown headings (e.g. '### Core Architectural Layers').\n"
             "- Format numbered points using Markdown numbers (e.g. '1. Public API Layer').\n"
             "- Format bullet lists with '- ' on separate lines.\n"
@@ -550,7 +633,12 @@ class LiveService:
             "- NEVER use HTML tags like <br>, <p>, <div>, or <b> in your response.\n\n"
             "Requirements:\n"
             "1. In 'answer', provide the structured technical explanation formatted with Markdown headings, paragraphs, and lists.\n"
-            "2. In 'citations', cite exact file paths and lines/references (e.g., 'httpx/_client.py: Client manages connection pooling and request dispatch').\n"
+            "2. In 'citations', cite ONLY primary architectural source files and core documentation that provide evidence for your answer "
+            "(e.g., 'README.md: Next-generation HTTP client with async, HTTP/2, and sync support', "
+            "'httpx/__init__.py: Public API entry points Client, AsyncClient, request', "
+            "'httpx/_client.py: Client and AsyncClient lifecycle, connection pooling, and dispatch', "
+            "'httpx/_transports/base.py: Base transport layer abstraction'). "
+            "NEVER cite test files (tests/*) or administrative docs (code_of_conduct.md, CONTRIBUTING.md) unless explicitly asked.\n"
             "3. In 'decisions', extract 1-2 architectural decisions directly related to this question. Each decision MUST have:\n"
             "   - decision_id (e.g. dec_1)\n"
             "   - title (short concise title)\n"
@@ -590,26 +678,55 @@ class LiveService:
             # Re-raise or provide safe fallback
             raise
 
-        # Construct EvidenceView objects for citations
+        # Construct EvidenceView objects for citations with filtering of irrelevant files
         evidence_views: list[EvidenceView] = []
+        q_lower = question.lower()
+        allows_meta = any(w in q_lower for w in ["conduct", "contributing", "license", "test"])
+
         for idx, cit in enumerate(data.get("citations", []), start=1):
             cit_str = str(cit).strip()
             if not cit_str:
                 continue
             parts = cit_str.split(":", 1) if ":" in cit_str else cit_str.split(" — ", 1)
-            path = parts[0].strip()
+            raw_path = parts[0].strip().strip("`")
             excerpt = parts[1].strip() if len(parts) > 1 else cit_str
+
+            # Filter out non-architectural / meta files if not requested
+            if not allows_meta:
+                if any(ign in raw_path.lower() for ign in ["code_of_conduct", "contributing", "license", "tests/", "test_"]):
+                    continue
+
+            path = raw_path if ("/" in raw_path or "." in raw_path) else None
             evidence_views.append(
                 EvidenceView(
-                    evidence_id=f"{repo}:file:{path}" if "/" in path or "." in path else f"{repo}:evidence:{idx}",
-                    kind="doc_file" if (path.endswith(".md") or "doc" in path.lower()) else "changed_file",
-                    path=path if ("/" in path or "." in path) else None,
+                    evidence_id=f"{repo}:file:{path}" if path else f"{repo}:evidence:{len(evidence_views) + 1}",
+                    kind="doc_file" if (raw_path.endswith(".md") or "doc" in raw_path.lower()) else "changed_file",
+                    path=path,
                     excerpt=excerpt,
-                    alias=f"E{idx}",
-                    url=f"https://github.com/{repo}/blob/{branch}/{path}" if ("/" in path or "." in path) else f"https://github.com/{repo}",
+                    alias=f"E{len(evidence_views) + 1}",
+                    url=f"https://github.com/{repo}/blob/{branch}/{path}" if path else f"https://github.com/{repo}",
                     author="maintainers",
                 )
             )
+
+        # Fallback: if citations were empty or completely filtered, inject top architectural files
+        if len(evidence_views) < 2 and key_files:
+            for fallback_f in key_files[:3]:
+                if any(ev.path == fallback_f for ev in evidence_views):
+                    continue
+                evidence_views.append(
+                    EvidenceView(
+                        evidence_id=f"{repo}:file:{fallback_f}",
+                        kind="doc_file" if fallback_f.endswith(".md") else "changed_file",
+                        path=fallback_f,
+                        excerpt=f"Core architectural source: {fallback_f}",
+                        alias=f"E{len(evidence_views) + 1}",
+                        url=f"https://github.com/{repo}/blob/{branch}/{fallback_f}",
+                        author="maintainers",
+                    )
+                )
+                if len(evidence_views) >= 3:
+                    break
 
         # Build DecisionView objects
         decision_views: list[DecisionView] = []

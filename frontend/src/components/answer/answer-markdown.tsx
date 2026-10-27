@@ -53,6 +53,11 @@ export function normalizeMarkdown(content: string): string {
       continue;
     }
 
+    // Ignore stray empty heading tags (e.g. '#' or '##') with no content
+    if (/^#{1,6}\s*$/.test(trimmed)) {
+      continue;
+    }
+
     // Check if the very first line is a document title without markdown formatting
     if (
       i === 0 &&
