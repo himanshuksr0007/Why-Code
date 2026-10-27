@@ -3,7 +3,7 @@
 import { CopyIcon } from "lucide-react";
 import { toast } from "sonner";
 
-import { AnswerMarkdown } from "@/components/answer/answer-markdown";
+import { AnswerMarkdown, normalizeMarkdown } from "@/components/answer/answer-markdown";
 import { CitationCard } from "@/components/answer/citation-card";
 import { DecisionCard } from "@/components/answer/decision-card";
 import { CodeChangeCard } from "@/components/changes/code-change-card";
@@ -23,7 +23,8 @@ import { formatLatency } from "@/lib/format";
  * renderer.
  */
 function splitLead(markdown: string): { lead: string | null; rest: string } {
-  const paragraphs = markdown.split(/\n{2,}/);
+  const normalized = normalizeMarkdown(markdown);
+  const paragraphs = normalized.split(/\n{2,}/);
   const first = paragraphs[0]?.trim() ?? "";
   const rest = paragraphs.slice(1).join("\n\n").trim();
 
@@ -31,10 +32,10 @@ function splitLead(markdown: string): { lead: string | null; rest: string } {
     !first ||
     !rest ||
     first.includes("\n") ||
-    /^(#|[-*+>|]|```)/.test(first) ||
+    /^(#|[-*+>|]|```|\d+\.)/.test(first) ||
     first.split(/\s+/).length > 60
   ) {
-    return { lead: null, rest: markdown };
+    return { lead: null, rest: normalized };
   }
 
   const lead = first
@@ -43,7 +44,7 @@ function splitLead(markdown: string): { lead: string | null; rest: string } {
     .replace(/\s+/g, " ")
     .trim();
 
-  return lead ? { lead, rest } : { lead: null, rest: markdown };
+  return lead ? { lead, rest } : { lead: null, rest: normalized };
 }
 
 export function AnswerPanel({ response }: { response: AskResponse }) {
@@ -52,11 +53,12 @@ export function AnswerPanel({ response }: { response: AskResponse }) {
   const latency = formatLatency(response.latency_ms);
   const decisionList = decisions ?? [];
   const changeList = changes ?? [];
-  const { lead, rest } = splitLead(response.answer);
+  const normalizedAnswer = normalizeMarkdown(response.answer);
+  const { lead, rest } = splitLead(normalizedAnswer);
 
   const copyAnswer = async () => {
     try {
-      await navigator.clipboard.writeText(response.answer);
+      await navigator.clipboard.writeText(normalizedAnswer);
       toast.success("Answer copied");
     } catch {
       toast.error("Could not copy the answer");
@@ -109,7 +111,7 @@ export function AnswerPanel({ response }: { response: AskResponse }) {
             <AnswerMarkdown>{rest}</AnswerMarkdown>
           </>
         ) : (
-          <AnswerMarkdown>{response.answer}</AnswerMarkdown>
+          <AnswerMarkdown>{normalizedAnswer}</AnswerMarkdown>
         )}
 
         {response.status === "partial" ? (

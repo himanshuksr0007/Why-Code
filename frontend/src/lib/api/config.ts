@@ -87,7 +87,17 @@ export function findRepo(
   slug: string | null | undefined,
 ): RepoOption | undefined {
   if (!slug) return undefined;
-  return AVAILABLE_REPOS.find((repo) => repo.slug === slug);
+  const match = AVAILABLE_REPOS.find((repo) => repo.slug === slug);
+  if (match) return match;
+  if (API_MODE === "http" && typeof slug === "string" && slug.includes("/") && !slug.includes("..")) {
+    return {
+      slug,
+      name: slug.split("/")[1] || slug,
+      description: `Live repository ${slug}`,
+      indexed: true,
+    };
+  }
+  return undefined;
 }
 
 const REPO_SLUG_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
