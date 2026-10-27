@@ -92,22 +92,39 @@ class OpenAICompatibleProvider:
     ) -> str:
         import httpx
 
-        payload: dict[str, Any] = {
-            "model": self.model,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            "temperature": self.temperature,
-            "max_tokens": self.max_output_tokens,
-            "response_format": {
+        is_openai_native = (
+            "api.openai.com" in self.base_url.lower()
+            and not ("nvidia" in self.model.lower() or "deepseek" in self.model.lower())
+        )
+        if is_openai_native:
+            response_format = {
                 "type": "json_schema",
                 "json_schema": {
                     "name": schema_name,
                     "strict": True,
                     "schema": schema,
                 },
-            },
+            }
+            system_msg = system
+        else:
+            # Universal JSON mode for OpenAI-compatible providers (Nvidia, Groq, Ollama, Together, DeepSeek)
+            # avoids rigid constrained grammar truncation of multi-paragraph string fields
+            response_format = {"type": "json_object"}
+            system_msg = (
+                f"{system}\n\n"
+                f"You MUST return ONLY a valid JSON object adhering strictly to schema '{schema_name}':\n"
+                f"{json.dumps(schema)}"
+            )
+
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user},
+            ],
+            "temperature": self.temperature,
+            "max_tokens": self.max_output_tokens,
+            "response_format": response_format,
         }
         if self.seed is not None:
             payload["seed"] = self.seed

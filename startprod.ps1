@@ -77,7 +77,7 @@ Write-Host "  LLM Model: $displayModel"
 $env:PYTHONPATH = "."
 $backend = Start-Process -FilePath $venvPython -PassThru -NoNewWindow `
     -WorkingDirectory "backend" `
-    -ArgumentList "-m", "uvicorn", "app.main:create_app", "--factory", "--port", "$ApiPort"
+    -ArgumentList "-m", "uvicorn", "app.main:create_app", "--factory", "--port", "$ApiPort", "--reload"
 Remove-Item Env:PYTHONPATH
 
 try {

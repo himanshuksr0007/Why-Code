@@ -52,7 +52,7 @@ if [ ! -x "backend/.venv/bin/python" ]; then
     backend/.venv/bin/pip install -q -e ./backend
 fi
 
-(cd backend && PYTHONPATH=. .venv/bin/python -m uvicorn app.main:create_app --factory --port "$API_PORT") &
+(cd backend && PYTHONPATH=. .venv/bin/python -m uvicorn app.main:create_app --factory --port "$API_PORT" --reload) &
 BACKEND_PID=$!
 trap 'kill "$BACKEND_PID" 2>/dev/null || true' EXIT INT TERM
 
