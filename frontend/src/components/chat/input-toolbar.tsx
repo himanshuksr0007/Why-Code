@@ -3,6 +3,8 @@
 import { useState, useRef, KeyboardEvent } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ModelPicker } from "@/components/chat/model-picker";
+import { TokenUsageChip } from "@/components/chat/token-usage-chip";
 import {
   PaperclipIcon,
   MicIcon,
@@ -17,7 +19,12 @@ interface InputToolbarProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
-  contextTokens?: { used: number; total: number };
+  /**
+   * Real token usage for the active model, fetched from the backend.
+   * The meter renders only when this is provided — there is no
+   * placeholder value.
+   */
+  contextTokens?: { used: number; total: number } | null;
 }
 
 export function InputToolbar({
@@ -27,10 +34,9 @@ export function InputToolbar({
   placeholder = "Ask me something.....",
   disabled = false,
   className,
-  contextTokens = { used: 57500, total: 200000 },
+  contextTokens = null,
 }: InputToolbarProps) {
   const [mode, setMode] = useState<"chat" | "code">("code");
-  const [model] = useState("Claude 3.5 Sonnet");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -42,9 +48,7 @@ export function InputToolbar({
     }
   };
 
-  const percentage = ((contextTokens.used / contextTokens.total) * 100).toFixed(2);
-  const formattedUsed = (contextTokens.used / 1000).toFixed(1);
-  const formattedTotal = (contextTokens.total / 1000).toFixed(0);
+
 
   return (
     <div className={cn("space-y-3", className)}>
@@ -67,17 +71,7 @@ export function InputToolbar({
         </button>
 
         {/* Model selector */}
-        <button
-          disabled={disabled}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5",
-            "text-xs font-medium transition-all duration-200",
-            "bg-card border-border/60 text-muted-foreground hover:border-primary/30 shadow-neumorph"
-          )}
-        >
-          <span className="text-[#E8651A]">✸</span>
-          {model}
-        </button>
+        <ModelPicker disabled={disabled} />
       </div>
 
       {/* Main input container */}
@@ -145,19 +139,13 @@ export function InputToolbar({
         </div>
       </div>
 
-      {/* Token counter — bottom right */}
-      <div className="flex items-center justify-end px-2">
-        <div className="inline-flex items-center gap-2 rounded-full bg-card shadow-neumorph border border-border/40 px-3 py-1.5 text-xs text-muted-foreground tabular-nums">
-          <svg className="size-3" viewBox="0 0 16 16" fill="currentColor">
-            <circle cx="8" cy="8" r="8" opacity="0.3" />
-            <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth="2" />
-          </svg>
-          <span className="font-medium">{formattedUsed}k</span>
-          <span>/</span>
-          <span>{formattedTotal}k</span>
-          <span className="ml-1">{percentage}%</span>
+      {/* Token counter — bottom right. Real usage from the backend for
+          the active model; hidden until the first successful read. */}
+      {contextTokens && contextTokens.total > 0 ? (
+        <div className="flex items-center justify-end px-2">
+          <TokenUsageChip used={contextTokens.used} total={contextTokens.total} />
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

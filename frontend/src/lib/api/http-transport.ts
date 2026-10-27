@@ -66,6 +66,8 @@ export function createHttpClient(): WhyCodeClient {
           repo: request.repo,
           max_evidence_items: request.max_evidence_items ?? 8,
           include_graph_path: request.include_graph_path ?? true,
+          ...(request.client_id ? { client_id: request.client_id } : {}),
+          ...(request.model_id ? { model_id: request.model_id } : {}),
         }),
       });
       const raw = payload as unknown as Record<string, unknown>;

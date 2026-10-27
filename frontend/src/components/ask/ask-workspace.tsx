@@ -28,6 +28,10 @@ import {
 import type { ChatTurn } from "@/lib/chat/store";
 import { exampleQuestionsFor } from "@/lib/mock";
 import { useLocalProfile } from "@/lib/local/profile";
+import { ModelPicker } from "@/components/chat/model-picker";
+import { TokenUsageChip } from "@/components/chat/token-usage-chip";
+import { getClientId } from "@/lib/models/api";
+import { refreshUsage, useModelSelection } from "@/lib/models/store";
 
 /**
  * Even the mock transport resolves quickly. A short floor keeps the thinking
@@ -317,6 +321,7 @@ function AskSession({
 }) {
   const { chats, hydrated } = useChatStore();
   const { profile, update, hydrated: profileHydrated } = useLocalProfile();
+  const { selectedId: selectedModelId, usage } = useModelSelection();
   const [chatId, setChatId] = useState<string | null>(initialChatId ?? null);
   const [value, setValue] = useState("");
   const pendingRef = useRef(false);
@@ -374,10 +379,13 @@ function AskSession({
             repo,
             include_graph_path: true,
             max_evidence_items: 8,
+            client_id: getClientId(),
+            model_id: selectedModelId,
           }),
           new Promise((resolve) => setTimeout(resolve, MIN_THINKING_MS)),
         ]);
         resolveTurn(targetChatId, turnId, response);
+        void refreshUsage();
       } catch (error) {
         failTurn(
           targetChatId,
@@ -389,7 +397,7 @@ function AskSession({
         pendingRef.current = false;
       }
     },
-    [chatId, repo, indexed],
+    [chatId, repo, indexed, selectedModelId],
   );
 
   // Questions arriving from a deep link (?q=) are asked once on mount — after
@@ -470,6 +478,19 @@ function AskSession({
             autoFocus
           />
 
+          {/* Same model picker and real usage meter as the conversation
+              composer, so the active model is visible before the first
+              question too. */}
+          <div className="mt-3 flex items-center justify-between px-1">
+            <ModelPicker disabled={pending} />
+            {usage ? (
+              <TokenUsageChip
+                used={usage.used_tokens}
+                total={usage.context_tokens}
+              />
+            ) : null}
+          </div>
+
           {indexed ? (
             <ExampleQuestions
               className="mt-7"
@@ -519,6 +540,11 @@ function AskSession({
               if (value.trim()) void send(value);
             }}
             disabled={pending}
+            contextTokens={
+              usage
+                ? { used: usage.used_tokens, total: usage.context_tokens }
+                : null
+            }
           />
         </div>
       </div>

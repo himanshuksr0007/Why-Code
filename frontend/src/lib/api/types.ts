@@ -55,6 +55,10 @@ export interface AskRequest {
   repo: string;
   max_evidence_items?: number;
   include_graph_path?: boolean;
+  /** Anonymous visitor id scoping custom models and usage (see lib/models). */
+  client_id?: string;
+  /** Selected model: "default" or a custom model id from the models API. */
+  model_id?: string;
 }
 
 /** One verifiable piece of evidence behind an answer. */
