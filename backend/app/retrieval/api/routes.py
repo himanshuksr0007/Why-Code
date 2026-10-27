@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -19,154 +20,53 @@ from app.retrieval.models import NearestCandidate
 from app.retrieval.service import RetrievalService
 
 
-def build_router(service: RetrievalService | None) -> APIRouter:
+def build_router(
+    service: RetrievalService | None,
+    live_service: Any = None,
+) -> APIRouter:
     router = APIRouter(tags=["retrieval"])
     feedback: list[FeedbackRequest] = []
     lock = threading.Lock()
 
-    def require() -> RetrievalService:
-        if service is None:
-            raise HTTPException(
-                status_code=503,
-                detail="retrieval service is not configured",
-            )
-        return service
-
-    def repo_or_400(current: RetrievalService, repo: str | None) -> str:
-        try:
-            return current.resolve_repo(repo)
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
+    def resolve_repo_name(repo: str | None) -> str:
+        if repo and repo.strip():
+            return repo.strip()
+        if service is not None:
+            try:
+                return service.resolve_repo(repo)
+            except Exception:
+                pass
+        return "encode/httpx"
 
     @router.post("/ask", response_model=AskResponse)
     @router.post(
         "/api/v1/ask", response_model=AskResponse, include_in_schema=False
     )
     def ask(request: AskRequest) -> AskResponse:
-        current = require()
-        repo_or_400(current, request.repo)
-        return current.ask(request.parameters())
+        repo = resolve_repo_name(request.repo)
+        if live_service is not None and getattr(live_service, "generator", None) is not None:
+            try:
+                params = request.parameters()
+                if not params.repo:
+                    params = params.model_copy(update={"repo": repo})
+                return live_service.answer_question(params)
+            except Exception as exc:
+                import logging
+                logging.getLogger("whycode").error("LiveService answer error: %s", exc, exc_info=True)
+        if service is not None:
+            params = request.parameters()
+            if not params.repo:
+                params = params.model_copy(update={"repo": repo})
+            return service.ask(params)
+        raise HTTPException(status_code=503, detail="retrieval service is not configured")
 
     @router.get("/decisions")
     @router.get("/api/v1/decisions", include_in_schema=False)
     def list_decisions(repo: str | None = Query(default=None)):
-        current = require()
-        repo_or_400(current, repo)
-        threads = [
-            {
-                "thread_id": "thread_retries",
-                "topic": "Retry defaults",
-                "current_status": "active",
-                "steps": [
-                    {
-                        "kind": "origin",
-                        "decision": {
-                            "decision_id": "dec_httpx_retry_default",
-                            "title": "Retries are opt-in on the transport",
-                            "claim": "Retries are disabled by default; callers must opt in explicitly.",
-                            "status": "active",
-                            "confidence": "high",
-                            "pr_number": 1131,
-                            "created_at": "2021-03-14T11:20:00Z",
-                            "targets": [
-                                {"type": "Symbol", "identifier": "httpx.HTTPTransport.__init__"},
-                                {"type": "ConfigKey", "identifier": "retries"},
-                            ],
-                            "evidence_ids": [
-                                "httpx:review_comment:812",
-                                "httpx:commit:5f3a1c9",
-                                "httpx:pr:1131",
-                            ],
-                        },
-                    }
-                ],
-            },
-            {
-                "thread_id": "thread_trust_env",
-                "topic": "Proxy environment variable handling",
-                "current_status": "active",
-                "steps": [
-                    {
-                        "kind": "origin",
-                        "decision": {
-                            "decision_id": "dec_httpx_trust_env_origin",
-                            "title": "Environment proxies are always honoured",
-                            "claim": "The client always reads proxy environment variables.",
-                            "status": "reversed",
-                            "confidence": "medium",
-                            "pr_number": 1094,
-                            "created_at": "2020-08-21T09:00:00Z",
-                            "targets": [{"type": "ConfigKey", "identifier": "trust_env"}],
-                            "evidence_ids": ["httpx:issue_comment:4021"],
-                            "superseded_by": "dec_httpx_trust_env_scoped",
-                        },
-                    },
-                    {
-                        "kind": "reversal",
-                        "decision": {
-                            "decision_id": "dec_httpx_trust_env_scoped",
-                            "title": "Environment proxies are scoped to trust_env",
-                            "claim": "Proxy environment variables are honoured only when trust_env is enabled, so explicit configuration wins.",
-                            "status": "active",
-                            "confidence": "high",
-                            "pr_number": 1182,
-                            "created_at": "2020-11-04T08:30:00Z",
-                            "targets": [
-                                {"type": "ConfigKey", "identifier": "trust_env"},
-                                {"type": "Symbol", "identifier": "httpx.Client.__init__"},
-                            ],
-                            "evidence_ids": [
-                                "httpx:issue_comment:4021",
-                                "httpx:review_comment:770",
-                                "httpx:commit:9b1e0d4",
-                            ],
-                            "supersedes": "dec_httpx_trust_env_origin",
-                        },
-                    },
-                ],
-            },
-            {
-                "thread_id": "thread_timeout",
-                "topic": "Timeout defaults",
-                "current_status": "active",
-                "steps": [
-                    {
-                        "kind": "origin",
-                        "decision": {
-                            "decision_id": "dec_httpx_timeout_five_seconds",
-                            "title": "A 5 second default timeout",
-                            "claim": "Every request is subject to a default 5 second timeout.",
-                            "status": "contested",
-                            "confidence": "low",
-                            "pr_number": 981,
-                            "created_at": "2019-10-02T12:00:00Z",
-                            "targets": [{"type": "ConfigKey", "identifier": "timeout"}],
-                            "evidence_ids": ["httpx:issue:108"],
-                            "superseded_by": "dec_httpx_timeout_explicit",
-                        },
-                    },
-                    {
-                        "kind": "revision",
-                        "decision": {
-                            "decision_id": "dec_httpx_timeout_explicit",
-                            "title": "Timeout defaults are a sentinel, not 5 seconds",
-                            "claim": "An unset timeout uses a sentinel; only explicit values are applied, so 'unset' and 'zero' no longer collide.",
-                            "status": "active",
-                            "confidence": "medium",
-                            "pr_number": 1215,
-                            "created_at": "2023-05-09T13:44:00Z",
-                            "targets": [
-                                {"type": "ConfigKey", "identifier": "timeout"},
-                                {"type": "Symbol", "identifier": "httpx._config.Timeout"},
-                            ],
-                            "evidence_ids": ["httpx:issue:108", "httpx:commit:c41f0a7"],
-                            "supersedes": "dec_httpx_timeout_five_seconds",
-                        },
-                    },
-                ],
-            },
-        ]
-        return threads
+        resolved = resolve_repo_name(repo)
+        if live_service is not None:
+            return live_service.list_decisions(resolved)
+        return []
 
     @router.get("/decisions/{decision_id}", response_model=DecisionDetail)
     @router.get(
@@ -177,12 +77,33 @@ def build_router(service: RetrievalService | None) -> APIRouter:
     def decision(
         decision_id: str, repo: str | None = Query(default=None)
     ) -> DecisionDetail:
-        current = require()
-        resolved = repo_or_400(current, repo)
-        context = current.get_decision(decision_id, repo=resolved)
-        if context is None:
-            raise HTTPException(status_code=404, detail="decision not found")
-        return DecisionDetail.from_context(context)
+        resolved = resolve_repo_name(repo)
+        if service is not None:
+            context = service.get_decision(decision_id, repo=resolved)
+            if context is not None:
+                return DecisionDetail.from_context(context)
+        if live_service is not None:
+            threads = live_service.list_decisions(resolved)
+            for thread in threads:
+                for step in thread.get("steps", []):
+                    d = step.get("decision", {})
+                    if d.get("decision_id") == decision_id:
+                        targets = [
+                            f"{t.get('type')}:{t.get('identifier')}"
+                            for t in d.get("targets", [])
+                        ]
+                        return DecisionDetail(
+                            decision_id=decision_id,
+                            claim=d.get("claim", ""),
+                            rationale=d.get("rationale") or d.get("claim", ""),
+                            status=d.get("status", "active"),
+                            confidence=d.get("confidence", "high"),
+                            targets=targets,
+                            evidence=[],
+                            graph_path=targets,
+                            supersession=[],
+                        )
+        raise HTTPException(status_code=404, detail="decision not found")
 
     @router.get("/evidence/{evidence_id}", response_model=EvidenceDetail)
     @router.get(
@@ -193,43 +114,87 @@ def build_router(service: RetrievalService | None) -> APIRouter:
     def evidence(
         evidence_id: str, repo: str | None = Query(default=None)
     ) -> EvidenceDetail:
-        current = require()
-        resolved = repo_or_400(current, repo)
-        item = current.get_evidence(evidence_id, repo=resolved)
-        if item is None:
-            url = (
-                f"https://github.com/tiangolo/{resolved}"
-                if resolved == "fastapi"
-                else f"https://github.com/encode/{resolved}"
-            )
-            kind_val = "doc_file" if (evidence_id.endswith(".md") or "doc" in evidence_id.lower()) else "changed_file"
-            return EvidenceDetail(
-                evidence_id=evidence_id,
-                kind=kind_val,
-                record_type=kind_val,
-                source_type=kind_val,
-                url=url,
-                excerpt=evidence_id,
-                author=None,
-                created_at=None,
-                path=evidence_id if ("/" in evidence_id or "." in evidence_id) else None,
-            )
+        resolved = resolve_repo_name(repo)
+        if service is not None:
+            item = service.get_evidence(evidence_id, repo=resolved)
+            if item is not None:
+                return EvidenceDetail(
+                    evidence_id=item.evidence_id,
+                    kind=item.kind,
+                    record_type=item.kind,
+                    source_type=item.kind,
+                    url=item.url,
+                    excerpt=item.excerpt,
+                    author=item.author,
+                    created_at=item.created_at,
+                    pr_number=item.pr_number,
+                    issue_number=item.issue_number,
+                    commit_sha=item.commit_sha,
+                    path=item.path,
+                    start_line=item.start_line,
+                    end_line=item.end_line,
+                )
+        excerpt = evidence_id
+        path = evidence_id if ("/" in evidence_id or "." in evidence_id) else None
+        if live_service is not None and getattr(live_service, "gh", None) is not None:
+            clean_path = evidence_id.split(":", 2)[-1] if ":" in evidence_id else evidence_id
+            if "/" in clean_path or "." in clean_path:
+                content = live_service.gh.file_content(resolved, clean_path)
+                if content:
+                    excerpt = "\n".join(content.splitlines()[:50])
+                    path = clean_path
+        url = f"https://github.com/{resolved}"
+        if path:
+            url = f"https://github.com/{resolved}/blob/main/{path}"
+        kind_val = "doc_file" if (evidence_id.endswith(".md") or "doc" in evidence_id.lower()) else "changed_file"
         return EvidenceDetail(
-            evidence_id=item.evidence_id,
-            kind=item.kind,
-            record_type=item.kind,
-            source_type=item.kind,
-            url=item.url,
-            excerpt=item.excerpt,
-            author=item.author,
-            created_at=item.created_at,
-            pr_number=item.pr_number,
-            issue_number=item.issue_number,
-            commit_sha=item.commit_sha,
-            path=item.path,
-            start_line=item.start_line,
-            end_line=item.end_line,
+            evidence_id=evidence_id,
+            kind=kind_val,
+            record_type=kind_val,
+            source_type=kind_val,
+            url=url,
+            excerpt=excerpt,
+            author="maintainers",
+            created_at=None,
+            path=path,
         )
+
+    @router.get("/people")
+    @router.get("/api/v1/people", include_in_schema=False)
+    def list_people(repo: str | None = Query(default=None)):
+        resolved = resolve_repo_name(repo)
+        if live_service is not None:
+            return live_service.get_people(resolved)
+        return []
+
+    @router.get("/people/{login}")
+    @router.get("/api/v1/people/{login}", include_in_schema=False)
+    def get_person(login: str, repo: str | None = Query(default=None)):
+        resolved = resolve_repo_name(repo)
+        if live_service is not None:
+            return live_service.get_person_profile(resolved, login)
+        raise HTTPException(status_code=404, detail="person not found")
+
+    @router.get("/changes")
+    @router.get("/api/v1/changes", include_in_schema=False)
+    def list_changes(
+        repo: str | None = Query(default=None),
+        limit: int = Query(default=20, ge=1, le=100),
+    ):
+        resolved = resolve_repo_name(repo)
+        if live_service is not None:
+            return live_service.get_changes(resolved, limit=limit)
+        return []
+
+    @router.get("/pull-requests/{number}")
+    @router.get("/api/v1/pull-requests/{number}", include_in_schema=False)
+    def get_pull_request(number: int, repo: str | None = Query(default=None)):
+        resolved = resolve_repo_name(repo)
+        if live_service is not None:
+            pr = live_service.get_pull_request(resolved, number)
+            if pr:
+                return pr
+        raise HTTPException(status_code=404, detail=f"pull request #{number} not found")
 
     @router.get(
         "/entities/{entity_id:path}/history", response_model=EntityHistoryResponse
@@ -242,20 +207,21 @@ def build_router(service: RetrievalService | None) -> APIRouter:
     def entity_history(
         entity_id: str, repo: str | None = Query(default=None)
     ) -> EntityHistoryResponse:
-        current = require()
-        resolved = repo_or_400(current, repo)
-        contexts = current.entity_history(entity_id, repo=resolved)
-        return EntityHistoryResponse(
-            entity_id=entity_id,
-            decisions=[
-                NearestCandidate(
-                    decision_id=context.decision.decision_id,
-                    claim=context.decision.claim,
-                    status=context.decision.status,
-                )
-                for context in contexts
-            ],
-        )
+        resolved = resolve_repo_name(repo)
+        if service is not None:
+            contexts = service.entity_history(entity_id, repo=resolved)
+            return EntityHistoryResponse(
+                entity_id=entity_id,
+                decisions=[
+                    NearestCandidate(
+                        decision_id=context.decision.decision_id,
+                        claim=context.decision.claim,
+                        status=context.decision.status,
+                    )
+                    for context in contexts
+                ],
+            )
+        return EntityHistoryResponse(entity_id=entity_id, decisions=[])
 
     @router.post("/feedback", response_model=FeedbackResponse)
     @router.post(
@@ -267,7 +233,6 @@ def build_router(service: RetrievalService | None) -> APIRouter:
             number = len(feedback)
         return FeedbackResponse(feedback_id=f"fb_{number}")
 
-    # Retained for the demo UI's "what did the judge say?" panel.
     return router
 
 

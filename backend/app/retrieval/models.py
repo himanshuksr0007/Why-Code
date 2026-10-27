@@ -290,10 +290,13 @@ class DecisionView(_StrictModel):
     status: DecisionState = DecisionState.ACTIVE
     confidence: AnswerConfidence = AnswerConfidence.MEDIUM
     target_ids: list[str] = Field(default_factory=list)
+    targets: list[dict[str, str]] = Field(default_factory=list)
     evidence_ids: list[str] = Field(default_factory=list)
     superseded_by: str | None = None
     created_at: str | None = None
     is_historical: bool = False
+    title: str | None = None
+    pr_number: int | None = None
 
 
 class PersonView(_StrictModel):

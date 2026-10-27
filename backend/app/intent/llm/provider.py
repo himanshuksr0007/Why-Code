@@ -124,18 +124,32 @@ class OpenAICompatibleProvider:
             },
         )
         owns_client = self._client is None
+        last_error: Exception | None = None
+        response = None
         try:
-            response = client.post(
-                f"{self.base_url}/chat/completions", json=payload
-            )
-        except httpx.HTTPError as error:
-            raise TransientUpstreamError(
-                f"LLM request failed: {type(error).__name__}",
-                component="intent",
-            ) from error
+            for attempt in range(2):
+                try:
+                    response = client.post(
+                        f"{self.base_url}/chat/completions", json=payload
+                    )
+                    break
+                except httpx.HTTPError as error:
+                    last_error = error
+                    if attempt == 0:
+                        continue
+                    raise TransientUpstreamError(
+                        f"LLM request failed: {type(error).__name__}",
+                        component="intent",
+                    ) from error
         finally:
             if owns_client:
                 client.close()
+
+        if response is None:
+            raise TransientUpstreamError(
+                f"LLM request failed: {type(last_error).__name__ if last_error else 'no response'}",
+                component="intent",
+            )
 
         if response.status_code == 429:
             raise RateLimitError(

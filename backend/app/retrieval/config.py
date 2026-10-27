@@ -85,7 +85,7 @@ class RetrievalConfig(BaseModel):
     @classmethod
     def from_env(
         cls,
-        repo: str,
+        repo: str = "",
         *,
         env: Mapping[str, str] | None = None,
     ) -> RetrievalConfig:
@@ -136,9 +136,10 @@ class RetrievalConfig(BaseModel):
             llm_temperature=_env_float(
                 source, "WHYCODE_LLM_TEMPERATURE", 0.0
             ),
-            llm_seed=_env_int(source, "WHYCODE_LLM_SEED", 7),
             llm_max_output_tokens=_env_int(
-                source, "WHYCODE_RETRIEVAL_LLM_MAX_OUTPUT_TOKENS", 500
+                source,
+                "WHYCODE_RETRIEVAL_LLM_MAX_OUTPUT_TOKENS",
+                _env_int(source, "WHYCODE_LLM_MAX_OUTPUT_TOKENS", 4096),
             ),
         )
 

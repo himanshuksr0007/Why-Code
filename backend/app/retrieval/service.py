@@ -207,9 +207,11 @@ class RetrievalService:
                                     author="maintainers",
                                 )
                             )
+                        from app.retrieval.live_service import clean_markdown
+
                         return AskResponse(
                             answer_status=draft.answer_status,
-                            answer=draft.answer,
+                            answer=clean_markdown(draft.answer),
                             confidence=draft.confidence,
                             decision_ids=[],
                             evidence=evidence_views,
@@ -227,8 +229,9 @@ class RetrievalService:
                             decisions=[],
                             people=[],
                         )
-                except Exception:
-                    pass
+                except Exception as e:
+                    import logging
+                    logging.getLogger("whycode").error("Fallback exception: %s", e, exc_info=True)
             return _from_refusal(
                 early,
                 trace=trace,
