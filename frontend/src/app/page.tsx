@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 
 import { AskWorkspace } from "@/components/ask/ask-workspace";
-import { ConversationsPanel } from "@/components/chat/conversations-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function AskFallback() {
@@ -42,7 +41,6 @@ async function AskContent({
 export default function AskPage(props: PageProps<"/">) {
   return (
     <>
-      <ConversationsPanel />
       <div className="flex-1 flex flex-col">
         <Suspense fallback={<AskFallback />}>
           <AskContent searchParams={props.searchParams} />

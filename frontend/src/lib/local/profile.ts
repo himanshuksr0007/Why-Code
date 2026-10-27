@@ -7,7 +7,7 @@
  * profile page stay in sync.
  *
  * The selected repository is also mirrored into a cookie so server-rendered
- * pages (`/changes`, `/people`, `/decisions`, `/graph`, `/dashboard`) can read
+ * pages (`/changes`, `/people`, `/decisions`, `/graph`) can read
  * the same choice. `router.refresh()` after a change re-renders them.
  */
 

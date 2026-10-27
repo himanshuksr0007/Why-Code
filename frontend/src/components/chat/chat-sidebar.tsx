@@ -1,22 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import {
-  SquarePenIcon,
-  SearchIcon,
-  LogOutIcon,
-  UserIcon,
-  LayoutGridIcon,
-  PanelLeftOpenIcon,
-} from "lucide-react";
+import { PanelLeftOpenIcon, SquarePenIcon } from "lucide-react";
 
-import { PersonAvatar } from "@/components/people/person-avatar";
+import { ConversationsPanel } from "@/components/chat/conversations-panel";
+import { ProfileBubble } from "@/components/chat/profile-bubble";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { startNewChat } from "@/lib/chat/store";
-import { useLocalProfile } from "@/lib/local/profile";
-import { cn } from "@/lib/utils";
 
 function Logo({ className }: { className?: string }) {
   return (
@@ -38,9 +29,10 @@ function Logo({ className }: { className?: string }) {
 }
 
 /**
- * The redesigned chat sidebar matching the WhyCode UI reference.
- * Warm cream cards, amber accent "New Chat" button, nav items with icons,
- * and Log Out link directly below Profile.
+ * The left column, top to bottom: the brand card with New chat, the
+ * conversations bubbles (they live here now, not floating over the content),
+ * and the profile bubble whose upward menu holds Settings and Log out.
+ * New chat goes home, so there is no separate Discover/Workspace nav.
  */
 export function ChatSidebar({
   collapsed = false,
@@ -51,16 +43,13 @@ export function ChatSidebar({
   onToggleCollapse?: () => void;
   onNavigate?: () => void;
 }) {
-  const pathname = usePathname();
-  const { profile } = useLocalProfile();
-
   if (collapsed) {
     return (
       <div className="flex h-full min-h-0 w-full min-w-0 flex-col items-center bg-transparent text-sidebar-foreground p-3">
         <Link
-          href="/dashboard"
-          aria-label="WhyCode dashboard"
-          title="WhyCode dashboard"
+          href="/"
+          aria-label="WhyCode home"
+          title="WhyCode home"
           onClick={onNavigate}
           className="flex size-12 items-center justify-center rounded-full bg-primary-gradient text-white shadow-neumorph transition-transform outline-none hover:scale-105 hover-lift"
         >
@@ -98,22 +87,14 @@ export function ChatSidebar({
 
         <div className="mt-auto flex w-full flex-col items-center gap-2 py-2">
           <ThemeToggle />
-          <Link
-            href="/profile"
-            aria-label="Open your profile"
-            title="Open your profile"
-            onClick={onNavigate}
-            className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-          >
-            <PersonAvatar login={profile.handle || profile.display_name} />
-          </Link>
+          <ProfileBubble compact onNavigate={onNavigate} />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-25 bg-transparent p-4 text-sidebar-foreground">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-4 bg-transparent p-4 text-sidebar-foreground">
       {/* Header — Logo + Brand + New Chat Button */}
       <div className="rounded-2xl bg-card shadow-neumorph p-4 animate-scale">
         <div className="flex items-center gap-3 mb-3">
@@ -122,7 +103,7 @@ export function ChatSidebar({
           </div>
           <div className="min-w-0 flex-1">
             <Link
-              href="/dashboard"
+              href="/"
               onClick={onNavigate}
               className="block outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded"
             >
@@ -131,13 +112,15 @@ export function ChatSidebar({
               </h1>
             </Link>
           </div>
-          <button
-            onClick={onToggleCollapse}
-            className="text-muted-foreground hover:text-foreground p-1 rounded-lg transition-colors"
-            aria-label="Collapse sidebar"
-          >
-            ×
-          </button>
+          {onToggleCollapse && (
+            <button
+              onClick={onToggleCollapse}
+              className="text-muted-foreground hover:text-foreground p-1 rounded-lg transition-colors"
+              aria-label="Collapse sidebar"
+            >
+              ×
+            </button>
+          )}
         </div>
 
         <Button
@@ -154,64 +137,11 @@ export function ChatSidebar({
         </Button>
       </div>
 
-      {/* Grouping Navigation Menu and Log Out together to control their specific gap */}
-      <div className="flex flex-col gap-5">
-        {/* Navigation Menu */}
-        <div className="rounded-2xl bg-card shadow-neumorph p-3 animate-scale" style={{ animationDelay: "50ms" }}>
-          <nav className="space-y-0.5">
-            <Link
-              href="/"
-              className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-150",
-                pathname === "/"
-                  ? "bg-primary/10 text-foreground font-medium"
-                  : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-              )}
-            >
-              <SearchIcon className="size-4" />
-              <span>Discover</span>
-            </Link>
-            <Link
-              href="/dashboard"
-              className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-150",
-                pathname === "/dashboard"
-                  ? "bg-primary/10 text-foreground font-medium"
-                  : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-              )}
-            >
-              <LayoutGridIcon className="size-4" />
-              <span>Workspace</span>
-            </Link>
-            <Link
-              href="/settings"
-              className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-150",
-                pathname === "/settings"
-                  ? "bg-primary/10 text-foreground font-medium"
-                  : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-              )}
-            >
-              <UserIcon className="size-4" />
-              <span>Profile</span>
-            </Link>
-          </nav>
-        </div>
+      {/* Conversations — moved in from the old floating right panel. */}
+      <ConversationsPanel />
 
-        {/* Log Out & Theme Toggle */}
-        <div className="flex items-center justify-between rounded-2xl bg-card shadow-neumorph p-3 animate-scale" style={{ animationDelay: "100ms" }}>
-          <button
-            className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-all duration-150"
-            onClick={() => {
-              // Log out action placeholder
-            }}
-          >
-            <LogOutIcon className="size-4" />
-            <span>Log out</span>
-          </button>
-          <ThemeToggle />
-        </div>
-      </div>
+      {/* Profile — settings and log out live in its upward menu. */}
+      <ProfileBubble onNavigate={onNavigate} />
     </div>
   );
 }

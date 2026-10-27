@@ -13,10 +13,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatRelativeTime } from "@/lib/format";
-import {
-  setConversationsOpen,
-  useConversationsOpen,
-} from "@/lib/local/panels";
 import { cn } from "@/lib/utils";
 
 export function ConversationsPanel() {
@@ -24,7 +20,6 @@ export function ConversationsPanel() {
   const router = useRouter();
   const { chats, activeId } = useChatStore();
   const onChatsRoute = pathname === "/";
-  const conversationsOpen = useConversationsOpen();
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [isIncognito, setIsIncognito] = useState(false);
@@ -33,7 +28,6 @@ export function ConversationsPanel() {
     if (confirmText.toLowerCase() === "confirm") {
       clearChats();
       setShowClearDialog(false);
-      setConversationsOpen(false);
       setConfirmText("");
       router.push("/");
     }
@@ -41,21 +35,8 @@ export function ConversationsPanel() {
 
   return (
     <>
-      {/* Mobile backdrop: tapping anywhere outside the panel closes it. */}
-      {conversationsOpen && (
-        <button
-          type="button"
-          aria-label="Close conversations"
-          onClick={() => setConversationsOpen(false)}
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] lg:hidden"
-        />
-      )}
-      <aside
-        className={cn(
-          "fixed right-4 top-1/2 z-50 max-h-[88svh] w-72 max-w-[86vw] -translate-y-1/2 flex-col gap-4",
-          conversationsOpen ? "flex" : "hidden",
-          "lg:flex",
-        )}
+      <div
+        className="flex min-h-0 w-full flex-1 flex-col gap-4"
         aria-label="Conversations"
       >
         {/* Header Bubble */}
@@ -96,8 +77,8 @@ export function ConversationsPanel() {
         )}
 
         {/* Conversations List Bubble */}
-        <div className="rounded-2xl bg-card/95 backdrop-blur-sm border border-border/40 overflow-hidden w-full">
-          <div className="max-h-[400px] overflow-y-auto scrollbar-thin p-3">
+        <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border border-border/40 bg-card/95 backdrop-blur-sm">
+          <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin p-3">
             {chats.length === 0 ? (
               <div className="py-8 px-4 text-center">
                 <div className="flex items-center justify-center size-12 rounded-xl bg-primary/10 mx-auto mb-3">
@@ -119,7 +100,6 @@ export function ConversationsPanel() {
                         aria-current={isActive ? "page" : undefined}
                         onClick={() => {
                           setActiveChat(chat.id);
-                          setConversationsOpen(false);
                         }}
                         className={cn(
                           "flex items-start gap-3 rounded-xl p-3 transition-all duration-200",
@@ -175,7 +155,7 @@ export function ConversationsPanel() {
             )}
           </div>
         </div>
-      </aside>
+      </div>
 
       {/* Clear All Confirmation Dialog */}
       {showClearDialog && (
