@@ -193,6 +193,58 @@ class OpenAICompatibleProvider:
         return _content_from_body(body)
 
 
+class RecordingProvider:
+    """Wrap a provider and accumulate the token usage it reports.
+
+    The wrapped provider exposes ``last_usage`` after each call (the
+    OpenAI-compatible provider fills it from the response body). Totals
+    are per-wrapper, so one wrapper per request keeps concurrent asks
+    from mixing their accounting.
+    """
+
+    def __init__(self, inner: LLMProvider) -> None:
+        self._inner = inner
+        self.prompt_tokens = 0
+        self.completion_tokens = 0
+        self.total_tokens = 0
+        self.calls = 0
+
+    @property
+    def last_usage(self) -> dict[str, Any] | None:
+        usage = getattr(self._inner, "last_usage", None)
+        return usage if isinstance(usage, dict) else None
+
+    def complete(
+        self,
+        *,
+        system: str,
+        user: str,
+        schema: dict[str, Any],
+        schema_name: str,
+    ) -> str:
+        result = self._inner.complete(
+            system=system, user=user, schema=schema, schema_name=schema_name
+        )
+        self.calls += 1
+        usage = self.last_usage
+        if usage:
+            prompt = int(usage.get("prompt_tokens") or 0)
+            completion = int(usage.get("completion_tokens") or 0)
+            total = int(usage.get("total_tokens") or 0) or (prompt + completion)
+            self.prompt_tokens += prompt
+            self.completion_tokens += completion
+            self.total_tokens += total
+        return result
+
+    def totals(self) -> dict[str, int]:
+        return {
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+            "total_tokens": self.total_tokens,
+            "calls": self.calls,
+        }
+
+
 class StaticProvider:
     """Return pre-recorded responses in order, keyed by schema name."""
 
@@ -295,6 +347,7 @@ def _safe_detail(text: str) -> str:
 __all__ = [
     "LLMProvider",
     "OpenAICompatibleProvider",
+    "RecordingProvider",
     "StaticProvider",
     "build_provider",
 ]

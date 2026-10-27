@@ -114,16 +114,28 @@ def create_app(
                 "Could not initialize default retrieval service: %s", exc
             )
 
+    # Model selection (server default + per-client custom models in Neo4j)
+    # and real token-usage accounting. Built from the environment; falls
+    # back to an in-memory store when Neo4j is not configured.
+    model_service = None
+    try:
+        from app.models import build_model_service
+
+        model_service = build_model_service()
+    except Exception as exc:
+        logger.warning("Model service unavailable: %s", exc)
+
     app = FastAPI(title="why-code", version=VERSION)
     app.state.settings = settings
     app.state.retrieval_service = retrieval_service
     app.state.demo_service = demo_service or retrieval_service
     app.state.live_service = live_service
+    app.state.model_service = model_service
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(_DEMO_ORIGINS),
         allow_credentials=False,
-        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
 
@@ -131,7 +143,15 @@ def create_app(
     def health() -> dict[str, str]:
         return {"service": "why-code", "status": "ok", "version": VERSION}
 
-    app.include_router(build_router(retrieval_service, live_service=live_service))
+    app.include_router(
+        build_router(
+            retrieval_service, live_service=live_service, model_service=model_service
+        )
+    )
+    if model_service is not None:
+        from app.models.routes import build_models_router
+
+        app.include_router(build_models_router(model_service))
     if demo_service is not None:
         app.include_router(build_demo_router(demo_service))
     return app

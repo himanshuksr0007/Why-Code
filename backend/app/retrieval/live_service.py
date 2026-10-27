@@ -580,9 +580,24 @@ class LiveService:
             logger.error("Failed to synthesize decisions: %s", exc)
             return []
 
-    def answer_question(self, parameters: AskParameters) -> AskResponse:
+    def answer_question(
+        self,
+        parameters: AskParameters,
+        *,
+        generator: Any = None,
+        usage_sink: dict[str, int] | None = None,
+    ) -> AskResponse:
         repo = parameters.repo or "encode/httpx"
         question = parameters.question
+
+        # A caller may substitute its own generator (a visitor's custom
+        # model) for this call only; the service default is untouched.
+        # The recorder captures the tokens the generator actually bills
+        # into usage_sink, for whichever generator served the call.
+        from app.intent.llm.provider import RecordingProvider
+
+        effective = generator if generator is not None else self.generator
+        recorder = RecordingProvider(effective) if effective is not None else None
 
         # 1. Fetch live repository context from GitHub API
         repo_info = self.gh.repo_info(repo) if self.gh else None
@@ -666,7 +681,7 @@ class LiveService:
         }
 
         try:
-            raw = self.generator.complete(
+            raw = recorder.complete(
                 system="You are WhyCode, an AI codebase decision analyst. Return ONLY valid JSON adhering to schema.",
                 user=prompt,
                 schema=schema,
@@ -677,6 +692,9 @@ class LiveService:
             logger.error("Error during live LLM completion: %s", exc, exc_info=True)
             # Re-raise or provide safe fallback
             raise
+        finally:
+            if usage_sink is not None and recorder is not None:
+                usage_sink.update(recorder.totals())
 
         # Construct EvidenceView objects for citations with filtering of irrelevant files
         evidence_views: list[EvidenceView] = []

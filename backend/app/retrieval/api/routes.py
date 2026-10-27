@@ -23,10 +23,47 @@ from app.retrieval.service import RetrievalService
 def build_router(
     service: RetrievalService | None,
     live_service: Any = None,
+    model_service: Any = None,
 ) -> APIRouter:
     router = APIRouter(tags=["retrieval"])
     feedback: list[FeedbackRequest] = []
     lock = threading.Lock()
+
+    def resolve_custom_provider(request: AskRequest) -> Any:
+        """The provider for the request's selected custom model, or None
+        for the server default. A model id that names nothing the client
+        owns is a client error, never a silent fall-back."""
+        if not request.model_id or request.model_id == "default":
+            return None
+        if model_service is None:
+            raise HTTPException(status_code=503, detail="model service is not configured")
+        if not request.client_id:
+            raise HTTPException(
+                status_code=400, detail="client_id is required for a custom model"
+            )
+        from app.models.service import StoredKeyUnreadable
+
+        try:
+            provider = model_service.resolve_provider(request.client_id, request.model_id)
+        except StoredKeyUnreadable:
+            raise HTTPException(
+                status_code=409,
+                detail="this model's stored key cannot be read; delete and re-add the model",
+            ) from None
+        if provider is None:
+            raise HTTPException(status_code=404, detail="custom model not found")
+        return provider
+
+    def record_usage(request: AskRequest, totals: dict[str, int]) -> None:
+        if model_service is not None and request.client_id and totals:
+            try:
+                model_service.record_usage(request.client_id, totals)
+            except Exception:
+                import logging
+
+                logging.getLogger("whycode").warning(
+                    "usage recording failed", exc_info=True
+                )
 
     def resolve_repo_name(repo: str | None) -> str:
         if repo and repo.strip():
@@ -44,20 +81,40 @@ def build_router(
     )
     def ask(request: AskRequest) -> AskResponse:
         repo = resolve_repo_name(request.repo)
-        if live_service is not None and getattr(live_service, "generator", None) is not None:
+        custom_provider = resolve_custom_provider(request)
+        params = request.parameters()
+        if not params.repo:
+            params = params.model_copy(update={"repo": repo})
+        if live_service is not None and (
+            getattr(live_service, "generator", None) is not None
+            or custom_provider is not None
+        ):
+            usage_sink: dict[str, int] = {}
             try:
-                params = request.parameters()
-                if not params.repo:
-                    params = params.model_copy(update={"repo": repo})
-                return live_service.answer_question(params)
+                response = live_service.answer_question(
+                    params, generator=custom_provider, usage_sink=usage_sink
+                )
             except Exception as exc:
                 import logging
                 logging.getLogger("whycode").error("LiveService answer error: %s", exc, exc_info=True)
+            else:
+                return response
+            finally:
+                # Recorded once, here: on success it holds the call's full
+                # usage; on failure, whatever was billed before the error.
+                if usage_sink:
+                    record_usage(request, usage_sink)
         if service is not None:
-            params = request.parameters()
-            if not params.repo:
-                params = params.model_copy(update={"repo": repo})
-            return service.ask(params)
+            response = service.ask(params)
+            if custom_provider is not None and model_service is not None:
+                from app.intent.llm.provider import RecordingProvider
+
+                recorder = RecordingProvider(custom_provider)
+                response = model_service.generate_custom_answer(
+                    response, request.question, recorder
+                )
+                record_usage(request, recorder.totals())
+            return response
         raise HTTPException(status_code=503, detail="retrieval service is not configured")
 
     @router.get("/decisions")

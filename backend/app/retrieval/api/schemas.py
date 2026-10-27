@@ -21,6 +21,10 @@ class AskRequest(BaseModel):
 
     question: str = Field(min_length=1, max_length=2000)
     repo: str | None = None
+    # Model selection: an anonymous client id plus the id of one of its
+    # custom models (see app.models). Absent/"default" = the server model.
+    client_id: str | None = Field(default=None, max_length=80)
+    model_id: str | None = Field(default=None, max_length=80)
     max_evidence_items: int = Field(default=8, ge=1, le=20)
     max_answer_tokens: int = Field(default=700, ge=100, le=4000)
     include_graph_path: bool = True
