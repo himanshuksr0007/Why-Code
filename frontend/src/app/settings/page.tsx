@@ -29,6 +29,7 @@ import {
   VibrateIcon,
 } from "lucide-react";
 import { useLocalProfile } from "@/lib/local/profile";
+import { useIdentity } from "@/lib/identity";
 import { useChatStore, clearChats } from "@/lib/chat/store";
 import {
   hapticSelection,
@@ -55,14 +56,28 @@ type TabType =
   | "system";
 
 export default function SettingsPage() {
-  const { profile, update } = useLocalProfile();
+  const { profile, update, hydrated } = useLocalProfile();
+  const identity = useIdentity();
   const { chats } = useChatStore();
   const { theme, setTheme } = useTheme();
   const mounted = useMounted();
   const [activeTab, setActiveTab] = useState<TabType>("profile");
-  const [displayName, setDisplayName] = useState(profile.display_name || "");
-  const [handle, setHandle] = useState(profile.handle || "");
-  const [defaultRepo, setDefaultRepo] = useState(profile.default_repo || "");
+  const [displayName, setDisplayName] = useState("");
+  const [handle, setHandle] = useState("");
+  const [defaultRepo, setDefaultRepo] = useState("");
+  const [formSeeded, setFormSeeded] = useState(false);
+
+  // The form seeds once the stores have read local storage — the
+  // first (server/hydration) snapshot only carries placeholders, so
+  // initializing state from it would freeze the wrong identity in
+  // the inputs.
+  useEffect(() => {
+    if (!hydrated || formSeeded) return;
+    setDisplayName(identity.name || "");
+    setHandle(identity.handle || "");
+    setDefaultRepo(profile.default_repo || "");
+    setFormSeeded(true);
+  }, [hydrated, formSeeded, identity, profile]);
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [notifications, setNotifications] = useState({
     email: true,
@@ -77,11 +92,17 @@ export default function SettingsPage() {
   const repositories = new Set(chats.map((chat) => chat.repo)).size;
 
   const handleSaveProfile = () => {
-    update({
-      display_name: displayName,
-      handle: handle,
-      default_repo: defaultRepo,
-    });
+    if (identity.isAccount) {
+      // Name and handle belong to the account; only the workspace
+      // default is local.
+      update({ default_repo: defaultRepo });
+    } else {
+      update({
+        display_name: displayName,
+        handle: handle,
+        default_repo: defaultRepo,
+      });
+    }
     toast.success("Profile updated successfully");
   };
 
@@ -281,7 +302,7 @@ export default function SettingsPage() {
               <div className="rounded-2xl bg-card shadow-neumorph p-6 border border-border/60">
                 <div className="flex items-center gap-4 mb-6">
                   <PersonAvatar
-                    login={profile.handle || profile.display_name}
+                    login={identity.handle || identity.name}
                     size="lg"
                     className="size-14 text-lg ring-2 ring-primary/20"
                   />
@@ -290,7 +311,9 @@ export default function SettingsPage() {
                       Personal Information
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                      Update your local account details and default workspace
+                      {identity.isAccount
+                        ? "Your WhyCode account details and default workspace"
+                        : "Update your local account details and default workspace"}
                     </p>
                   </div>
                 </div>
@@ -305,7 +328,8 @@ export default function SettingsPage() {
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
                       placeholder="Enter your display name"
-                      className="w-full px-4 py-2.5 rounded-xl border border-border/60 bg-background/50 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/20 transition-all"
+                      readOnly={identity.isAccount}
+                      className="w-full px-4 py-2.5 rounded-xl border border-border/60 bg-background/50 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/20 transition-all read-only:cursor-not-allowed read-only:opacity-70"
                     />
                   </div>
 
@@ -318,8 +342,15 @@ export default function SettingsPage() {
                       value={handle}
                       onChange={(e) => setHandle(e.target.value)}
                       placeholder="@username"
-                      className="w-full px-4 py-2.5 rounded-xl border border-border/60 bg-background/50 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/20 transition-all font-mono text-sm"
+                      readOnly={identity.isAccount}
+                      className="w-full px-4 py-2.5 rounded-xl border border-border/60 bg-background/50 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/20 transition-all font-mono text-sm read-only:cursor-not-allowed read-only:opacity-70"
                     />
+                    {identity.isAccount && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Signed in as {identity.email} — your name and handle
+                        come from your account.
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -349,8 +380,8 @@ export default function SettingsPage() {
                     <Button
                       variant="outline"
                       onClick={() => {
-                        setDisplayName(profile.display_name || "");
-                        setHandle(profile.handle || "");
+                        setDisplayName(identity.name || "");
+                        setHandle(identity.handle || "");
                         setDefaultRepo(profile.default_repo || "");
                         toast.info("Changes discarded");
                       }}

@@ -47,6 +47,7 @@ import {
 } from "@/lib/chat/store";
 import type { ChatTurn } from "@/lib/chat/store";
 import { exampleQuestionsFor } from "@/lib/mock";
+import { useIdentity } from "@/lib/identity";
 import { useLocalProfile } from "@/lib/local/profile";
 import { ModeSwitch } from "@/components/chat/mode-switch";
 import { ModelPicker } from "@/components/chat/model-picker";
@@ -69,7 +70,7 @@ function prefersReducedMotion(): boolean {
 }
 
 function UserTurn({ turn }: { turn: ChatTurn }) {
-  const { profile } = useLocalProfile();
+  const identity = useIdentity();
   return (
     <div className="flex justify-end">
       <div className="flex items-start gap-3 max-w-[70%]">
@@ -82,7 +83,7 @@ function UserTurn({ turn }: { turn: ChatTurn }) {
           </p>
         </div>
         <PersonAvatar
-          login={profile.handle || profile.display_name}
+          login={identity.handle || identity.name}
           className="mt-1 size-8 shadow-floating"
         />
       </div>

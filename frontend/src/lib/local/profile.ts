@@ -23,11 +23,25 @@ export interface LocalProfile {
 
 const STORAGE_KEY = "whycode.profile.v1";
 
+/** Pre-hydration placeholder only — the client replaces it with the
+ * stored profile or a generated guest identity on first load. */
 const DEFAULT_PROFILE: LocalProfile = {
-  display_name: "Sam",
-  handle: "sam",
+  display_name: "Guest",
+  handle: "guest",
   default_repo: DEFAULT_REPO,
 };
+
+/** The old hardcoded dummy, still sitting in many browsers' storage.
+ * A profile that matches it exactly was never customized, so it is
+ * migrated to a generated guest identity on load. */
+const LEGACY_DUMMY = { display_name: "Sam", handle: "sam" };
+
+/** A guest's identity: `user` + a random 3-digit number (user411),
+ * used as both the display name and the handle. Generated once per
+ * browser and persisted with the profile. */
+export function generateGuestIdentity(): string {
+  return `user${100 + Math.floor(Math.random() * 900)}`;
+}
 
 let profile: LocalProfile = DEFAULT_PROFILE;
 let loaded = false;
@@ -76,12 +90,35 @@ function ensureLoaded(): void {
               ? value.default_repo
               : cookieRepo,
         };
+        if (
+          profile.display_name === LEGACY_DUMMY.display_name &&
+          profile.handle === LEGACY_DUMMY.handle
+        ) {
+          // Untouched hardcoded dummy from before guest identities:
+          // replace it with this browser's generated guest identity.
+          const guest = generateGuestIdentity();
+          profile = { ...profile, display_name: guest, handle: guest };
+          persistProfile();
+        }
       }
     } else {
-      profile = { ...profile, default_repo: cookieRepo };
+      const guest = generateGuestIdentity();
+      profile = { display_name: guest, handle: guest, default_repo: cookieRepo };
+      persistProfile();
     }
   } catch {
     // Start from the defaults.
+  }
+}
+
+/** Write the profile to storage without notifying listeners (used
+ * while loading, before any component has subscribed). */
+function persistProfile(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+  } catch {
+    // Ignore quota / private-mode failures.
   }
 }
 
@@ -157,7 +194,12 @@ export function update(patch: Partial<LocalProfile>): void {
 
 export function reset(): void {
   ensureLoaded();
-  profile = DEFAULT_PROFILE;
+  const guest = generateGuestIdentity();
+  profile = {
+    display_name: guest,
+    handle: guest,
+    default_repo: DEFAULT_PROFILE.default_repo,
+  };
   emit();
 }
 

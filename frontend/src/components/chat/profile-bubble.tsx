@@ -20,9 +20,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authApi } from "@/lib/auth/api";
-import { handleFor, useAuth } from "@/lib/auth/store";
+import { useAuth } from "@/lib/auth/store";
 import { hapticSelection } from "@/lib/haptics";
-import { useLocalProfile } from "@/lib/local/profile";
+import { useIdentity } from "@/lib/identity";
 import { cn } from "@/lib/utils";
 
 /**
@@ -42,12 +42,12 @@ export function ProfileBubble({
   onNavigate?: () => void;
   compact?: boolean;
 }) {
-  const { profile } = useLocalProfile();
+  const identity = useIdentity();
   const { user } = useAuth();
   const router = useRouter();
 
-  const displayName = user ? user.name : profile.display_name;
-  const handle = user ? handleFor(user) : profile.handle;
+  const displayName = identity.name;
+  const handle = identity.handle;
 
   const goSettings = () => {
     onNavigate?.();
