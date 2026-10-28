@@ -16,7 +16,8 @@ from app.retrieval.api.schemas import (
     FeedbackRequest,
     FeedbackResponse,
 )
-from app.retrieval.models import NearestCandidate
+from app.retrieval.models import AskMode, NearestCandidate
+from app.retrieval.plan import build_plan
 from app.retrieval.service import RetrievalService
 
 
@@ -65,6 +66,22 @@ def build_router(
                     "usage recording failed", exc_info=True
                 )
 
+    def with_plan(request: AskRequest, response: AskResponse) -> AskResponse:
+        """Plan mode: attach the structured plan built from the response's
+        own retrieval, whichever pipeline produced the response."""
+        if request.mode is AskMode.PLAN and response.plan is None:
+            try:
+                plan = build_plan(request.question, response)
+            except Exception:
+                import logging
+
+                logging.getLogger("whycode").warning(
+                    "plan construction failed", exc_info=True
+                )
+                return response
+            return response.model_copy(update={"plan": plan})
+        return response
+
     def resolve_repo_name(repo: str | None) -> str:
         if repo and repo.strip():
             return repo.strip()
@@ -98,7 +115,7 @@ def build_router(
                 import logging
                 logging.getLogger("whycode").error("LiveService answer error: %s", exc, exc_info=True)
             else:
-                return response
+                return with_plan(request, response)
             finally:
                 # Recorded once, here: on success it holds the call's full
                 # usage; on failure, whatever was billed before the error.
@@ -114,7 +131,7 @@ def build_router(
                     response, request.question, recorder
                 )
                 record_usage(request, recorder.totals())
-            return response
+            return with_plan(request, response)
         raise HTTPException(status_code=503, detail="retrieval service is not configured")
 
     @router.get("/decisions")

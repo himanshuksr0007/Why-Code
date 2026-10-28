@@ -7,6 +7,7 @@ from enum import StrEnum
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.retrieval.models import (
+    AskMode,
     AskParameters,
     AskResponse,
     EvidenceView,
@@ -21,6 +22,9 @@ class AskRequest(BaseModel):
 
     question: str = Field(min_length=1, max_length=2000)
     repo: str | None = None
+    # Ask mode: "why" explains from the evidence; "plan" additionally
+    # returns a structured plan built from the answer's retrieval.
+    mode: AskMode = AskMode.WHY
     # Model selection: an anonymous client id plus the id of one of its
     # custom models (see app.models). Absent/"default" = the server model.
     client_id: str | None = Field(default=None, max_length=80)
@@ -46,6 +50,7 @@ class AskRequest(BaseModel):
             max_answer_tokens=self.max_answer_tokens,
             include_graph_path=self.include_graph_path,
             include_evidence=self.include_evidence,
+            mode=self.mode,
         )
 
 

@@ -170,6 +170,13 @@ class RetrievalQuery(_StrictModel):
     vector_text: str = ""
 
 
+class AskMode(StrEnum):
+    """What the visitor is asking for: an explanation, or a plan."""
+
+    WHY = "why"
+    PLAN = "plan"
+
+
 class AskParameters(_StrictModel):
     question: str = Field(min_length=1, max_length=2000)
     repo: str | None = None
@@ -177,6 +184,7 @@ class AskParameters(_StrictModel):
     max_answer_tokens: int = Field(default=700, ge=100, le=4000)
     include_graph_path: bool = True
     include_evidence: bool = True
+    mode: AskMode = AskMode.WHY
 
     @field_validator("question")
     @classmethod
@@ -362,11 +370,56 @@ class RefusalResult(_StrictModel):
     citations: list[str] = Field(default_factory=list)
 
 
+class PlanStep(_StrictModel):
+    """One row of a plan's code timeline.
+
+    ``done`` is only ever set for work the retrieved decisions prove is
+    already in the repository; everything the plan still has to build is
+    ``needed``. Statuses are never guessed.
+    """
+
+    title: str = Field(min_length=1)
+    detail: str = ""
+    status: str = Field(default="needed", pattern="^(done|needed|in_progress)$")
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class PlanGraphNode(_StrictModel):
+    id: str = Field(min_length=1)
+    label: str = Field(min_length=1)
+    kind: str = "module"
+    caption: str | None = None
+
+
+class PlanGraphEdge(_StrictModel):
+    source: str
+    target: str
+    rel_type: str = "connects"
+
+
+class PlanGraph(_StrictModel):
+    nodes: list[PlanGraphNode] = Field(default_factory=list)
+    edges: list[PlanGraphEdge] = Field(default_factory=list)
+
+
+class PlanView(_StrictModel):
+    """A plan-mode answer: what the goal needs, split into the part the
+    repository already has (grounded in retrieved decisions) and the part
+    still to build, plus the connection graph between them."""
+
+    goal: str = Field(min_length=1)
+    steps: list[PlanStep] = Field(default_factory=list)
+    graph: PlanGraph = Field(default_factory=PlanGraph)
+
+
 class AskResponse(_StrictModel):
     answer_status: AnswerStatus
     answer: str
     confidence: AnswerConfidence
     decision_ids: list[str] = Field(default_factory=list)
+    # Plan mode only: the structured plan built from this response's own
+    # retrieval (decisions, evidence, graph path). None for why-mode asks.
+    plan: PlanView | None = None
     evidence: list[EvidenceView] = Field(default_factory=list)
     citations: list[str] = Field(default_factory=list)
     graph_path: list[str] = Field(default_factory=list)
@@ -419,6 +472,7 @@ __all__ = [
     "AnswerConfidence",
     "AnswerDraft",
     "AnswerStatus",
+    "AskMode",
     "AskResponse",
     "Classification",
     "DecisionCandidate",
@@ -435,6 +489,11 @@ __all__ = [
     "MatchSource",
     "NearestCandidate",
     "PersonView",
+    "PlanGraph",
+    "PlanGraphEdge",
+    "PlanGraphNode",
+    "PlanStep",
+    "PlanView",
     "QuestionType",
     "QuestionUnderstanding",
     "RankedCandidate",
