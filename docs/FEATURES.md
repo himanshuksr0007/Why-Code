@@ -42,7 +42,23 @@ stay fast.
   detector's incident markers) that are missing a rationale, and
   decisions with no evidence at all.
 
-## GitHub webhooks (incremental ingestion)
+## Keeping data fresh — refresh button (no setup)
+
+End users never configure anything. The Repository card's
+**Refresh data** button calls `POST /api/v1/repos/refresh?repo=<slug>`,
+which invalidates the repo's cached decision threads so the next read
+re-derives them from current GitHub data. The endpoint is rate-limited
+to one refresh per minute per repository (429 + `Retry-After` beyond
+that) so it cannot be used to force expensive re-derivation in a loop.
+Manual refreshes are recorded as jobs and appear under Live updates.
+
+## GitHub webhooks (incremental ingestion, optional, operator-only)
+
+Webhooks are an optional automation for repository *owners* — the
+people who run Why-Code for their own repos. End users of a hosted
+Why-Code never see or configure them: only a repo admin can register
+a webhook on GitHub, and the hosted product flow (paste a public repo
+URL, ask questions) does not depend on webhooks at all.
 
 - `POST /api/v1/webhooks/github` — HMAC-SHA256 verified receiver
   (`X-Hub-Signature-256`, constant-time compare; 401 on a bad
