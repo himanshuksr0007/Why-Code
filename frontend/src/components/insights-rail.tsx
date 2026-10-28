@@ -36,12 +36,56 @@ import { cn } from "@/lib/utils";
  * Only shown on very wide screens (>= 1400px), where it never crowds
  * the center column.
  */
+/** Module-level cache so each repo's About is fetched at most once
+ * per page load (GitHub's unauthenticated API is rate limited). */
+const aboutCache = new Map<string, string>();
+
+/**
+ * The repo's real description for the Repository card: the catalog
+ * blurb when one exists, otherwise the repository's GitHub "About"
+ * text fetched from the public API. Empty string when neither is
+ * available — the card then shows no description line at all, rather
+ * than an invented placeholder.
+ */
+function useRepoAbout(slug: string, known: string | undefined): string {
+  const [fetched, setFetched] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (known || !slug.includes("/")) return;
+    const cached = aboutCache.get(slug);
+    if (cached !== undefined) {
+      setFetched(cached);
+      return;
+    }
+    let cancelled = false;
+    fetch(`https://api.github.com/repos/${slug}`, {
+      headers: { Accept: "application/vnd.github+json" },
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { description?: string | null } | null) => {
+        const about = (data?.description ?? "").trim();
+        aboutCache.set(slug, about);
+        if (!cancelled) setFetched(about);
+      })
+      .catch(() => {
+        aboutCache.set(slug, "");
+        if (!cancelled) setFetched("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, known]);
+
+  return known || fetched || "";
+}
+
 export function InsightsRail() {
   const { profile } = useLocalProfile();
   const latestGraph = useLatestGraph();
 
   const repo = findRepo(profile.default_repo);
   const repoSlug = repo?.slug ?? profile.default_repo;
+  const repoAbout = useRepoAbout(repoSlug, repo?.description || undefined);
 
   // Server-rendered with the first three questions so the prerender stays
   // deterministic; the daily rotation is applied on the client after mount.
@@ -148,9 +192,9 @@ export function InsightsRail() {
             )}
           </div>
         </div>
-        {repo?.description && (
+        {repoAbout && (
           <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-            {repo.description}
+            {repoAbout}
           </p>
         )}
         <RefreshButton repoSlug={repoSlug} />

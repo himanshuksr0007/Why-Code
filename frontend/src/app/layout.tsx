@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 
@@ -46,7 +47,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <GridBackground />
         <div className="relative z-10 min-h-full">
           <Providers>
-            <AppShell>{children}</AppShell>
+            {/* AppShell reads the pathname; on dynamic routes that is
+                URL data, so the shell streams in behind a boundary
+                (the fallback renders the page content bare, exactly
+                like the shell's own standalone-pages branch). */}
+            <Suspense
+              fallback={<div className="relative min-h-svh">{children}</div>}
+            >
+              <AppShell>{children}</AppShell>
+            </Suspense>
           </Providers>
         </div>
       </body>

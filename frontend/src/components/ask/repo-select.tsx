@@ -108,9 +108,11 @@ export function RepoSelect({
                       </span>
                     ) : null}
                   </span>
-                  <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
-                    {repo.description}
-                  </span>
+                  {repo.description ? (
+                    <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
+                      {repo.description}
+                    </span>
+                  ) : null}
                 </span>
               </DropdownMenuItem>
             );

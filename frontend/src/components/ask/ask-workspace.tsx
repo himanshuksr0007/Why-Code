@@ -12,6 +12,7 @@ import { AuroraBackdrop } from "@/components/ask/aurora-backdrop";
 import { AskComposer } from "@/components/ask/ask-composer";
 import { ExampleQuestions } from "@/components/ask/example-questions";
 import { InputToolbar } from "@/components/chat/input-toolbar";
+import { ShareDialog } from "@/components/chat/share-dialog";
 import { ThinkingIndicator } from "@/components/chat/thinking-indicator";
 import { RepoNotIndexed } from "@/components/repo/not-indexed";
 import { Button } from "@/components/ui/button";
@@ -197,12 +198,14 @@ function ConversationSkeleton() {
  * Shows the title with Share button and three-dot menu.
  */
 function ConversationHeader({ title }: { title: string }) {
-  const [shareClicked, setShareClicked] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title);
   const [prevTitle, setPrevTitle] = useState(title);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [editWidth, setEditWidth] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const { activeId, chats } = useChatStore();
   const router = useRouter();
 
@@ -218,18 +221,25 @@ function ConversationHeader({ title }: { title: string }) {
     }
   }, [isEditing]);
 
+  // Renaming must not change the header box's size: the pill is
+  // shrink-to-fit, and a bare input is narrower than the title it
+  // replaces — so the title's rendered width is measured on entering
+  // edit mode and the input is held to exactly it.
+  const beginEdit = useCallback(() => {
+    setEditWidth(titleRef.current?.offsetWidth ?? null);
+    setIsEditing(true);
+  }, []);
+
   const handleSaveTitle = useCallback(() => {
     if (activeId && editedTitle.trim() && editedTitle !== title) {
       updateChatTitle(activeId, editedTitle.trim());
     }
     setIsEditing(false);
+    setEditWidth(null);
   }, [activeId, editedTitle, title]);
 
   const handleShare = useCallback(() => {
-    navigator.clipboard.writeText(window.location.href);
-    setShareClicked(true);
-    toast.success("Link copied to clipboard");
-    setTimeout(() => setShareClicked(false), 2000);
+    setShowShareDialog(true);
   }, []);
 
   const handleExport = useCallback(() => {
@@ -271,6 +281,7 @@ function ConversationHeader({ title }: { title: string }) {
     } else if (e.key === 'Escape') {
       setEditedTitle(title);
       setIsEditing(false);
+      setEditWidth(null);
     }
   };
 
@@ -282,7 +293,10 @@ function ConversationHeader({ title }: { title: string }) {
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-shimmer pointer-events-none" />
         
         {/* Chat Title - Editable */}
-        <div className="flex-1 min-w-0 max-w-md relative z-10">
+        <div
+          className="flex-1 min-w-0 max-w-md relative z-10"
+          style={isEditing && editWidth ? { width: editWidth, flex: "none" } : undefined}
+        >
           {isEditing ? (
             <input
               ref={inputRef}
@@ -291,13 +305,14 @@ function ConversationHeader({ title }: { title: string }) {
               onChange={(e) => setEditedTitle(e.target.value)}
               onBlur={handleSaveTitle}
               onKeyDown={handleKeyDown}
-              className="w-full bg-transparent text-sm font-medium text-foreground outline-none border-b border-primary/40 px-1 py-0.5"
+              className="w-full bg-transparent text-sm font-medium text-foreground outline-none border-b border-primary/40 px-0 py-0"
               maxLength={100}
             />
           ) : (
-            <h2 
+            <h2
+              ref={titleRef}
               className="text-sm font-medium text-foreground truncate cursor-text hover:text-primary transition-colors duration-200"
-              onDoubleClick={() => setIsEditing(true)}
+              onDoubleClick={beginEdit}
               title="Double-click to edit"
             >
               {title}
@@ -308,12 +323,7 @@ function ConversationHeader({ title }: { title: string }) {
         {/* Share Button with enhanced hover */}
         <button
           onClick={handleShare}
-          className={cn(
-            "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 relative z-10",
-            shareClicked 
-              ? "bg-primary/30 text-primary shadow-[0_0_20px_rgba(232,160,48,0.3)]" 
-              : "bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-primary backdrop-blur-sm"
-          )}
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 relative z-10 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-primary backdrop-blur-sm"
           title="Share chat"
         >
           <ShareIcon className="size-3.5" />
@@ -331,13 +341,9 @@ function ConversationHeader({ title }: { title: string }) {
             <MoreVerticalIcon className="size-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuItem onClick={() => setIsEditing(true)}>
+            <DropdownMenuItem onClick={beginEdit}>
               <PencilIcon className="size-4" />
               Rename chat
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleShare}>
-              <ShareIcon className="size-4" />
-              Share chat
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleExport}>
               <DownloadIcon className="size-4" />
@@ -355,6 +361,14 @@ function ConversationHeader({ title }: { title: string }) {
         </DropdownMenu>
       </div>
     </div>
+
+    {activeId && (
+      <ShareDialog
+        chatId={activeId}
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
+      />
+    )}
 
     <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
       <DialogContent>

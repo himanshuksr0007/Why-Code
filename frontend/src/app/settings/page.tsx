@@ -149,48 +149,19 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-1 flex-col min-h-0 w-full max-w-4xl mx-auto py-6 sm:py-8 md:pl-[67px]">
-      {/* 3D Floating Liquid Glass Bubble Header */}
-      <div className="relative mb-6 overflow-hidden rounded-3xl liquid-glass-bubble p-5 sm:p-6 transition-all duration-300 hover:translate-y-[-2px]">
-        {/* Specular gloss highlights & reflections */}
-        <div
-          className="absolute top-0 inset-x-0 h-1/2 bg-gradient-to-b from-white/75 via-white/25 to-transparent dark:from-white/10 dark:via-white/5 pointer-events-none rounded-t-3xl"
-          aria-hidden="true"
-        />
-        <div
-          className="absolute -top-12 -left-12 size-36 rounded-full bg-primary/20 blur-2xl pointer-events-none"
-          aria-hidden="true"
-        />
-        <div
-          className="absolute -bottom-8 -right-8 size-28 rounded-full bg-[#E1A46B]/25 blur-xl pointer-events-none"
-          aria-hidden="true"
-        />
-
-        {/* Content inside the floating bubble */}
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="relative flex size-12 sm:size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#CC8D51] to-[#E1A46B] text-white shadow-[0_8px_20px_rgba(204,141,81,0.35),inset_0_1.5px_2px_rgba(255,255,255,0.7)] shrink-0">
-              <SettingsIcon className="size-6 sm:size-7 drop-shadow-sm" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-                  Profile &amp; Settings
-                </h1>
-                <span className="hidden sm:inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-[11px] font-mono font-medium text-primary uppercase tracking-wider shadow-sm">
-                  Preferences
-                </span>
-              </div>
-              <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                Manage your account, personal details, and workspace preferences
-              </p>
-            </div>
-          </div>
-
-          <div className="hidden md:flex items-center gap-2 rounded-full border border-border/80 bg-card/60 dark:border-white/10 dark:bg-white/5 px-3.5 py-1.5 text-xs text-muted-foreground backdrop-blur-md shadow-sm">
-            <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Active Session</span>
-          </div>
+      {/* Compact centered header: a small dark pill with orange text,
+          in the spirit of the rail's repository chip — no session
+          badge, no wide glass banner. */}
+      <div className="mb-6 flex flex-col items-center text-center">
+        <div className="inline-flex items-center gap-2.5 rounded-2xl border border-white/10 bg-[#171009] px-5 py-2.5 shadow-floating">
+          <SettingsIcon className="size-5 shrink-0 text-primary" />
+          <h1 className="font-heading text-lg font-bold tracking-tight text-primary sm:text-xl">
+            Profile &amp; Settings
+          </h1>
         </div>
+        <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+          Manage your account, personal details, and workspace preferences
+        </p>
       </div>
 
       {/* Desktop Vertical Navigation Rail in the right empty area */}

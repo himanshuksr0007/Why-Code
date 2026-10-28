@@ -30,9 +30,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const collapsed = useSidebarCollapsed();
   const pathname = usePathname();
 
-  // The auth pages are standalone: no sidebar, no insights rail, no
-  // mobile top bar — just the showcase and the form on the grid.
-  if (pathname === "/login" || pathname === "/signup") {
+  // The auth pages and shared-chat links are standalone: no sidebar,
+  // no insights rail, no mobile top bar.
+  if (
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname.startsWith("/share/")
+  ) {
     return <div className="relative min-h-svh">{children}</div>;
   }
 
@@ -88,8 +92,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         {children}
       </main>
 
-      {/* Right rail — session insights, on very wide screens. */}
-      <InsightsRail />
+      {/* Right rail — chat-page insights, on very wide screens. Its
+          bubbles (ask suggestions, the session graph, the repository
+          being explored) belong to the chat page only; on Settings
+          and the other pages they are just noise. */}
+      {pathname === "/" && <InsightsRail />}
 
       {/* Fullscreen graph viewer (rail bubble / mobile View Graph). */}
       <GraphViewerHost />

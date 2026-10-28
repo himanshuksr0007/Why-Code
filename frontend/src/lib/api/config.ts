@@ -73,7 +73,9 @@ export const AVAILABLE_REPOS: RepoOption[] = REPO_CATALOG.some(
       {
         slug: TARGET_REPO,
         name: TARGET_REPO,
-        description: "Repository configured via NEXT_PUBLIC_REPO",
+        // No invented description: the rail card fetches the repo's
+        // real GitHub "About" text, and shows nothing until it has it.
+        description: "",
         indexed: true,
       },
       ...REPO_CATALOG,
@@ -93,7 +95,7 @@ export function findRepo(
     return {
       slug,
       name: slug.split("/")[1] || slug,
-      description: `Live repository ${slug}`,
+      description: "",
       indexed: true,
     };
   }
