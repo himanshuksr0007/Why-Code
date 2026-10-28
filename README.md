@@ -1,99 +1,229 @@
 <div align="center">
-  <img src="assets/readme/banner.png" alt="WhyCode — ask why your code works the way it does" width="100%" />
+  <img src="assets/readme/banner.png" alt="Why-Code — ask why your code works the way it does" width="100%" />
 </div>
 
 <p align="center">
   <b>Ask why your code works the way it does — and see the evidence.</b><br/>
-  <sub>GraphRAG over a repository's pull requests, reviews, commits and issues.</sub>
+  <sub>Why-Code reads a repository's pull requests, reviews, commits and issues, extracts the engineering
+  decisions hidden inside them into a Neo4j graph, and answers questions with citations to the real
+  evidence — or refuses when the evidence isn't there.</sub>
+</p>
+
+<p align="center">
+  <a href="https://why-code-ten.vercel.app"><b>Live app</b></a> ·
+  <a href="https://why-code.onrender.com/health"><b>API health</b></a>
 </p>
 
 <p align="center">
   <img alt="Python 3.12+" src="https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white" />
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" />
+  <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white" />
   <img alt="Neo4j" src="https://img.shields.io/badge/Neo4j-AuraDB-4581C3?logo=neo4j&logoColor=white" />
-  <img alt="Tests" src="https://img.shields.io/badge/tests-1030%20passed-2ea44f" />
-  <img alt="Status" src="https://img.shields.io/badge/status-backend%20pipeline-blue" />
-  <img alt="Retrieval" src="https://img.shields.io/badge/retrieval-built-2ea44f" />
+  <img alt="Tests" src="https://img.shields.io/badge/tests-1100%2B%20passing-2ea44f" />
+  <img alt="Status" src="https://img.shields.io/badge/status-live-2ea44f" />
 </p>
 
-**WhyCode** explains *why* a codebase works the way it does, using its own development history as evidence. It ingests merged pull requests and the conversation around them, builds a Neo4j graph of files, symbols, regions, people and decisions, and extracts evidence-linked engineering decisions. Every claim is traceable; when the evidence is insufficient, the system refuses instead of guessing.
+Code tells you *what* it does. The *why* lives somewhere else — in a PR discussion from two years ago,
+a review comment, a commit message nobody remembers writing. Why-Code mines that history once, turns it
+into an evidence graph of files, symbols, config keys, people and decisions, and then answers questions
+like *"Why are retries disabled by default?"* with the actual diff, the actual PR, and the actual
+reasoning — each claim linked to the evidence that supports it. When the record doesn't support an
+answer, it says so instead of guessing.
 
-> [!IMPORTANT]
-> **Work in progress.** The backend pipeline through the GraphRAG answer service is implemented and tested, including the read-only Neo4j retrieval adapter. The production embedding model and the published UI are not built yet — see [Built vs. what's left](#built-vs-whats-left).
+**Using it needs no setup and no keys:** open the app, pick (or paste) a public repository, and ask.
+Every credential — GitHub, Neo4j, the LLM — lives on the server; visitors never provide one.
 
 ## Screenshots
 
-WhyCode provides a rich, responsive interface with seamless **Dark Mode** and **Light Mode** support. Toggle modes instantly using the theme button or match your system preferences.
+The interface is a warm, floating-bubble design in dark and light themes, fully responsive down to phones.
 
-### Ask & GraphRAG Synthesis with WhyAgent
+### Ask — grounded answers with the evidence attached
 
-| Dark Mode (Obsidian & Orange Grid) | Light Mode (Warm Canvas & Orange Grid) |
+| Dark | Light |
 | :---: | :---: |
-| <img src="assets/readme/ask-dark.png" alt="WhyCode Ask and Answer in Dark Mode" width="100%" /> | <img src="assets/readme/ask-light.png" alt="WhyCode Ask and Answer in Light Mode" width="100%" /> |
-| Synthesis with WhyAgent avatar, decision cards & categorical confidence | Crystal-clear typography, citations & structured evidence links |
+| <img src="assets/readme/ask-dark.png" alt="A Why-Code conversation in dark mode: the answer, its evidence card with the deciding diff, the graph bubble and the repository card" width="100%" /> | <img src="assets/readme/ask-light.png" alt="The same conversation in light mode" width="100%" /> |
 
-### Interactive Graph Path Explorer
+Every answer shows its status and confidence, the evidence it rests on (here: the diff that changed
+`retries: int = 3` to `retries: int = 0`), the graph path behind it, and the decisions it touches.
 
-| Dark Mode Graph | Light Mode Graph |
+### Plan mode — what's already done, what a change still needs
+
+<img src="assets/readme/plan-dark.png" alt="Plan mode: a step table with Done and Needed steps, each tied to evidence" width="100%" />
+
+Plan mode turns the same retrieval into an implementation plan: steps the codebase has *already*
+completed (with the decision and evidence that prove it) and the steps a change still *needs*, grounded
+in the real modules and config the answer touched — never invented.
+
+### Connection graph — question to decision, nothing invented
+
+<img src="assets/readme/graph-dark.png" alt="Fullscreen connection graph: File to Commit to Pull request to Decision to Evidence, with typed edges" width="100%" />
+
+One graph engine renders every view: the answer's Connections tab, its Graph path tab, the rail
+thumbnail, the fullscreen explorer (pan, zoom, drag nodes) and the `/graph` page. Edges are typed —
+*changed in*, *decided in*, *supported by* — so the chain from a question to its evidence is auditable.
+
+### Decision center — every decision on record, kept honest
+
+<img src="assets/readme/decisions-dark.png" alt="Decisions page: audit summary cards, search, status filters and decision record cards with ADR export" width="100%" />
+
+Extracted decisions are browsable, searchable and auditable. A later revision or reversal is recorded
+as a supersession — the original is never silently overwritten.
+
+### Sharing and settings
+
+| Share a chat — publicly, or only with whitelisted handles | Settings |
 | :---: | :---: |
-| <img src="assets/readme/graph-dark.png" alt="Graph Path Explorer in Dark Mode" width="100%" /> | <img src="assets/readme/graph-light.png" alt="Graph Path Explorer in Light Mode" width="100%" /> |
-| Visual path from ConfigKey → Symbol → Region → Commit → PR | 4-sided dynamic directional handles with inspectable nodes |
+| <img src="assets/readme/share-dark.png" alt="Share dialog with Public link and Private link options and a handle whitelist" width="100%" /> | <img src="assets/readme/settings-dark.png" alt="Settings page with personal information and appearance preferences" width="100%" /> |
 
-### Decision Timeline & History
+### Accounts and mobile
 
-| Decisions (Dark Mode) | Decisions (Light Mode) |
+| Standalone login with a live product showcase | The full experience on a phone |
 | :---: | :---: |
-| <img src="assets/readme/decisions-dark.png" alt="Decisions Timeline in Dark Mode" width="100%" /> | <img src="assets/readme/decisions-light.png" alt="Decisions Timeline in Light Mode" width="100%" /> |
-| Chronological decisions tracking origins, revisions and reversals | Complete timeline with confidence ratings and commit/PR links |
+| <img src="assets/readme/login-dark.png" alt="Login page: animated showcase cycling Ask, Answer, Graph and Plan beside the sign-in card" width="100%" /> | <img src="assets/readme/mobile-dark.png" alt="Why-Code on a phone: hero, composer with Why and Plan modes and the model picker, example questions" width="390" /> |
 
-### Contributor Profile & Evidence Inspection
+## Features
 
-| Profile with Connected Vertical Nav | Evidence Sheet Inspector |
-| :---: | :---: |
-| <img src="assets/readme/profile-dark.png" alt="Profile in Dark Mode" width="100%" /> | <img src="assets/readme/evidence-sheet.png" alt="Evidence Sheet Inspector" width="100%" /> |
-| Interactive vertical connected icon nav with hover labels | Slide-out evidence inspector with diffs, payloads & source links |
+### Asking questions
+
+- **Why? mode** — grounded answers synthesized only from retrieved evidence, with deduplicated
+  citations, a confidence rating, and honest refusals (`insufficient_evidence` and friends) when the
+  record can't support a claim.
+- **Plan mode** — a step table (Done / Needed, each row tied to evidence) plus a connection graph,
+  built deterministically from the answer's own retrieval.
+- **Structure questions** — ask how a repository is laid out and get a directory/module tree graph
+  built from the real evidence paths.
+- **Evidence everywhere** — every answer carries its evidence cards (diffs, PR and commit links),
+  the decisions it relies on, and the graph path that connects them.
+- **Suggested questions** — a rotating set of "Ask a why" prompts per repository in the side rail,
+  plus one-click example questions on the landing page.
+
+### Models
+
+- The composer shows the **server's active model** and a **live token meter**: real, provider-reported
+  usage against that model's context window.
+- **Bring your own model** — visitors can add any OpenAI-compatible model (name, model id, endpoint,
+  API key) and ask through it. Keys are Fernet-encrypted at rest, scoped to the visitor's browser,
+  and never shown again after saving.
+
+### Composer
+
+- **File attachments** — attach files from the paperclip menu (or `Ctrl+U`); text files are read in
+  the browser and inlined into the question, and show as chips on your message.
+- **Screenshots** — "Take a screenshot" captures one frame of your screen straight into the chat.
+- **Voice input** — dictate with the Web Speech API; transcription appends to your draft as you speak.
+- The composer grows as you type and resets when you send.
+
+### Conversations
+
+- Chats are saved locally in your browser: rename (the header keeps its size while you edit), export
+  to Markdown, delete one or clear all.
+- **Incognito mode** — while it's on, your saved history disappears from the panel entirely, anything
+  you ask lives only in memory, is never written to storage or the URL, and is discarded the moment
+  you exit incognito.
+- **Haptics** — subtle vibration feedback on supported mobile browsers, with a Settings toggle
+  (on by default).
+
+### Sharing
+
+- **Public links** — anyone with the link sees a read-only copy of the conversation.
+- **Private links** — only signed-in users whose @handle is on your whitelist can open it; everyone
+  else gets a clear "not on the list" screen naming their own handle.
+- Update a link in place as the chat grows, or stop sharing at any time. Sharing needs an account;
+  incognito chats can't be shared.
+
+### Accounts
+
+- Sign up with email + password and a **6-digit email OTP** (10-minute, single-use codes; passwords
+  are Argon2id-hashed, sessions are 7-day JWTs, auth endpoints are rate-limited).
+- **Guests can do everything except share** — no account required to ask. Guests get a friendly
+  `userNNN` identity; signing in replaces it with your real name and handle everywhere at once.
+
+### Decision platform
+
+- **Decision records API + explorer** — normalized records with search and filters for status, kind,
+  target and date; an evidence drill-down on every record.
+- **Cross-repo search** — search decisions across every indexed repository at once.
+- **Supersessions dashboard** — claim-vs-claim pairs showing what replaced what, and why.
+- **Audit & compliance report** — rationale/evidence coverage, plus the flags that matter:
+  security- or incident-relevant decisions missing a rationale, and decisions with no evidence.
+- **ADR export** — download any record as an Architecture Decision Record (Markdown) or JSON.
+- **Fresh data without setup** — the Repository card's **Refresh data** button re-derives a repo's
+  decisions from current GitHub data (rate-limited per repo). Repository *owners* can additionally
+  register a GitHub webhook for automatic refresh on merged PRs (HMAC-verified, deduplicated);
+  end users never configure anything.
+- **Decision tooling for repos** — a policy-as-code gate (incidents need a postmortem, reversals need
+  evidence), a PR comment assistant that drafts decision records, and a golden-set regression runner.
+  See [`docs/FEATURES.md`](docs/FEATURES.md).
+
+### The pipeline underneath
+
+- **Ingestion** of merged PRs with their reviews, commits and issues, normalized and relevance-scored.
+- **Graph building** into Neo4j: files, symbols, code regions, config keys, people, commits, PRs.
+- **Structural enrichment** with tree-sitter (Python-first) plus YAML/TOML/env config keys.
+- **Decision extraction** — an LLM proposes candidate decisions; deterministic gates validate every
+  citation, compute confidence, detect supersession and dedupe before anything is written.
+- **Hybrid retrieval** — exact + full-text + vector search with graph expansion, fused (WRRF),
+  reranked and packed into evidence the synthesizer may cite from — and nothing else.
+- **Multi-language candidate detection** — high-value path packs for Python, Go, Java, Rust and
+  TypeScript.
 
 ## How it works
 
-<p align="center">
-  <img src="assets/readme/architecture.png" alt="WhyCode pipeline: GitHub history → ingestion and SQLite → graph builder → structural enricher → decision extractor → GraphRAG retrieval and answer API, all sharing Neo4j; the evidence UI is next." width="100%" />
-</p>
-<p align="center"><sub><b>Built:</b> GitHub → ingestion/SQLite → graph → structure → decisions → retrieval/answer API → judge demo UI. <b>Next:</b> production embedding provider and live UI integration.</sub></p>
+```mermaid
+flowchart LR
+  GH["GitHub<br/>PRs · reviews · commits · issues"] --> ING["Ingestion<br/>normalize + score"]
+  ING --> GRAPH["Graph builder<br/>files · symbols · regions · people"]
+  GRAPH --> STRUCT["Structural enricher<br/>tree-sitter + config keys"]
+  STRUCT --> DEC["Decision extractor<br/>LLM proposes · gates validate"]
+  DEC --> NEO[("Neo4j<br/>evidence graph")]
+  NEO --> RET["Retrieval<br/>exact + full-text + vector + graph expansion"]
+  RET --> SYN["Synthesis<br/>constrained · citation-checked"]
+  SYN --> API["FastAPI<br/>/api/v1"]
+  API --> UI["Next.js UI<br/>ask · plan · decisions · share"]
+```
 
-The LLM is a **proposer**, never the authority: deterministic code validates every citation against the evidence store and graph, computes confidence, detects supersession, and writes the graph.
+**An ask, step by step:**
+
+1. The UI sends the question, the repository and the mode (`why` or `plan`) to `POST /api/v1/ask`.
+2. The retrieval pipeline runs its fixed branches over the Neo4j graph, fuses and reranks the results,
+   and packs an evidence set.
+3. The model writes an answer constrained to that evidence; deterministic code then validates every
+   citation and quote against the evidence store before the answer is allowed out.
+4. If validation fails or the evidence is thin, the service refuses with a reason instead of
+   improvising. In Plan mode, the validated answer's own retrieval is turned into the step table and
+   connection graph — no second, ungrounded generation pass.
+
+**The trust model:** the LLM is a proposer, never the authority. Citations, confidence, supersession
+and the final graph writes are all computed by deterministic code, and every claim in the UI can be
+traced back to a PR, a diff or a commit.
+
+Alongside the answer service, the backend runs three product services on the same FastAPI app:
+**auth** (accounts, OTP, sessions), **shares** (public/private chat links) and **features** (decision
+records, search, audit, webhooks). Each stores to Neo4j when configured and degrades to a local
+SQLite file otherwise, so a fresh clone always boots.
 
 ## Quick start
 
-### 🚀 One-Command Launchers
+### One-command launchers
 
-You can launch both the backend and frontend together with a single script:
+**Demo mode** — offline fixture data, no Neo4j and no API keys:
 
-#### 1. Demo Mode (Zero Configuration)
-Runs the demo version using offline fixture data. **No Neo4j database or API keys required**:
-- **Windows (Command Prompt / Double Click):** `startdemo.bat`
-- **Windows (PowerShell):** `.\startdemo.ps1`
-- **macOS / Linux:** `./startdemo.sh`
+- Windows (Command Prompt / double-click): `startdemo.bat`
+- Windows (PowerShell): `.\startdemo.ps1`
+- macOS / Linux: `./startdemo.sh`
 
-> Automatically starts the backend at `http://localhost:8000` and frontend at `http://localhost:3000`.
+Starts the backend on `http://localhost:8000` and the frontend on `http://localhost:3000`.
 
-#### 2. Production Mode (Full GraphRAG + Live Neo4j)
-Runs the production version with live Neo4j database and LLM decision extraction:
-> [!IMPORTANT]
-> **Production mode requires all keys to be set** in `backend/.env` before running:
-> - `WHYCODE_NEO4J_URI`, `WHYCODE_NEO4J_USER`, `WHYCODE_NEO4J_PASSWORD`
-> - `WHYCODE_LLM_API_KEY` (and optionally `WHYCODE_LLM_MODEL`, `WHYCODE_LLM_BASE_URL`)
-> - `WHYCODE_GITHUB_TOKEN` (for repository ingestion)
+**Production mode** — live Neo4j + LLM. Fill in `backend/.env` first (see
+[Configuration](#configuration)), then:
 
-Run the production launcher:
-- **Windows (Command Prompt / Double Click):** `startprod.bat`
-- **Windows (PowerShell):** `.\startprod.ps1`
-- **macOS / Linux:** `./startprod.sh`
+- Windows: `startprod.bat` / `.\startprod.ps1`
+- macOS / Linux: `./startprod.sh`
 
----
+### Manual setup
 
-### Manual Setup
-
-**Prerequisites:** Python 3.12+, Node.js 20+, a GitHub token, a Neo4j AuraDB (or local Neo4j) instance, and an OpenAI-compatible API key.
+Prerequisites: Python 3.12+, Node.js 20+. Production mode additionally needs a Neo4j instance
+(AuraDB or local), an OpenAI-compatible API key, and a GitHub token for ingestion.
 
 ```bash
 git clone https://github.com/himanshuksr0007/Why-Code.git
@@ -104,55 +234,40 @@ source .venv/bin/activate
 pip install -e '.[dev]'
 
 cp .env.example .env      # fill in the values
-set -a; source .env; set +a
+set -a; source .env; set +a   # .env is not auto-loaded
 ```
 
-Settings are read from environment variables; `.env` is not auto-loaded, hence the `source` line.
-
-### Run the API
-
 ```bash
+# Live app (needs the env above)
 PYTHONPATH=. uvicorn app.main:create_app --factory --reload
+
+# Offline demo app (fixtures only, no credentials)
+PYTHONPATH=. uvicorn app.main:create_demo_app --factory --reload
+
 curl http://localhost:8000/health
 # {"service":"why-code","status":"ok","version":"0.0.1"}
 ```
 
-`/health` is always live. The answer API (`POST /ask`, also mounted at `/api/v1/ask`) is available when a retrieval service is injected; without one those routes return `503`.
+`/health` is always live. Without a configured retrieval service, the ask routes return `503` by
+design; the demo app answers from its fixture graph instead.
 
-### Run the prepared judge demo
-
-The `/demo` flow uses the real retrieval pipeline against a deterministic
-fixture graph, so it needs no Neo4j or model credentials. In one terminal:
-
-```bash
-cd backend
-PYTHONPATH=. .venv/bin/uvicorn app.main:create_demo_app --factory --reload
-curl -X POST http://localhost:8000/demo/rehearse \
-  -H 'content-type: application/json' -d '{}'
-```
-
-In another:
+Frontend:
 
 ```bash
 cd frontend
 npm install
-npm run dev
-# open http://localhost:3000/demo
+cp .env.example .env.local   # defaults run the UI against bundled mock fixtures
+npm run dev                  # http://localhost:3000
 ```
 
-The demo page calls the backend directly (default
-`http://localhost:8000`; override with `NEXT_PUBLIC_API_BASE_URL`). It shows the
-five-question script, then answer, citations, evidence cards, people, decision
-timeline, supersession labels and the interactive graph path. The fifth
-question asks about the logo and must refuse with `insufficient_evidence`.
-
-> The measured latency is local fixture-pipeline latency, not a live Neo4j or
-> model round trip. `/demo/rehearse` checks the script deterministically and
-> reports the measured value against the 8,000 ms budget / 5,000 ms target.
+To point the UI at the backend, set `NEXT_PUBLIC_API_MODE=http` and
+`NEXT_PUBLIC_API_BASE_URL=http://localhost:8000` in `.env.local`.
 
 ### Run the pipeline
 
 ```bash
+cd backend
+
 # 1. Ingest merged PRs and normalize their history
 PYTHONPATH=. python -m app.ingestion.cli ingest \
   --repo encode/httpx --since 2024-01-01 --limit 100 \
@@ -177,31 +292,69 @@ PYTHONPATH=. python -m app.intent.cli extract \
 
 Generated artifacts land in `artifacts/` and are git-ignored.
 
-### Verify the build
+### Verify
 
 ```bash
+cd backend
 PYTHONPATH=. python -m pytest --ignore=tests/structure
 ruff check app tests
 mypy app
 ```
 
-Current result: **1030 passed, 9 skipped**, ruff clean, mypy clean. Eight skips are opt-in live-Neo4j tests; the ninth is the opt-in live-LLM smoke test.
+Current backend result: **1,103 passed**, 15 pre-existing failures in the live-mode contract tests,
+12 skipped (opt-in live Neo4j / live LLM tests). `tests/structure/` is a legacy parallel contract
+suite that conflicts with `tests/structural/` at collection time; the canonical suite excludes it.
 
-> `tests/structure/` is a legacy parallel contract suite that conflicts with `tests/structural/` at collection time. The canonical suite excludes it.
+```bash
+cd frontend
+npm run build && npm run typecheck && npm run lint
+```
 
-## Built vs. what's left
+## Configuration
 
-| Plan component | Status | What exists | What's missing |
-| --- | :---: | --- | --- |
-| **0 · Foundation** | ✅ | Typed settings, error taxonomy, structured logging, evidence records/IDs, `/health`, tests | CI workflow and Docker Compose were deliberately cut (D-0005) |
-| **1 · GitHub ingestion** | ✅ | Merged-PR client, normalizer, SQLite store, relevance scoring, JSONL exports, ingestion report, CLI | Live 50–100 PR acceptance run is not reproduced in the repo (needs a token) |
-| **2 · Neo4j graph builder** | ✅ | Graph mapping, commit-scoped regions, batched `MERGE` writer, constraints/indexes, integrity checks | Live AuraDB load is opt-in and was not executed here |
-| **3 · Structural enricher** | ✅ | Tree-sitter Python symbols/imports/references, YAML/TOML/env config keys, docs, regions, validation | Python only; JS/TS/Rust and lock files are skipped by design |
-| **4 · Decision extractor** | ✅ | Candidate detection, context packing, strict schemas, evidence/claim/rule gates, confidence, supersession, dedupe, review queue, Neo4j writer, hand-curated golden set + deterministic evaluation | Live LLM acceptance and the public golden-suite run are not demonstrated in this repo (public cases are curated but unexecuted) |
-| **5 · GraphRAG retrieval** | ✅ | Fixed retrieval pipeline (exact + full-text + vector + graph expansion), static read-only Neo4j `GraphBackend`/`LookupBackend` adapter, WRRF fusion, reranking, evidence packing, constrained synthesis, citation/quote validation, four refusal modes, `/ask` and supporting API routes, deterministic Phase 10 judge demo, 321 retrieval contract tests | A production embedding model and the golden-question acceptance run are not included; live latency is not measured |
-| **6 · Evidence UI** | ✅ | Full Next.js frontend with live GraphRAG ask/answer, interactive ReactFlow graph explorer, decision timeline, evidence sheet inspector, Dark/Light themes, WhyAgent integration, and connected vertical-line profile navigation | Production deployment |
+### Backend (`backend/.env`)
 
-**Also not done:** production embedding provider, retrieval golden-question acceptance run, Aura Agent/MCP integration, CI and Docker, live acceptance evidence for Components 1–5.
+| Variable | Required | Purpose |
+| --- | :---: | --- |
+| `WHYCODE_GITHUB_TOKEN` | ingestion | GitHub API token for repository ingestion |
+| `WHYCODE_NEO4J_URI` / `_USER` / `_PASSWORD` | production | Neo4j (AuraDB or local) connection |
+| `WHYCODE_NEO4J_DATABASE` | — | Target database (default `neo4j`) |
+| `WHYCODE_LLM_API_KEY` | production | OpenAI-compatible key (any compatible endpoint works) |
+| `WHYCODE_LLM_MODEL` | — | Server model shown in the composer (default `gpt-4o-mini`) |
+| `WHYCODE_LLM_BASE_URL` | — | Compatible endpoint (default `https://api.openai.com/v1`) |
+| `WHYCODE_LLM_CONTEXT_TOKENS` | — | Context window used by the UI token meter |
+| `WHYCODE_SECRET_KEY` | production | Fernet key encrypting visitors' custom-model API keys at rest. Without it an ephemeral key is used and saved keys die on restart |
+| `WHYCODE_AUTH_SECRET` | production | Signs session tokens and OTP digests. Required, or sessions/pending OTPs die on restart |
+| `WHYCODE_GMAIL_ADDRESS` | auth mail | Sender address for verification emails (also the default Brevo sender) |
+| `WHYCODE_BREVO_API_KEY` | recommended | Sends OTP mail over Brevo's HTTPS API. **Use this on hosts that block outbound SMTP (e.g. Render)** — it takes precedence over Gmail SMTP. Disable Brevo's IP authorisation: host egress IPs rotate |
+| `WHYCODE_GMAIL_APP_PASSWORD` | SMTP fallback | Gmail app password, used only when no Brevo key is set. With neither set, codes go to a console outbox file (development) |
+| `WHYCODE_MAIL_FROM` | — | Override the sender address |
+| `WHYCODE_AUTH_DB` | — | SQLite fallback path for accounts (default `artifacts/auth.db`) |
+| `WHYCODE_SHARE_DB` | — | SQLite fallback path for share links (defaults to the auth DB) |
+| `WHYCODE_WEBHOOK_SECRET` | webhooks | GitHub webhook secret; the receiver returns 503 until it is set |
+| `WHYCODE_WEBHOOK_DB` | — | Webhook delivery store (default `artifacts/webhooks.db`) |
+| `WHYCODE_ARTIFACTS_DIR` | — | Pipeline output directory (default `artifacts`) |
+
+### Frontend (`frontend/.env.local`)
+
+| Variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_API_MODE` | `http` for the live backend, `mock` for bundled fixtures (default) |
+| `NEXT_PUBLIC_API_BASE_URL` | Backend base URL when in `http` mode |
+| `NEXT_PUBLIC_REPO` | Repository the UI asks about by default (e.g. `encode/httpx`) |
+
+## Deployment
+
+The production deployment is split:
+
+- **Frontend — Vercel.** Root directory `frontend`, with `NEXT_PUBLIC_API_MODE=http` and
+  `NEXT_PUBLIC_API_BASE_URL` pointing at the backend. Deploys automatically on push to `main`.
+- **Backend — Render.** Runs the FastAPI app with the production env above; point the health check
+  at `/health`. Two operational notes from running it: Render blocks outbound SMTP, so verification
+  mail must go through Brevo (`WHYCODE_BREVO_API_KEY`); and `WHYCODE_SECRET_KEY` +
+  `WHYCODE_AUTH_SECRET` must be set, or custom-model keys and sessions reset on every redeploy.
+
+Any equivalent split (static/Node host + a Python host) works the same way.
 
 ## Project layout
 
@@ -211,59 +364,49 @@ Current result: **1030 passed, 9 skipped**, ruff clean, mypy clean. Eight skips 
 │   ├── app/
 │   │   ├── core/          # settings, errors, logging
 │   │   ├── domain/        # evidence records + stable IDs
-│   │   ├── ingestion/     # Component 1  → README
-│   │   ├── graph/         # Component 2  → README
-│   │   ├── structural/    # Component 3  → README
-│   │   ├── intent/        # Component 4  → README
-│   │   ├── retrieval/     # Component 5  → README
-│   │   └── main.py        # FastAPI factory; /health + retrieval routes
-│   ├── tests/             # contract tests, grouped by component
-│   └── README.md          # backend guide
-├── frontend/              # Next.js product prototype + /demo judge workspace
-├── docs/                  # decisions and validation reports
+│   │   ├── ingestion/     # GitHub ingestion → normalized history
+│   │   ├── graph/         # Neo4j graph builder
+│   │   ├── structural/    # tree-sitter enrichment
+│   │   ├── intent/        # decision extraction (LLM + gates)
+│   │   ├── retrieval/     # hybrid retrieval, synthesis, plan + structure builders
+│   │   ├── models/        # visitor custom models + token usage
+│   │   ├── auth/          # accounts, email OTP, sessions
+│   │   ├── shares/        # public/private chat share links
+│   │   ├── features/      # decision records, search, audit, webhooks
+│   │   └── main.py        # FastAPI factories (live + demo)
+│   ├── tools/             # policy gate, PR decision assistant, golden runner
+│   └── tests/             # contract tests, grouped by area
+├── frontend/              # Next.js 16 app (chat, decisions, graph, settings, auth, share viewer)
+├── docs/                  # product decisions, feature guide, reports
 ├── assets/readme/         # banner + screenshots
-├── artifacts/             # generated outputs (git-ignored)
 └── README.md
 ```
 
-## Component documentation
+## Documentation
 
-| Component | Documentation |
+| Topic | Document |
 | --- | --- |
-| Foundation | [`backend/README.md`](backend/README.md) |
-| 1 · Ingestion | [`backend/app/ingestion/README.md`](backend/app/ingestion/README.md) |
-| 2 · Graph builder | [`backend/app/graph/README.md`](backend/app/graph/README.md) |
-| 3 · Structural enricher | [`backend/app/structural/README.md`](backend/app/structural/README.md) |
-| 4 · Decision extractor | [`backend/app/intent/README.md`](backend/app/intent/README.md) |
-| 5 · Retrieval | [`backend/app/retrieval/README.md`](backend/app/retrieval/README.md) |
+| Backend guide | [`backend/README.md`](backend/README.md) |
+| Decision platform features | [`docs/FEATURES.md`](docs/FEATURES.md) |
+| Ingestion | [`backend/app/ingestion/README.md`](backend/app/ingestion/README.md) |
+| Graph builder | [`backend/app/graph/README.md`](backend/app/graph/README.md) |
+| Structural enricher | [`backend/app/structural/README.md`](backend/app/structural/README.md) |
+| Decision extractor | [`backend/app/intent/README.md`](backend/app/intent/README.md) |
+| Retrieval | [`backend/app/retrieval/README.md`](backend/app/retrieval/README.md) |
 | Product decisions | [`docs/DECISIONS.md`](docs/DECISIONS.md) |
 | Golden decision set | [`docs/GOLDEN_SET.md`](docs/GOLDEN_SET.md) |
-| Ingestion report | [`docs/INGESTION_REPORT.md`](docs/INGESTION_REPORT.md) |
-| Validation report | [`docs/VALIDATION_REPORT_PHASE10.md`](docs/VALIDATION_REPORT_PHASE10.md) |
 
-## Configuration
+## Known limitations
 
-| Variable | Required | Default | Purpose |
-| --- | :---: | --- | --- |
-| `WHYCODE_GITHUB_TOKEN` | ✅ | — | GitHub API token for ingestion |
-| `WHYCODE_NEO4J_URI` | ✅ | — | AuraDB/local Bolt URI |
-| `WHYCODE_NEO4J_USER` | ✅ | — | Neo4j user |
-| `WHYCODE_NEO4J_PASSWORD` | ✅ | — | Neo4j password |
-| `WHYCODE_NEO4J_DATABASE` | — | `neo4j` | Target database |
-| `WHYCODE_LLM_API_KEY` | ✅ | — | OpenAI-compatible key (Groq works as-is) |
-| `WHYCODE_LLM_MODEL` | — | `gpt-4o-mini` | Extraction model |
-| `WHYCODE_LLM_BASE_URL` | — | `https://api.openai.com/v1` | Compatible endpoint |
-| `WHYCODE_LLM_TIMEOUT_SECONDS` | — | `60` | LLM request timeout |
-| `WHYCODE_LLM_RPM` / `_RPD` | — | `30` / `1000` | Published request caps |
-| `WHYCODE_LLM_TPM` / `_TPD` | — | `8000` / `200000` | Published token caps |
-| `WHYCODE_LLM_BUDGET_REQUESTS` | — | provider cap | Tighter daily request ceiling |
-| `WHYCODE_LLM_BUDGET_TOKENS` | — | provider cap | Tighter daily token ceiling |
-| `WHYCODE_ARTIFACTS_DIR` | — | `artifacts` | Output directory |
-| `WHYCODE_TEST_NEO4J_URI` | — | — | Enables live Neo4j tests |
-| `WHYCODE_TEST_LLM` | — | — | Enables the one-call live LLM test |
+- Attached **images and screenshots are conversation artifacts**: they render in the chat, but the
+  answering pipeline is text-only today, so the model reads inlined *text* files, not image content.
+- Structural enrichment parses **Python**; other languages are covered by candidate detection and
+  ingestion, not yet by the tree-sitter enricher.
+- Demo mode answers from a small fixture graph for one repository — it demonstrates the full product
+  surface, not live retrieval quality.
 
 ---
 
 <p align="center">
-  <sub>FastAPI · Pydantic · SQLite · tree-sitter · Neo4j · Next.js prototype</sub>
+  <sub>FastAPI · Pydantic · tree-sitter · Neo4j · Next.js 16 · Tailwind CSS v4</sub>
 </p>

@@ -1,10 +1,10 @@
 # WhyCode backend
 
-FastAPI + SQLite + Neo4j backend for **WhyCode**. It ingests a repository's GitHub history, builds an evidence graph, enriches it with structural data and extracts evidence-linked decisions.
+FastAPI + SQLite + Neo4j backend for **Why-Code**. It ingests a repository's GitHub history, builds an evidence graph, enriches it with structural data and extracts evidence-linked decisions.
 
-The retrieval/answer service (Component 5) is built as a fixed pipeline over an injectable Neo4j backend. The read-only `Neo4jGraphBackend` adapter and its lookup methods are included; wiring an application process to a live database is deployment work.
+The retrieval/answer service is a fixed pipeline over an injectable Neo4j backend with a read-only `Neo4jGraphBackend` adapter. The production app factory wires it to a live Neo4j + an OpenAI-compatible LLM from environment variables (the production deployment runs on Render). The same app also serves the product services: **auth** (accounts, email OTP, sessions), **shares** (public/private chat links), **models** (visitor custom models + token usage) and **features** (decision records, search, audit, webhooks). Each service stores to Neo4j when configured and degrades to a local SQLite file otherwise.
 
-For the project overview, screenshots and built-vs-planned table, see the [root README](../README.md).
+For the project overview, screenshots and feature list, see the [root README](../README.md).
 
 ## Component guides
 
@@ -16,6 +16,8 @@ For the project overview, screenshots and built-vs-planned table, see the [root 
 | 3 · Structural enricher | [`app/structural/README.md`](app/structural/README.md) |
 | 4 · Decision extractor | [`app/intent/README.md`](app/intent/README.md) |
 | 5 · Retrieval | [`app/retrieval/README.md`](app/retrieval/README.md) |
+| Decision platform (records, search, audit, webhooks) | [`docs/FEATURES.md`](../docs/FEATURES.md) |
+| Auth, shares, custom models | root [README](../README.md#configuration) (env) + package docstrings |
 
 ## Layout
 
@@ -29,9 +31,14 @@ backend/
 │   ├── ingestion/    # Component 1: client, normalizer, store, scorer, exporter
 │   ├── structural/   # Component 3: selection, content, tree-sitter, graph, validation
 │   ├── intent/       # Component 4: selection, context, LLM, validation, graph, review, evaluation
-│   ├── retrieval/    # Component 5: hybrid retrieval, fusion, synthesis, API
-│   └── main.py       # FastAPI factory; /health + retrieval routes
-├── tests/            # contract tests grouped by component
+│   ├── retrieval/    # Component 5: hybrid retrieval, fusion, synthesis, plan + structure, API
+│   ├── models/       # visitor custom models (encrypted keys) + token usage
+│   ├── auth/         # accounts, email OTP, JWT sessions (Neo4j or SQLite)
+│   ├── shares/       # public/private chat share links (Neo4j or SQLite)
+│   ├── features/     # decision records, cross-repo search, audit, GitHub webhooks
+│   └── main.py       # FastAPI factories: create_app (live) + create_demo_app (fixtures)
+├── tools/            # policy gate, PR decision assistant, golden-set runner
+├── tests/            # contract tests grouped by area
 ├── pyproject.toml
 └── README.md
 ```
@@ -84,12 +91,13 @@ curl -X POST http://localhost:8000/demo/rehearse \
   -H 'content-type: application/json' -d '{}'
 ```
 
-`create_demo_app()` exposes the same fixed `/demo/script`, `/demo/ask` and
-`/demo/rehearse` flow used by the frontend `/demo` page, and also mounts the
-normal `/ask` routes against the fixture service. `/demo/ask` accepts only the
-five script questions (`400` otherwise). The response includes named checks and
-a measured latency against an 8,000 ms budget / 5,000 ms target. That latency is
-fixture-pipeline latency, not a live Neo4j or model round trip; see
+`create_demo_app()` mounts the normal product API (`/api/v1/ask`, decisions,
+auth, shares, features) against the fixture service, so the frontend runs the
+full product surface offline; it also keeps the fixed `/demo/script`,
+`/demo/ask` and `/demo/rehearse` rehearsal endpoints (the five script
+questions only, `400` otherwise; named checks plus a measured latency against
+an 8,000 ms budget / 5,000 ms target). That latency is fixture-pipeline
+latency, not a live Neo4j or model round trip; see
 [`app/retrieval/README.md`](app/retrieval/README.md#prepared-judge-demo-phase-10).
 
 CORS allows `http://localhost:3000` and `http://127.0.0.1:3000` for the demo
@@ -137,11 +145,10 @@ ruff check app tests
 mypy app
 ```
 
-Current state: **1030 passed, 9 skipped**, ruff clean, mypy clean over 164 source files.
+Current state: **1,103 passed, 15 pre-existing failures in the live-mode contract tests, 12 skipped**.
 
 - `tests/structure/` is a legacy parallel contract suite that conflicts with `tests/structural/` at collection. The canonical suite excludes it.
-- 8 skipped tests are live-Neo4j integrations. Enable them with `WHYCODE_TEST_NEO4J_URI` plus `_USER`, `_PASSWORD` and `_DATABASE`.
-- The 9th skip is the live-Groq smoke test (`tests/intent/test_llm_live.py`). It sends exactly one tiny request with a throwaway ledger; enable it with `WHYCODE_TEST_LLM=1` plus `WHYCODE_TEST_LLM_API_KEY`.
+- The skipped tests are opt-in live integrations: Neo4j store tests (enable with `WHYCODE_TEST_NEO4J_URI` plus `_USER`, `_PASSWORD` and `_DATABASE`) and the live-LLM smoke test (`tests/intent/test_llm_live.py`, one tiny request with a throwaway ledger; enable with `WHYCODE_TEST_LLM=1` plus `WHYCODE_TEST_LLM_API_KEY`).
 - The normal suite never calls a model: `StaticProvider` and a stub HTTP client cover the LLM path offline.
 
 ## LLM quota
@@ -176,8 +183,17 @@ With the shipped `.env` (100 requests / 50K tokens per day on Groq's 1K / 200K c
 | `WHYCODE_LLM_TIMEOUT_SECONDS` | — | `60` |
 | `WHYCODE_LLM_MAX_OUTPUT_TOKENS` | — | `2500` |
 | `WHYCODE_ARTIFACTS_DIR` | — | `artifacts` |
+| `WHYCODE_SECRET_KEY` | production | — (ephemeral; custom-model keys die on restart) |
+| `WHYCODE_AUTH_SECRET` | production | — (sessions/OTPs die on restart) |
+| `WHYCODE_BREVO_API_KEY` | — | — (OTP mail over HTTPS; beats blocked SMTP) |
+| `WHYCODE_GMAIL_ADDRESS` / `WHYCODE_GMAIL_APP_PASSWORD` | — | — (SMTP fallback for OTP mail) |
+| `WHYCODE_AUTH_DB` / `WHYCODE_SHARE_DB` | — | `artifacts/auth.db` |
+| `WHYCODE_WEBHOOK_SECRET` | — | — (webhook receiver is 503 until set) |
 | `WHYCODE_TEST_NEO4J_URI` | — | — |
 | `WHYCODE_TEST_LLM` | — | — |
+
+The full configuration reference — including LLM caps and mail options — is the
+[Configuration table in the root README](../README.md#configuration).
 
 ## Product decisions
 
