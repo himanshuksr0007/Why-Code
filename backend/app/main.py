@@ -166,6 +166,20 @@ def create_app(
     except Exception as exc:  # noqa: BLE001 - degrade, never block startup
         logger.warning("Auth service unavailable: %s", exc)
 
+    # Shared chat links (public, or private with a handle whitelist).
+    # Needs the auth service to resolve viewer sessions; degrades the
+    # same way — a failure here never takes the app down.
+    try:
+        if getattr(app.state, "auth_service", None) is not None:
+            from app.shares import build_share_service
+            from app.shares.routes import build_share_router
+
+            share_service = build_share_service(app.state.auth_service)
+            app.state.share_service = share_service
+            app.include_router(build_share_router(share_service))
+    except Exception as exc:  # noqa: BLE001 - degrade, never block startup
+        logger.warning("Share service unavailable: %s", exc)
+
     from app.features.routes import build_feature_router
     from app.features.webhooks import WebhookStore
 
