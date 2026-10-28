@@ -20,11 +20,16 @@
 
 import { API_BASE_URL } from "./config";
 import {
+  coerceAudit,
   coerceCitations,
   coerceDecisions,
   coerceEvidenceDetail,
   coerceGraphPath,
   coercePlan,
+  coerceRecordsPage,
+  coerceSearchResult,
+  coerceSupersessions,
+  coerceWebhookEvents,
 } from "./normalize";
 import type {
   AskRequest,
@@ -135,6 +140,54 @@ export function createHttpClient(): WhyCodeClient {
       return requestJson<PullRequestDetail>(
         `/api/v1/pull-requests/${number}?repo=${encodeURIComponent(repo)}`,
       );
+    },
+
+    async listRecords(query) {
+      const params = new URLSearchParams({ repo: query.repo });
+      if (query.q) params.set("q", query.q);
+      if (query.status) params.set("status", query.status);
+      if (query.kind) params.set("kind", query.kind);
+      if (query.target) params.set("target", query.target);
+      if (query.limit !== undefined) params.set("limit", String(query.limit));
+      if (query.offset !== undefined) params.set("offset", String(query.offset));
+      const payload = await requestJson<unknown>(
+        `/api/v1/records?${params.toString()}`,
+      );
+      return coerceRecordsPage(payload);
+    },
+
+    async searchRecords(q, repo) {
+      const params = new URLSearchParams({ q });
+      if (repo) params.set("repo", repo);
+      const payload = await requestJson<unknown>(
+        `/api/v1/search?${params.toString()}`,
+      );
+      return coerceSearchResult(payload);
+    },
+
+    async listSupersessions(repo) {
+      const payload = await requestJson<unknown>(
+        `/api/v1/supersessions?repo=${encodeURIComponent(repo)}`,
+      );
+      return coerceSupersessions(payload);
+    },
+
+    async getAudit(repo) {
+      const payload = await requestJson<unknown>(
+        `/api/v1/audit?repo=${encodeURIComponent(repo)}`,
+      );
+      const audit = coerceAudit(payload);
+      if (!audit) throw new Error("Audit report was empty");
+      return audit;
+    },
+
+    async listWebhookEvents() {
+      const payload = await requestJson<unknown>("/api/v1/webhooks/events");
+      return coerceWebhookEvents(payload);
+    },
+
+    recordExportUrl(decisionId, repo) {
+      return `${API_BASE_URL}/api/v1/records/${encodeURIComponent(decisionId)}/export?repo=${encodeURIComponent(repo)}`;
     },
   };
 }

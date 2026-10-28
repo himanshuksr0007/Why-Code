@@ -6,7 +6,7 @@
  * states and skeletons are exercised during development.
  */
 
-import { findRepo } from "@/lib/api/config";
+import { AVAILABLE_REPOS, findRepo } from "@/lib/api/config";
 import {
   ALL_EVIDENCE,
   ALL_GRAPH_PATHS,
@@ -18,7 +18,9 @@ import { buildPersonProfile, changesForDecision } from "@/lib/mock/build";
 import type {
   AskRequest,
   AskResponse,
+  AuditReport,
   CodeChange,
+  DecisionRecord,
   DecisionThread,
   EvidenceDetail,
   GraphPath,
@@ -28,6 +30,7 @@ import type {
   PlanGraphNode,
   PlanView,
   PullRequestDetail,
+  SupersessionPair,
   WhyCodeClient,
 } from "./types";
 
@@ -292,5 +295,213 @@ export function createMockClient(): WhyCodeClient {
       }
       return structuredClone(pull);
     },
+
+    async listRecords(query) {
+      await sleep(120);
+      const all = isIndexed(query.repo) ? mockRecordsFor(query.repo) : [];
+      const filtered = filterMockRecords(all, query);
+      const offset = query.offset ?? 0;
+      const limit = query.limit ?? 25;
+      return {
+        total: filtered.length,
+        limit,
+        offset,
+        records: filtered.slice(offset, offset + limit),
+      };
+    },
+
+    async searchRecords(q, repo) {
+      await sleep(120);
+      const repos = repo
+        ? [repo]
+        : AVAILABLE_REPOS.filter((r) => r.indexed).map((r) => r.slug);
+      const results = repos
+        .filter((r) => isIndexed(r))
+        .flatMap((r) => filterMockRecords(mockRecordsFor(r), { q }));
+      return { query: q, repos, total: results.length, results };
+    },
+
+    async listSupersessions(repo) {
+      await sleep(120);
+      if (!isIndexed(repo)) return [];
+      const records = mockRecordsFor(repo);
+      const byId = new Map(records.map((r) => [r.decision_id, r]));
+      const pairs: SupersessionPair[] = [];
+      for (const record of records) {
+        const later = record.superseded_by
+          ? byId.get(record.superseded_by)
+          : undefined;
+        if (later) {
+          pairs.push({
+            repo,
+            earlier: record,
+            later,
+            relation:
+              record.status === "reversed" ? "REVERSED_BY" : "SUPERSEDED_BY",
+          });
+        }
+      }
+      return pairs;
+    },
+
+    async getAudit(repo) {
+      await sleep(120);
+      const records = isIndexed(repo) ? mockRecordsFor(repo) : [];
+      return mockAudit(records, repo);
+    },
+
+    async listWebhookEvents() {
+      return { events: [], jobs: [] };
+    },
+
+    recordExportUrl(decisionId, repo) {
+      const record = isIndexed(repo)
+        ? mockRecordsFor(repo).find((r) => r.decision_id === decisionId)
+        : undefined;
+      const body = record
+        ? mockAdr(record)
+        : `# ${decisionId}\n\nNo fixture record found.\n`;
+      return `data:text/markdown;charset=utf-8,${encodeURIComponent(body)}`;
+    },
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Mock decision records (mirror of the backend features layer)        */
+/* ------------------------------------------------------------------ */
+
+const SECURITY_RE =
+  /\b(bug|regression|crash|incident|failure|security|vulnerab\w*|deadlock)\b/i;
+
+function mockRecordsFor(repo: string): DecisionRecord[] {
+  const threads = fixturesFor(repo).threads;
+  const records: DecisionRecord[] = [];
+  for (const thread of threads) {
+    thread.steps.forEach((step, index) => {
+      const d = step.decision;
+      const status = String(d.status);
+      let supersededBy = d.superseded_by ?? null;
+      if (!supersededBy && (status === "superseded" || status === "reversed")) {
+        supersededBy = thread.steps[index + 1]?.decision.decision_id ?? null;
+      }
+      records.push({
+        decision_id: d.decision_id,
+        repo,
+        title: d.title ?? null,
+        claim: d.claim,
+        rationale: (d as { rationale?: string }).rationale ?? "",
+        status,
+        confidence: String(d.confidence),
+        kind: step.kind,
+        topic: thread.topic,
+        target_ids:
+          d.target_ids ?? d.targets.map((t) => `${t.type}:${t.identifier}`),
+        evidence_ids: d.evidence_ids ?? [],
+        evidence: [],
+        superseded_by: supersededBy,
+        supersedes: [],
+        pr_number: d.pr_number ?? null,
+        created_at: d.created_at ?? null,
+      });
+    });
+  }
+  const byId = new Map(records.map((r) => [r.decision_id, r]));
+  for (const record of records) {
+    if (record.superseded_by && byId.has(record.superseded_by)) {
+      byId.get(record.superseded_by)!.supersedes.push(record.decision_id);
+    }
+  }
+  return records;
+}
+
+function filterMockRecords(
+  records: DecisionRecord[],
+  query: { q?: string; status?: string; kind?: string; target?: string },
+): DecisionRecord[] {
+  let out = [...records];
+  if (query.status) out = out.filter((r) => r.status === query.status);
+  if (query.kind) out = out.filter((r) => r.kind === query.kind);
+  if (query.target) {
+    const needle = query.target.toLowerCase();
+    out = out.filter((r) =>
+      r.target_ids.some((t) => t.toLowerCase().includes(needle)),
+    );
+  }
+  if (query.q) {
+    const wanted = query.q.toLowerCase().split(/\s+/).filter(Boolean);
+    out = out.filter((r) => {
+      const text =
+        `${r.title ?? ""} ${r.claim} ${r.rationale} ${r.topic ?? ""} ${r.target_ids.join(" ")}`.toLowerCase();
+      return wanted.every((token) => text.includes(token));
+    });
+  }
+  out.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+  return out;
+}
+
+function mockAudit(records: DecisionRecord[], repo: string): AuditReport {
+  const byStatus: Record<string, number> = {};
+  const byKind: Record<string, number> = {};
+  for (const r of records) {
+    byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
+    byKind[r.kind] = (byKind[r.kind] ?? 0) + 1;
+  }
+  const hasRationale = (r: DecisionRecord) =>
+    Boolean(r.rationale.trim()) && r.rationale !== r.claim;
+  const flagged = records.filter((r) =>
+    SECURITY_RE.test(`${r.claim} ${r.rationale}`),
+  );
+  const total = records.length;
+  return {
+    repo,
+    generated_at: new Date().toISOString(),
+    total,
+    by_status: byStatus,
+    by_kind: byKind,
+    with_rationale_pct: total
+      ? Math.round((records.filter(hasRationale).length / total) * 1000) / 10
+      : 0,
+    with_evidence_pct: total
+      ? Math.round(
+          (records.filter((r) => r.evidence_ids.length > 0).length / total) *
+            1000,
+        ) / 10
+      : 0,
+    superseded: records.filter(
+      (r) => r.status === "superseded" || r.status === "reversed",
+    ).length,
+    security_flagged: flagged.length,
+    security_missing_rationale: flagged
+      .filter((r) => !hasRationale(r))
+      .map((r) => r.decision_id),
+    missing_evidence: records
+      .filter((r) => r.evidence_ids.length === 0)
+      .map((r) => r.decision_id),
+  };
+}
+
+function mockAdr(record: DecisionRecord): string {
+  const lines = [
+    `# ${record.decision_id}: ${record.title ?? record.claim}`,
+    "",
+    `- **Status:** ${record.status}`,
+    `- **Repository:** ${record.repo}`,
+    `- **Confidence:** ${record.confidence}`,
+    "",
+    "## Decision",
+    "",
+    record.claim,
+    "",
+    "## Rationale",
+    "",
+    record.rationale || "_(no rationale recorded)_",
+    "",
+  ];
+  if (record.target_ids.length > 0) {
+    lines.push("## Targets", "", ...record.target_ids.map((t) => `- \`${t}\``), "");
+  }
+  if (record.evidence_ids.length > 0) {
+    lines.push("## Evidence", "", ...record.evidence_ids.map((id) => `- ${id}`), "");
+  }
+  return lines.join("\n");
 }

@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 
+import { AuditSummary } from "@/components/decisions/audit-summary";
+import { DecisionExplorer } from "@/components/decisions/decision-explorer";
 import { DecisionTimeline } from "@/components/decisions/decision-timeline";
 import { RepoNotIndexed } from "@/components/repo/not-indexed";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,7 +33,13 @@ async function DecisionsContent() {
   const repo = await getActiveRepo();
   if (!findRepo(repo)?.indexed) return <RepoNotIndexed repo={repo} />;
   const threads = await api.listDecisions(repo);
-  return <DecisionTimeline threads={threads} />;
+  return (
+    <>
+      <AuditSummary repo={repo} />
+      <DecisionExplorer repo={repo} />
+      <DecisionTimeline threads={threads} />
+    </>
+  );
 }
 
 export default function DecisionsPage() {

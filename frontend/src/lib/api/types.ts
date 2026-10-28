@@ -213,6 +213,116 @@ export interface WhyCodeClient {
   getPerson(repo: string, login: string): Promise<PersonProfile>;
   listChanges(repo: string, limit?: number): Promise<CodeChange[]>;
   getPullRequest(repo: string, number: number): Promise<PullRequestDetail>;
+  listRecords(query: RecordsQuery): Promise<RecordsPage>;
+  searchRecords(
+    q: string,
+    repo?: string,
+  ): Promise<RecordsSearchResult>;
+  listSupersessions(repo: string): Promise<SupersessionPair[]>;
+  getAudit(repo: string): Promise<AuditReport>;
+  listWebhookEvents(): Promise<WebhookEvents>;
+  recordExportUrl(decisionId: string, repo: string): string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Decision records, search, supersession, audit                      */
+/* ------------------------------------------------------------------ */
+
+export interface EvidenceRef {
+  evidence_id: string;
+  kind: string;
+  path?: string | null;
+  url?: string | null;
+  author?: string | null;
+}
+
+/** One normalized decision record (backend `app/features/records.py`). */
+export interface DecisionRecord {
+  decision_id: string;
+  repo: string;
+  title?: string | null;
+  claim: string;
+  rationale: string;
+  status: string;
+  confidence: string;
+  kind: string;
+  topic?: string | null;
+  target_ids: string[];
+  evidence_ids: string[];
+  evidence: EvidenceRef[];
+  superseded_by?: string | null;
+  supersedes: string[];
+  pr_number?: number | null;
+  created_at?: string | null;
+}
+
+export interface RecordsQuery {
+  repo: string;
+  q?: string;
+  status?: string;
+  kind?: string;
+  target?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface RecordsPage {
+  total: number;
+  limit: number;
+  offset: number;
+  records: DecisionRecord[];
+}
+
+export interface RecordsSearchResult {
+  query: string;
+  repos: string[];
+  total: number;
+  results: DecisionRecord[];
+}
+
+export interface SupersessionPair {
+  repo: string;
+  earlier: DecisionRecord;
+  later: DecisionRecord;
+  relation: string;
+}
+
+export interface AuditReport {
+  repo: string;
+  generated_at: string;
+  total: number;
+  by_status: Record<string, number>;
+  by_kind: Record<string, number>;
+  with_rationale_pct: number;
+  with_evidence_pct: number;
+  superseded: number;
+  security_flagged: number;
+  security_missing_rationale: string[];
+  missing_evidence: string[];
+}
+
+export interface WebhookEvent {
+  delivery_id: string;
+  event: string;
+  action?: string | null;
+  repo?: string | null;
+  pr_number?: number | null;
+  title?: string | null;
+  received_at: string;
+}
+
+export interface WebhookJob {
+  id: number;
+  kind: string;
+  repo: string;
+  created_at: string;
+  status: string;
+  detail?: string | null;
+}
+
+export interface WebhookEvents {
+  events: WebhookEvent[];
+  jobs: WebhookJob[];
 }
 
 /* ------------------------------------------------------------------ */

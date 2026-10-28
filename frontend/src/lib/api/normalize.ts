@@ -8,14 +8,21 @@
  */
 
 import type {
+  AuditReport,
   Citation,
   Decision,
+  DecisionRecord,
   DecisionTarget,
   EvidenceDetail,
+  EvidenceRef,
   GraphNodeLabel,
   GraphPath,
   PlanView,
+  RecordsPage,
+  RecordsSearchResult,
   RecordType,
+  SupersessionPair,
+  WebhookEvents,
 } from "./types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -404,3 +411,149 @@ export function coerceEvidenceDetail(
   };
 }
 
+
+/* ------------------------------------------------------------------ */
+/* Decision records (features API)                                     */
+/* ------------------------------------------------------------------ */
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((v) => String(v)) : [];
+}
+
+function coerceEvidenceRef(value: unknown): EvidenceRef | null {
+  if (!isRecord(value)) return null;
+  return {
+    evidence_id: String(value.evidence_id ?? ""),
+    kind: String(value.kind ?? ""),
+    path: value.path ? String(value.path) : null,
+    url: value.url ? String(value.url) : null,
+    author: value.author ? String(value.author) : null,
+  };
+}
+
+export function coerceRecord(value: unknown): DecisionRecord | null {
+  if (!isRecord(value) || !value.decision_id) return null;
+  const evidence = Array.isArray(value.evidence)
+    ? value.evidence
+        .map(coerceEvidenceRef)
+        .filter((ref): ref is EvidenceRef => ref !== null)
+    : [];
+  return {
+    decision_id: String(value.decision_id),
+    repo: String(value.repo ?? ""),
+    title: value.title ? String(value.title) : null,
+    claim: String(value.claim ?? ""),
+    rationale: String(value.rationale ?? ""),
+    status: String(value.status ?? "active"),
+    confidence: String(value.confidence ?? "medium"),
+    kind: String(value.kind ?? "decision"),
+    topic: value.topic ? String(value.topic) : null,
+    target_ids: stringList(value.target_ids),
+    evidence_ids: stringList(value.evidence_ids),
+    evidence,
+    superseded_by: value.superseded_by ? String(value.superseded_by) : null,
+    supersedes: stringList(value.supersedes),
+    pr_number: typeof value.pr_number === "number" ? value.pr_number : null,
+    created_at: value.created_at ? String(value.created_at) : null,
+  };
+}
+
+export function coerceRecordsPage(value: unknown): RecordsPage {
+  if (!isRecord(value)) return { total: 0, limit: 25, offset: 0, records: [] };
+  const records = Array.isArray(value.records)
+    ? value.records
+        .map(coerceRecord)
+        .filter((r): r is DecisionRecord => r !== null)
+    : [];
+  return {
+    total: typeof value.total === "number" ? value.total : records.length,
+    limit: typeof value.limit === "number" ? value.limit : 25,
+    offset: typeof value.offset === "number" ? value.offset : 0,
+    records,
+  };
+}
+
+export function coerceSearchResult(value: unknown): RecordsSearchResult {
+  if (!isRecord(value)) return { query: "", repos: [], total: 0, results: [] };
+  const results = Array.isArray(value.results)
+    ? value.results
+        .map(coerceRecord)
+        .filter((r): r is DecisionRecord => r !== null)
+    : [];
+  return {
+    query: String(value.query ?? ""),
+    repos: stringList(value.repos),
+    total: typeof value.total === "number" ? value.total : results.length,
+    results,
+  };
+}
+
+export function coerceSupersessions(value: unknown): SupersessionPair[] {
+  if (!Array.isArray(value)) return [];
+  const pairs: SupersessionPair[] = [];
+  for (const item of value) {
+    if (!isRecord(item)) continue;
+    const earlier = coerceRecord(item.earlier);
+    const later = coerceRecord(item.later);
+    if (!earlier || !later) continue;
+    pairs.push({
+      repo: String(item.repo ?? earlier.repo),
+      earlier,
+      later,
+      relation: String(item.relation ?? "SUPERSEDED_BY"),
+    });
+  }
+  return pairs;
+}
+
+export function coerceAudit(value: unknown): AuditReport | null {
+  if (!isRecord(value)) return null;
+  const counts = (input: unknown): Record<string, number> => {
+    if (!isRecord(input)) return {};
+    return Object.fromEntries(
+      Object.entries(input).map(([k, v]) => [k, typeof v === "number" ? v : 0]),
+    );
+  };
+  return {
+    repo: String(value.repo ?? ""),
+    generated_at: String(value.generated_at ?? ""),
+    total: typeof value.total === "number" ? value.total : 0,
+    by_status: counts(value.by_status),
+    by_kind: counts(value.by_kind),
+    with_rationale_pct:
+      typeof value.with_rationale_pct === "number" ? value.with_rationale_pct : 0,
+    with_evidence_pct:
+      typeof value.with_evidence_pct === "number" ? value.with_evidence_pct : 0,
+    superseded: typeof value.superseded === "number" ? value.superseded : 0,
+    security_flagged:
+      typeof value.security_flagged === "number" ? value.security_flagged : 0,
+    security_missing_rationale: stringList(value.security_missing_rationale),
+    missing_evidence: stringList(value.missing_evidence),
+  };
+}
+
+export function coerceWebhookEvents(value: unknown): WebhookEvents {
+  if (!isRecord(value)) return { events: [], jobs: [] };
+  const events = Array.isArray(value.events)
+    ? value.events.filter(isRecord).map((e) => ({
+        delivery_id: String(e.delivery_id ?? ""),
+        event: String(e.event ?? ""),
+        action: e.action ? String(e.action) : null,
+        repo: e.repo ? String(e.repo) : null,
+        pr_number: typeof e.pr_number === "number" ? e.pr_number : null,
+        title: e.title ? String(e.title) : null,
+        received_at: String(e.received_at ?? ""),
+      }))
+    : [];
+  const jobs = Array.isArray(value.jobs)
+    ? value.jobs.filter(isRecord).map((j) => ({
+        id: typeof j.id === "number" ? j.id : 0,
+        kind: String(j.kind ?? ""),
+        repo: String(j.repo ?? ""),
+        created_at: String(j.created_at ?? ""),
+        status: String(j.status ?? ""),
+        detail: j.detail ? String(j.detail) : null,
+      }))
+    : [];
+  return { events, jobs };
+}
