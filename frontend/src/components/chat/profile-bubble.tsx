@@ -3,8 +3,10 @@
 import { useRouter } from "next/navigation";
 import {
   ChevronsUpDownIcon,
+  LogInIcon,
   LogOutIcon,
   SettingsIcon,
+  UserPlusIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,17 +19,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { reset as resetProfile, useLocalProfile } from "@/lib/local/profile";
+import { authApi } from "@/lib/auth/api";
+import { handleFor, useAuth } from "@/lib/auth/store";
+import { hapticSelection } from "@/lib/haptics";
+import { useLocalProfile } from "@/lib/local/profile";
 import { cn } from "@/lib/utils";
 
 /**
- * The sidebar's profile bubble: the signed-in identity at a glance, with a
- * menu that opens upward (Settings, then Log out in destructive red). The
- * theme toggle sits at the bubble's right edge, outside the menu.
+ * The sidebar's profile bubble: the identity at a glance, with a menu
+ * that opens upward. The theme toggle sits at the bubble's right edge,
+ * outside the menu.
  *
- * There is no account backend in this app — identity is the local profile —
- * so logging out resets that profile to the guest defaults and goes home.
- * Conversations are device-local history and are kept.
+ * With a real account session the bubble shows the account (name,
+ * @handle from the email) and Log out ends the session. Guests see
+ * their local profile and get Log in / Sign up entries instead —
+ * conversations are device-local history and are kept either way.
  */
 export function ProfileBubble({
   onNavigate,
@@ -37,18 +43,29 @@ export function ProfileBubble({
   compact?: boolean;
 }) {
   const { profile } = useLocalProfile();
+  const { user } = useAuth();
   const router = useRouter();
+
+  const displayName = user ? user.name : profile.display_name;
+  const handle = user ? handleFor(user) : profile.handle;
 
   const goSettings = () => {
     onNavigate?.();
     router.push("/settings");
   };
 
-  const logOut = () => {
-    resetProfile();
+  const goAuth = (path: "/login" | "/signup") => {
+    hapticSelection();
+    onNavigate?.();
+    router.push(path);
+  };
+
+  const logOut = async () => {
+    await authApi.logout();
     onNavigate?.();
     toast.success("Logged out — you are browsing as a guest now");
     router.push("/");
+    router.refresh();
   };
 
   const menu = (
@@ -58,15 +75,36 @@ export function ProfileBubble({
       sideOffset={8}
       className="w-56"
     >
+      {user ? (
+        <>
+          <div className="truncate px-2 py-1.5 text-xs text-muted-foreground">
+            {user.email}
+          </div>
+          <DropdownMenuSeparator />
+        </>
+      ) : null}
       <DropdownMenuItem onClick={goSettings}>
         <SettingsIcon className="size-4" />
         Settings
       </DropdownMenuItem>
       <DropdownMenuSeparator />
-      <DropdownMenuItem variant="destructive" onClick={logOut}>
-        <LogOutIcon className="size-4" />
-        Log out
-      </DropdownMenuItem>
+      {user ? (
+        <DropdownMenuItem variant="destructive" onClick={() => void logOut()}>
+          <LogOutIcon className="size-4" />
+          Log out
+        </DropdownMenuItem>
+      ) : (
+        <>
+          <DropdownMenuItem onClick={() => goAuth("/login")}>
+            <LogInIcon className="size-4" />
+            Log in
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => goAuth("/signup")}>
+            <UserPlusIcon className="size-4" />
+            Sign up
+          </DropdownMenuItem>
+        </>
+      )}
     </DropdownMenuContent>
   );
 
@@ -75,10 +113,10 @@ export function ProfileBubble({
       <DropdownMenu>
         <DropdownMenuTrigger
           className="rounded-full outline-none transition hover:scale-105 focus-visible:ring-2 focus-visible:ring-ring/50"
-          aria-label={`Account menu for ${profile.display_name}`}
-          title={profile.display_name}
+          aria-label={`Account menu for ${displayName}`}
+          title={displayName}
         >
-          <PersonAvatar login={profile.handle || profile.display_name} />
+          <PersonAvatar login={handle || displayName} />
         </DropdownMenuTrigger>
         {menu}
       </DropdownMenu>
@@ -94,15 +132,15 @@ export function ProfileBubble({
               "flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-1.5 text-left outline-none transition-colors",
               "hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring/50",
             )}
-            aria-label={`Account menu for ${profile.display_name}`}
+            aria-label={`Account menu for ${displayName}`}
           >
-            <PersonAvatar login={profile.handle || profile.display_name} />
+            <PersonAvatar login={handle || displayName} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium text-foreground">
-                {profile.display_name}
+                {displayName}
               </span>
               <span className="block truncate text-xs text-muted-foreground">
-                @{profile.handle}
+                @{handle}
               </span>
             </span>
             <ChevronsUpDownIcon

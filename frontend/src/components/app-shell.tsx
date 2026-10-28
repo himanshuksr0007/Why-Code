@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { MenuIcon } from "lucide-react";
 
+import { AuthNav } from "@/components/auth/auth-nav";
 import { ChatSidebar } from "@/components/chat/chat-sidebar";
 import { GraphViewerHost } from "@/components/graph/graph-viewer";
 import { InsightsRail } from "@/components/insights-rail";
@@ -84,6 +85,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Fullscreen graph viewer (rail bubble / mobile View Graph). */}
       <GraphViewerHost />
+
+      {/* Guest Log in / Sign up bubble (top-right; hides when signed in). */}
+      <AuthNav />
     </div>
   );
 }
