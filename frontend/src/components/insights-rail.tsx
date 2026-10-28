@@ -5,12 +5,16 @@ import Link from "next/link";
 import {
   CheckIcon,
   DatabaseIcon,
+  Maximize2Icon,
   MessageSquareIcon,
+  NetworkIcon,
   RefreshCwIcon,
   SparklesIcon,
 } from "lucide-react";
 
+import { GraphCanvas, trimGraph } from "@/components/graph/graph-canvas";
 import { api, findRepo } from "@/lib/api";
+import { openGraphViewer, useLatestGraph, type TurnGraph } from "@/lib/graph";
 import { hapticLight, hapticSelection, hapticSuccess } from "@/lib/haptics";
 import { useLocalProfile } from "@/lib/local/profile";
 import { exampleQuestionsFor } from "@/lib/mock";
@@ -34,6 +38,7 @@ import { cn } from "@/lib/utils";
  */
 export function InsightsRail() {
   const { profile } = useLocalProfile();
+  const latestGraph = useLatestGraph();
 
   const repo = findRepo(profile.default_repo);
   const repoSlug = repo?.slug ?? profile.default_repo;
@@ -87,6 +92,24 @@ export function InsightsRail() {
           </div>
         </section>
       )}
+
+      {/* Graph: when the latest reply carries one, the two bubbles
+          glide apart (the rail is vertically centered, so the column
+          growing pushes the top bubble up and the bottom one down)
+          and the graph bubble fades into the space between them. */}
+      <div
+        aria-hidden={!latestGraph}
+        className={cn(
+          "grid transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          latestGraph
+            ? "my-0 grid-rows-[1fr] opacity-100"
+            : "-my-2 grid-rows-[0fr] opacity-0",
+        )}
+      >
+        <div className="min-h-0 overflow-hidden">
+          {latestGraph && <GraphBubble key={latestGraph.turnId} graph={latestGraph} />}
+        </div>
+      </div>
 
       {/* Repository */}
       <section className="rounded-2xl border border-border/40 bg-card/95 p-4 shadow-none backdrop-blur-sm">
@@ -185,5 +208,79 @@ function RefreshButton({ repoSlug }: { repoSlug: string }) {
             ? "Just refreshed"
             : "Refresh data"}
     </button>
+  );
+}
+
+const RAIL_TREE_LIMIT = 12;
+
+/**
+ * The graph bubble: same neumorphic card language as the rail's other
+ * bubbles. Hovering reveals the fullscreen action; the fullscreen
+ * viewer carries the fully interactive canvas.
+ */
+function GraphBubble({ graph }: { graph: TurnGraph }) {
+  const preview =
+    graph.variant === "tree"
+      ? trimGraph(graph.graph, RAIL_TREE_LIMIT)
+      : graph.graph;
+  const hiddenCount = graph.graph.nodes.length - preview.nodes.length;
+
+  return (
+    <section
+      className="group relative rounded-2xl border border-border/40 bg-card/95 p-4 shadow-none backdrop-blur-sm"
+      style={{ animation: "why-fade-in 450ms ease 120ms both" }}
+    >
+      <header className="mb-2 flex items-center gap-2">
+        <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10">
+          <NetworkIcon className="size-4 text-primary" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-mono text-[10px] font-medium tracking-widest text-muted-foreground uppercase">
+            Graph
+          </h2>
+          <p className="truncate text-xs font-medium text-foreground">
+            {graph.title}
+          </p>
+        </div>
+        <button
+          type="button"
+          aria-label="Open graph fullscreen"
+          onClick={() => {
+            openGraphViewer(graph);
+            hapticSelection();
+          }}
+          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-visible:opacity-100"
+        >
+          <Maximize2Icon className="size-3.5" aria-hidden="true" />
+        </button>
+      </header>
+
+      <div className="relative overflow-hidden rounded-xl border border-border/40 bg-background/40">
+        <GraphCanvas
+          graph={preview}
+          variant={graph.variant}
+          focusWindow
+          className="h-44 [&_svg]:h-full [&_svg]:w-full"
+        />
+        <button
+          type="button"
+          aria-label="Open graph fullscreen"
+          onClick={() => {
+            openGraphViewer(graph);
+            hapticSelection();
+          }}
+          className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-background/70 via-transparent to-transparent pb-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+        >
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-[11px] font-medium text-primary-foreground shadow-floating">
+            <Maximize2Icon className="size-3.5" aria-hidden="true" />
+            Open fullscreen
+          </span>
+        </button>
+      </div>
+      <p className="mt-2 text-[11px] text-muted-foreground">
+        {graph.graph.nodes.length} nodes · {graph.graph.edges.length} connections
+        {hiddenCount > 0 ? ` · ${hiddenCount} more in fullscreen` : ""}
+      </p>
+    </section>
   );
 }

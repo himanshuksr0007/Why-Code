@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { RotateCcwIcon, TriangleAlertIcon, ShareIcon, MoreVerticalIcon, PencilIcon, DownloadIcon, Trash2Icon } from "lucide-react";
+import { RotateCcwIcon, TriangleAlertIcon, ShareIcon, MoreVerticalIcon, PencilIcon, DownloadIcon, Trash2Icon, NetworkIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -33,7 +33,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { api, findRepo } from "@/lib/api";
-import { hapticError, hapticLight, hapticSuccess } from "@/lib/haptics";
+import { graphForResponse, openGraphViewer } from "@/lib/graph";
+import { hapticError, hapticLight, hapticSelection, hapticSuccess } from "@/lib/haptics";
 import {
   addTurn,
   createChat,
@@ -376,6 +377,9 @@ function AskSession({
   const indexed = Boolean(repoOption?.indexed);
   const lastTurn = chat?.turns.at(-1);
   const pending = Boolean(lastTurn && lastTurn.response === null && !lastTurn.error);
+  const sessionGraph = lastTurn
+    ? graphForResponse(lastTurn.response, lastTurn.id)
+    : null;
 
   // Mirror the open conversation into the store so the sidebar can highlight it.
   useEffect(() => {
@@ -583,6 +587,30 @@ function AskSession({
         </div>
 
         <div className="sticky bottom-3 z-20">
+          {/* Mobile / narrow screens have no right rail, so the graph
+              gets a button right above the chatbox — only when the
+              latest reply actually carries a graph. */}
+          {sessionGraph && (
+            <div
+              className="mb-2 flex justify-center min-[1400px]:hidden"
+              style={{ animation: "why-fade-in 300ms ease both" }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  openGraphViewer(sessionGraph);
+                  hapticSelection();
+                }}
+                className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/95 px-4 py-2 text-xs font-medium text-foreground shadow-neumorph backdrop-blur transition active:scale-95"
+              >
+                <NetworkIcon className="size-4 text-primary" aria-hidden="true" />
+                View Graph
+                <span className="text-muted-foreground">
+                  {sessionGraph.graph.nodes.length} nodes
+                </span>
+              </button>
+            </div>
+          )}
           <InputToolbar
             value={value}
             onChange={setValue}

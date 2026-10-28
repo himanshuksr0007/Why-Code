@@ -25,6 +25,7 @@ import {
   coerceDecisions,
   coerceEvidenceDetail,
   coerceGraphPath,
+  coerceGraph,
   coercePlan,
   coerceRecordsPage,
   coerceSearchResult,
@@ -87,6 +88,7 @@ export function createHttpClient(): WhyCodeClient {
         graph_path: coerceGraphPath(payload.graph_path),
         decisions: coerceDecisions(payload.decisions),
         plan: coercePlan(raw.plan),
+        structure: raw.structure ? coerceGraph(raw.structure) : null,
         retrieval_trace_id: String(raw.retrieval_trace_id ?? "trace_live"),
         latency_ms: payload.latency_ms ?? Date.now() - startedAt,
       };

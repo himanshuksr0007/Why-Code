@@ -16,9 +16,20 @@ from app.retrieval.api.schemas import (
     FeedbackRequest,
     FeedbackResponse,
 )
-from app.retrieval.models import AskMode, NearestCandidate
+from app.retrieval.models import (
+    AnswerConfidence,
+    AnswerStatus,
+    AskMode,
+    NearestCandidate,
+)
 from app.retrieval.plan import build_plan
 from app.retrieval.service import RetrievalService
+from app.retrieval.structure import (
+    build_structure_graph,
+    is_structure_question,
+    paths_from_contexts,
+    summarize_structure,
+)
 
 
 def build_router(
@@ -82,6 +93,51 @@ def build_router(
             return response.model_copy(update={"plan": plan})
         return response
 
+    def with_structure(request: AskRequest, response: AskResponse) -> AskResponse:
+        """Structure questions: attach the repository tree built from the
+        file paths the retrieval surfaced — the response's own first,
+        then every path the demo backend holds for the repo (a structure
+        question matches no single decision, so per-question retrieval
+        alone would refuse it). When the tree exists but the answer was
+        a refusal, the answer becomes the tree's grounded summary."""
+        if response.structure is None and is_structure_question(request.question):
+            try:
+                repo = resolve_repo_name(request.repo)
+                extra: list[str] = []
+                backend = getattr(service, "backend", None) if service else None
+                contexts = getattr(backend, "contexts", None)
+                if contexts:
+                    extra = paths_from_contexts(contexts)
+                graph = build_structure_graph(repo, response, extra_paths=extra)
+            except Exception:
+                import logging
+
+                logging.getLogger("whycode").warning(
+                    "structure construction failed", exc_info=True
+                )
+                return response
+            if graph is not None:
+                updates: dict[str, Any] = {"structure": graph}
+                if response.answer_status is not AnswerStatus.ANSWERED:
+                    updates.update(
+                        {
+                            "answer": summarize_structure(repo, graph),
+                            "answer_status": AnswerStatus.ANSWERED,
+                            "confidence": AnswerConfidence.MEDIUM,
+                            "refusal_mode": None,
+                            "caveats": [
+                                *response.caveats,
+                                "Structure derived from the files the index"
+                                " has retrieved for this repository.",
+                            ],
+                        }
+                    )
+                return response.model_copy(update=updates)
+        return response
+
+    def finish(request: AskRequest, response: AskResponse) -> AskResponse:
+        return with_structure(request, with_plan(request, response))
+
     def resolve_repo_name(repo: str | None) -> str:
         if repo and repo.strip():
             return repo.strip()
@@ -115,7 +171,7 @@ def build_router(
                 import logging
                 logging.getLogger("whycode").error("LiveService answer error: %s", exc, exc_info=True)
             else:
-                return with_plan(request, response)
+                return finish(request, response)
             finally:
                 # Recorded once, here: on success it holds the call's full
                 # usage; on failure, whatever was billed before the error.
@@ -131,7 +187,7 @@ def build_router(
                     response, request.question, recorder
                 )
                 record_usage(request, recorder.totals())
-            return with_plan(request, response)
+            return finish(request, response)
         raise HTTPException(status_code=503, detail="retrieval service is not configured")
 
     @router.get("/decisions")

@@ -420,6 +420,9 @@ class AskResponse(_StrictModel):
     # Plan mode only: the structured plan built from this response's own
     # retrieval (decisions, evidence, graph path). None for why-mode asks.
     plan: PlanView | None = None
+    # Structure questions only: the repository folder/file tree built
+    # from the file paths this response's retrieval surfaced.
+    structure: PlanGraph | None = None
     evidence: list[EvidenceView] = Field(default_factory=list)
     citations: list[str] = Field(default_factory=list)
     graph_path: list[str] = Field(default_factory=list)

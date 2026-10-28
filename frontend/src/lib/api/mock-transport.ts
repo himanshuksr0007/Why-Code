@@ -26,6 +26,7 @@ import type {
   GraphPath,
   PersonProfile,
   PersonSummary,
+  PlanGraph,
   PlanGraphEdge,
   PlanGraphNode,
   PlanView,
@@ -168,6 +169,59 @@ function buildMockPlan(question: string, response: AskResponse): PlanView {
   return { goal: question, steps, graph: { nodes, edges } };
 }
 
+const STRUCTURE_MARKERS = [
+  "structure",
+  "layout",
+  "file tree",
+  "folder",
+  "director",
+  "organiz",
+  "repo map",
+  "codebase map",
+  "project tree",
+  "directory tree",
+  "folder tree",
+];
+
+/** Mirror of the backend structure builder, fed by the fixture code
+ * changes' paths (the mock's repo-wide file set). */
+function buildMockStructure(repo: string, paths: string[]): PlanGraph | null {
+  const unique = [...new Set(paths.map((p) => p.replace(/^\/+|\/+$/g, "")))].sort();
+  if (unique.length < 2) return null;
+  const nodes: PlanGraphNode[] = [
+    { id: "repo:root", label: repo, kind: "repo", caption: `Repository ${repo}` },
+  ];
+  const edges: PlanGraphEdge[] = [];
+  const seenNodes = new Set(["repo:root"]);
+  const seenEdges = new Set<string>();
+  for (const path of unique) {
+    const parts = path.split("/").filter(Boolean);
+    let parent = "repo:root";
+    let prefix = "";
+    parts.forEach((part, index) => {
+      prefix = prefix ? `${prefix}/${part}` : part;
+      const id = `path:${prefix}`;
+      const leaf = index === parts.length - 1;
+      if (!seenNodes.has(id)) {
+        seenNodes.add(id);
+        nodes.push({
+          id,
+          label: leaf ? part : `${part}/`,
+          kind: leaf ? "file" : "folder",
+          caption: leaf ? path : `${prefix}/`,
+        });
+      }
+      const key = `${parent}->${id}`;
+      if (!seenEdges.has(key)) {
+        seenEdges.add(key);
+        edges.push({ source: parent, target: id, rel_type: "contains" });
+      }
+      parent = id;
+    });
+  }
+  return { nodes, edges };
+}
+
 function resolveAnswer(question: string, repo: string): AskResponse {
   const fixtures = fixturesFor(repo);
   const normalised = question.toLowerCase();
@@ -215,6 +269,23 @@ export function createMockClient(): WhyCodeClient {
       }
       if (request.mode === "plan") {
         response.plan = buildMockPlan(request.question, response);
+      }
+      const lowered = request.question.toLowerCase();
+      if (STRUCTURE_MARKERS.some((marker) => lowered.includes(marker))) {
+        const structure = buildMockStructure(
+          request.repo,
+          fixtures.changes.map((change) => change.path),
+        );
+        if (structure) {
+          response.structure = structure;
+          if (response.status === "refused") {
+            response.status = "answered";
+            response.answer =
+              `The repository ${request.repo} is organized around the ` +
+              "folders shown in the structure graph — the files the index " +
+              "has retrieved for it, arranged as a tree.";
+          }
+        }
       }
       return { ...response, latency_ms: Date.now() - startedAt };
     },

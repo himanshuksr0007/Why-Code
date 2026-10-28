@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { MenuIcon } from "lucide-react";
 
 import { ChatSidebar } from "@/components/chat/chat-sidebar";
+import { GraphViewerHost } from "@/components/graph/graph-viewer";
 import { InsightsRail } from "@/components/insights-rail";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -80,6 +81,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Right rail — session insights, on very wide screens. */}
       <InsightsRail />
+
+      {/* Fullscreen graph viewer (rail bubble / mobile View Graph). */}
+      <GraphViewerHost />
     </div>
   );
 }

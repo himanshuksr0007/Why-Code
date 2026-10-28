@@ -17,6 +17,7 @@ import type {
   EvidenceRef,
   GraphNodeLabel,
   GraphPath,
+  PlanGraph,
   PlanView,
   RecordsPage,
   RecordsSearchResult,
@@ -156,24 +157,11 @@ function dedupeCitations(list: Citation[]): Citation[] {
   return out;
 }
 
-export function coercePlan(value: unknown): PlanView | null {
-  if (!isRecord(value)) return null;
-  const steps = Array.isArray(value.steps)
-    ? value.steps
-        .filter(isRecord)
-        .map((step) => ({
-          title: String(step.title ?? ""),
-          detail: String(step.detail ?? ""),
-          status: (step.status === "done" || step.status === "in_progress"
-            ? step.status
-            : "needed") as PlanView["steps"][number]["status"],
-          evidence_ids: Array.isArray(step.evidence_ids)
-            ? step.evidence_ids.map(String)
-            : [],
-        }))
-        .filter((step) => step.title)
-    : [];
-  const rawGraph = isRecord(value.graph) ? value.graph : {};
+/** Coerce a { nodes, edges } graph payload (plan graphs and repo
+ * structure trees share the shape). Returns an empty graph for
+ * anything unusable; callers decide whether empty means absent. */
+export function coerceGraph(value: unknown): PlanGraph {
+  const rawGraph = isRecord(value) ? value : {};
   const nodes = Array.isArray(rawGraph.nodes)
     ? rawGraph.nodes.filter(isRecord).map((node, index) => ({
         id: String(node.id ?? `node-${index}`),
@@ -193,10 +181,30 @@ export function coercePlan(value: unknown): PlanView | null {
         }))
         .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
     : [];
+  return { nodes, edges };
+}
+
+export function coercePlan(value: unknown): PlanView | null {
+  if (!isRecord(value)) return null;
+  const steps = Array.isArray(value.steps)
+    ? value.steps
+        .filter(isRecord)
+        .map((step) => ({
+          title: String(step.title ?? ""),
+          detail: String(step.detail ?? ""),
+          status: (step.status === "done" || step.status === "in_progress"
+            ? step.status
+            : "needed") as PlanView["steps"][number]["status"],
+          evidence_ids: Array.isArray(step.evidence_ids)
+            ? step.evidence_ids.map(String)
+            : [],
+        }))
+        .filter((step) => step.title)
+    : [];
   return {
     goal: String(value.goal ?? ""),
     steps,
-    graph: { nodes, edges },
+    graph: coerceGraph(value.graph),
   };
 }
 

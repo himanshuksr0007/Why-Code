@@ -173,6 +173,9 @@ export interface AskResponse {
   /** Plan mode only: the structured plan built from this answer's
    * retrieval (see PlanView). Absent for why-mode answers. */
   plan?: PlanView | null;
+  /** Structure questions only: the repository folder/file tree built
+   * from the file paths the retrieval surfaced. */
+  structure?: PlanGraph | null;
   /** Code changes the decisions in this answer refer to. */
   changes?: CodeChange[];
   /** Wall-clock latency in ms, when the transport can measure it. */
