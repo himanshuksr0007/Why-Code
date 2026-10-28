@@ -30,8 +30,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div
       className={`flex min-h-svh relative justify-center ${
         collapsed
-          ? "lg:pl-24 min-[1440px]:pl-0"
-          : "lg:pl-[21rem] min-[1440px]:pl-0"
+          ? "lg:pl-24 min-[1440px]:pl-0!"
+          : "lg:pl-[21rem] min-[1440px]:pl-0!"
       }`}
     >
       {/* Left Sidebar - Made 'fixed' to float without taking up layout space */}
