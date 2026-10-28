@@ -152,6 +152,20 @@ def create_app(
         from app.models.routes import build_models_router
 
         app.include_router(build_models_router(model_service))
+
+    from app.features.routes import build_feature_router
+    from app.features.webhooks import WebhookStore
+
+    app.include_router(
+        build_feature_router(
+            retrieval_service,
+            live_service=live_service,
+            webhook_store=WebhookStore(
+                os.environ.get("WHYCODE_WEBHOOK_DB", "artifacts/webhooks.db")
+            ),
+            webhook_secret=os.environ.get("WHYCODE_WEBHOOK_SECRET") or None,
+        )
+    )
     if demo_service is not None:
         app.include_router(build_demo_router(demo_service))
     return app
