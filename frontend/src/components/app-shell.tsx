@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { MenuIcon } from "lucide-react";
 
 import { AuthNav } from "@/components/auth/auth-nav";
@@ -27,6 +28,13 @@ import {
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const collapsed = useSidebarCollapsed();
+  const pathname = usePathname();
+
+  // The auth pages are standalone: no sidebar, no insights rail, no
+  // mobile top bar — just the showcase and the form on the grid.
+  if (pathname === "/login" || pathname === "/signup") {
+    return <div className="relative min-h-svh">{children}</div>;
+  }
 
   return (
     <div

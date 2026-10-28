@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2Icon } from "lucide-react";
 
+import { AuthLayout } from "@/components/auth/auth-layout";
 import {
   AuthCard,
   authFieldClass,
@@ -65,16 +66,19 @@ export default function SignupPage() {
 
   if (pending) {
     return (
-      <AuthCard
-        title="Verify your email"
-        subtitle="One quick step to activate your account."
-      >
-        <VerifyEmailForm email={pending.email} demoCode={pending.demoCode} />
-      </AuthCard>
+      <AuthLayout>
+        <AuthCard
+          title="Verify your email"
+          subtitle="One quick step to activate your account."
+        >
+          <VerifyEmailForm email={pending.email} demoCode={pending.demoCode} />
+        </AuthCard>
+      </AuthLayout>
     );
   }
 
   return (
+    <AuthLayout>
     <AuthCard
       title="Create your account"
       subtitle="Save your models, sync your history, and pick up where you left off."
@@ -175,5 +179,6 @@ export default function SignupPage() {
         </p>
       </form>
     </AuthCard>
+    </AuthLayout>
   );
 }

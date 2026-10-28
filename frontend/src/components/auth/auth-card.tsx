@@ -17,7 +17,7 @@ export function AuthCard({
   footer?: ReactNode;
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col items-center px-2 py-10 lg:py-16">
+    <div className="flex w-full flex-col items-center">
       <div className="w-full rounded-3xl border border-border/60 bg-card p-6 shadow-neumorph sm:p-8">
         <div className="mb-6 flex flex-col items-center text-center">
           <span className="flex size-14 items-center justify-center rounded-full bg-primary-gradient text-white shadow-neumorph">

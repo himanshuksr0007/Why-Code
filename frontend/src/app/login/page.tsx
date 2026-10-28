@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 
+import { AuthLayout } from "@/components/auth/auth-layout";
 import {
   AuthCard,
   authFieldClass,
@@ -74,16 +75,19 @@ export default function LoginPage() {
 
   if (verifyEmail) {
     return (
-      <AuthCard
-        title="Verify your email"
-        subtitle="This account's email is not verified yet — enter the code to finish."
-      >
-        <VerifyEmailForm email={verifyEmail} demoCode={demoCode} />
-      </AuthCard>
+      <AuthLayout>
+        <AuthCard
+          title="Verify your email"
+          subtitle="This account's email is not verified yet — enter the code to finish."
+        >
+          <VerifyEmailForm email={verifyEmail} demoCode={demoCode} />
+        </AuthCard>
+      </AuthLayout>
     );
   }
 
   return (
+    <AuthLayout>
     <AuthCard
       title="Welcome back"
       subtitle="Log in to your WhyCode account."
@@ -154,5 +158,6 @@ export default function LoginPage() {
         </p>
       </form>
     </AuthCard>
+    </AuthLayout>
   );
 }
