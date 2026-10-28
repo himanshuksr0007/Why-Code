@@ -36,7 +36,95 @@ HIGH_VALUE_PATTERNS = (
 )
 
 DOC_MARKERS = ("/docs/", "docs/", "adr", "architecture", "readme")
-CONFIG_SUFFIXES = (".yaml", ".yml", ".toml", ".ini", ".cfg", ".env", ".conf")
+CONFIG_SUFFIXES = (
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".ini",
+    ".cfg",
+    ".env",
+    ".conf",
+    ".properties",
+)
+
+# Language packs: high-value manifests and subsystem files beyond the
+# Python-centric defaults above. Patterns stay lowercase substrings,
+# matched exactly like HIGH_VALUE_PATTERNS, and are purely additive —
+# a path that matched before still matches with the same weight.
+LANGUAGE_HIGH_VALUE_PATTERNS: dict[str, tuple[str, ...]] = {
+    "go": (
+        "go.mod",
+        "go.sum",
+        "config.go",
+        "client.go",
+        "server.go",
+        "middleware.go",
+        "transport.go",
+        "handler.go",
+    ),
+    "java": (
+        "pom.xml",
+        "build.gradle",
+        "build.gradle.kts",
+        "application.properties",
+        "application.yml",
+        "application.yaml",
+        "config.java",
+        "securityconfig.java",
+        "controller.java",
+        "client.java",
+    ),
+    "rust": (
+        "cargo.toml",
+        "cargo.lock",
+        "config.rs",
+        "client.rs",
+        "server.rs",
+        "middleware.rs",
+        "transport.rs",
+    ),
+    "typescript": (
+        "package.json",
+        "tsconfig.json",
+        ".config.ts",
+        "middleware.ts",
+        "client.ts",
+        "server.ts",
+    ),
+}
+
+_LANGUAGE_BY_EXTENSION = {
+    ".go": "go",
+    ".java": "java",
+    ".kt": "java",
+    ".kts": "java",
+    ".rs": "rust",
+    ".ts": "typescript",
+    ".tsx": "typescript",
+    ".js": "typescript",
+    ".py": "python",
+}
+
+_LANGUAGE_BY_FILENAME = {
+    "go.mod": "go",
+    "go.sum": "go",
+    "pom.xml": "java",
+    "cargo.toml": "rust",
+    "cargo.lock": "rust",
+    "package.json": "typescript",
+}
+
+
+def detect_language(path: str) -> str | None:
+    """Best-effort language for a repo path, from manifest or extension."""
+    lowered = path.lower()
+    filename = lowered.rsplit("/", 1)[-1]
+    if filename in _LANGUAGE_BY_FILENAME:
+        return _LANGUAGE_BY_FILENAME[filename]
+    dot = filename.rfind(".")
+    if dot != -1:
+        return _LANGUAGE_BY_EXTENSION.get(filename[dot:])
+    return None
 
 REVERSAL_TITLE = re.compile(
     r"\b(revert|reverts|reverted|remove|removes|removed|deprecat\w*|"
@@ -328,7 +416,13 @@ def _contains_any(text: str, markers: tuple[str, ...]) -> bool:
 
 def _is_high_value(path: str) -> bool:
     lowered = path.lower()
-    return any(pattern in lowered for pattern in HIGH_VALUE_PATTERNS)
+    if any(pattern in lowered for pattern in HIGH_VALUE_PATTERNS):
+        return True
+    return any(
+        pattern in lowered
+        for patterns in LANGUAGE_HIGH_VALUE_PATTERNS.values()
+        for pattern in patterns
+    )
 
 
 def _is_doc(path: str) -> bool:

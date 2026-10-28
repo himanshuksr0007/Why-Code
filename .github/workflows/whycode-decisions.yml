@@ -1,0 +1,61 @@
+name: WhyCode decision assistant
+
+# Two jobs on every pull request:
+#  - suggest: when the PR title/body carries decision signals, post (or
+#    update) a comment with a ready-to-fill decision record.
+#  - gate: run the policy-as-code gate over any candidates artifact the
+#    ingestion pipeline produced for this PR (candidates.jsonl). The
+#    job is a no-op when the artifact is absent.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, closed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  suggest:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Generate decision suggestion
+        id: suggestion
+        working-directory: backend
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          python tools/suggest_decision.py > suggestion.md
+          if [ -s suggestion.md ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Comment on the PR
+        if: steps.suggestion.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --body-file backend/suggestion.md \
+            --edit-last || gh pr comment "${{ github.event.pull_request.number }}" --body-file backend/suggestion.md
+
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Policy gate (incident candidates need a postmortem)
+        working-directory: backend
+        run: |
+          if [ -f candidates.jsonl ]; then
+            python tools/policy_gate.py candidates.jsonl
+          else
+            echo "No candidates.jsonl artifact; gate skipped."
+          fi
