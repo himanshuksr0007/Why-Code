@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { AskResponse } from "@/lib/api/types";
 import { coerceCitations } from "@/lib/api/normalize";
 import { formatLatency } from "@/lib/format";
+import { hapticSelection } from "@/lib/haptics";
 
 /**
  * Splits the opening paragraph off the answer so it can be revealed word by
@@ -136,7 +137,11 @@ export function AnswerPanel({ response }: { response: AskResponse }) {
         ) : null}
       </div>
 
-      <Tabs defaultValue={plan ? "plan" : "evidence"} className="border-t border-border/70">
+      <Tabs
+        defaultValue={plan ? "plan" : "evidence"}
+        onValueChange={() => hapticSelection()}
+        className="border-t border-border/70"
+      >
         <div className="px-4 pt-3">
           <TabsList variant="line">
             {plan ? (

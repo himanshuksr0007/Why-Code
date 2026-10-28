@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { api, findRepo } from "@/lib/api";
+import { hapticLight, hapticSelection, hapticSuccess } from "@/lib/haptics";
 import { useLocalProfile } from "@/lib/local/profile";
 import { exampleQuestionsFor } from "@/lib/mock";
 import { cn } from "@/lib/utils";
@@ -149,12 +150,15 @@ function RefreshButton({ repoSlug }: { repoSlug: string }) {
   const refresh = async () => {
     if (state === "working") return;
     setState("working");
+    hapticLight();
     try {
       await api.refreshRepo(repoSlug);
       setState("done");
+      hapticSuccess();
     } catch {
       // A 429 means a refresh just happened — the data is fresh anyway.
       setState("cooldown");
+      hapticSelection();
     }
   };
 

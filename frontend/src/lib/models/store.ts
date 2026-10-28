@@ -12,6 +12,8 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 
+import { hapticSelection } from "@/lib/haptics";
+
 import {
   createCustomModel,
   deleteCustomModel,
@@ -115,6 +117,7 @@ export function selectModel(id: string): void {
   persistSelection(id);
   emit({ ...state, selectedId: id });
   void refreshUsage();
+  hapticSelection();
 }
 
 export async function addCustomModel(input: CustomModelInput): Promise<ModelInfo> {

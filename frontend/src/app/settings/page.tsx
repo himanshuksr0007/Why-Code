@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import {
   LayoutGridIcon,
@@ -26,9 +26,20 @@ import {
   LockIcon,
   XIcon,
   ActivityIcon,
+  VibrateIcon,
 } from "lucide-react";
 import { useLocalProfile } from "@/lib/local/profile";
 import { useChatStore, clearChats } from "@/lib/chat/store";
+import {
+  hapticSelection,
+  hapticSuccess,
+  hapticSupport,
+  runHapticDiagnostic,
+  setHapticsEnabled,
+  useHapticsEnabled,
+  type HapticDiagnostic,
+  type HapticSupport,
+} from "@/lib/haptics";
 import { useMounted } from "@/hooks/use-mounted";
 import { PersonAvatar } from "@/components/people/person-avatar";
 import { Button } from "@/components/ui/button";
@@ -655,6 +666,7 @@ export default function SettingsPage() {
                         type="button"
                         onClick={() => {
                           setTheme(option.value);
+                          hapticSelection();
                           toast.success(`Theme set to ${option.label}`);
                         }}
                         className={cn(
@@ -693,6 +705,8 @@ export default function SettingsPage() {
                   })}
                 </div>
               </div>
+
+              <HapticsCard />
             </div>
           )}
 
@@ -821,6 +835,122 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HapticsCard() {
+  const enabled = useHapticsEnabled();
+  const [support, setSupport] = useState<HapticSupport | null>(null);
+  const [diagnostic, setDiagnostic] = useState<HapticDiagnostic | null>(null);
+  useEffect(() => {
+    setSupport(hapticSupport());
+  }, []);
+
+  const toggle = () => {
+    const next = !enabled;
+    setHapticsEnabled(next);
+    // Confirm the switch-on with the very feedback it enables.
+    if (next) hapticSelection();
+    toast.success(`Haptic feedback ${next ? "enabled" : "disabled"}`);
+  };
+
+  const test = () => {
+    // A plain direct 200 ms buzz first — the canonical Vibration API
+    // demo call — and its acceptance is reported under the card, so
+    // a device that stays silent says why.
+    setDiagnostic(runHapticDiagnostic());
+    window.setTimeout(() => hapticSuccess(), 500);
+  };
+
+  return (
+    <div className="rounded-2xl bg-card shadow-neumorph p-6 border border-border/60">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+          <VibrateIcon className="size-5 text-primary" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">
+            Haptic Feedback
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Small vibrations on taps, sends and completions
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex-1 min-w-52">
+          <p className="text-sm font-medium text-foreground">
+            {enabled ? "On" : "Off"} by default — saved on this device only
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+            {support === "vibration"
+              ? "This device supports vibration, so you will feel these."
+              : support === "ios"
+                ? "This iPhone or iPad uses the iOS system haptics (needs iOS 17.4 or later)."
+                : support === "none"
+                  ? "This device has no vibration hardware, so haptics stay silent here — they work on your phone."
+                  : "Works on Android (Vibration API) and iOS 17.4+ (system haptics); desktops without vibration hardware stay silent."}
+          </p>
+          {diagnostic ? (
+            <p className="text-xs mt-1.5 leading-relaxed" aria-live="polite">
+              {diagnostic.support === "vibration" ? (
+                diagnostic.accepted ? (
+                  <span className="text-emerald-600 dark:text-emerald-400">
+                    Last test: the browser accepted the vibration. If you
+                    felt nothing, the phone&apos;s vibration is off in
+                    system Sound settings.
+                  </span>
+                ) : (
+                  <span className="text-amber-600 dark:text-amber-400">
+                    Last test: the browser rejected the vibration call —
+                    it only accepts them right after a tap, in a visible
+                    tab.
+                  </span>
+                )
+              ) : diagnostic.support === "ios" ? (
+                <span className="text-muted-foreground">
+                  Last test: fired the iOS system haptic.
+                </span>
+              ) : (
+                <span className="text-amber-600 dark:text-amber-400">
+                  Last test: this device exposes no vibration API.
+                </span>
+              )}
+            </p>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-2.5">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!enabled}
+            onClick={test}
+          >
+            Test haptics
+          </Button>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={enabled}
+            aria-label="Haptic feedback"
+            onClick={toggle}
+            className={cn(
+              "relative w-12 h-6 rounded-full transition-colors duration-200 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+              enabled ? "bg-primary" : "bg-border",
+            )}
+          >
+            <span
+              className={cn(
+                "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 shadow-sm",
+                enabled && "translate-x-6",
+              )}
+            />
+          </button>
         </div>
       </div>
     </div>

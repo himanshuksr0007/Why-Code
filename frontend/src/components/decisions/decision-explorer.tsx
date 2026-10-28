@@ -10,6 +10,7 @@ import {
 
 import { ConfidenceBadge, DecisionStatusBadge } from "@/components/badges";
 import { api } from "@/lib/api";
+import { hapticLight, hapticSelection } from "@/lib/haptics";
 import type {
   Confidence,
   DecisionRecord,
@@ -301,6 +302,7 @@ export function DecisionExplorer({ repo }: { repo: string }) {
         onSubmit={(event) => {
           event.preventDefault();
           setQuery(input.trim());
+          hapticLight();
         }}
       >
         <SearchIcon className="ml-2.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -333,7 +335,10 @@ export function DecisionExplorer({ repo }: { repo: string }) {
           <button
             key={filter}
             type="button"
-            onClick={() => setStatus(filter)}
+            onClick={() => {
+              setStatus(filter);
+              hapticSelection();
+            }}
             className={cn(
               "rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors",
               status === filter
@@ -350,7 +355,10 @@ export function DecisionExplorer({ repo }: { repo: string }) {
             <button
               key={option}
               type="button"
-              onClick={() => setView(option)}
+              onClick={() => {
+                setView(option);
+                hapticSelection();
+              }}
               className={cn(
                 "rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors",
                 view === option
@@ -412,11 +420,12 @@ export function DecisionExplorer({ repo }: { repo: string }) {
                 key={`${record.repo}:${record.decision_id}`}
                 record={record}
                 expanded={expandedId === record.decision_id}
-                onToggle={() =>
+                onToggle={() => {
+                  hapticSelection();
                   setExpandedId((current) =>
                     current === record.decision_id ? null : record.decision_id,
-                  )
-                }
+                  );
+                }}
               />
             ))}
           </>

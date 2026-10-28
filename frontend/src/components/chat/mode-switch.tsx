@@ -3,6 +3,7 @@
 import { ListTreeIcon, MessageCircleQuestionIcon } from "lucide-react";
 
 import type { AskMode } from "@/lib/api/types";
+import { hapticSelection } from "@/lib/haptics";
 import { setMode, useMode } from "@/lib/modes/store";
 import { cn } from "@/lib/utils";
 
@@ -49,7 +50,10 @@ export function ModeSwitch({ disabled = false }: { disabled?: boolean }) {
             disabled={disabled}
             aria-pressed={active}
             title={title}
-            onClick={() => setMode(id)}
+            onClick={() => {
+              setMode(id);
+              hapticSelection();
+            }}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full px-3 py-1",
               "text-xs font-medium transition-all duration-200",

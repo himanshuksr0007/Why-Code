@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { api, findRepo } from "@/lib/api";
+import { hapticError, hapticLight, hapticSuccess } from "@/lib/haptics";
 import {
   addTurn,
   createChat,
@@ -414,6 +415,7 @@ function AskSession({
         return;
       }
 
+      hapticLight();
       try {
         const [response] = await Promise.all([
           api.ask({
@@ -428,8 +430,10 @@ function AskSession({
           new Promise((resolve) => setTimeout(resolve, MIN_THINKING_MS)),
         ]);
         resolveTurn(targetChatId, turnId, response);
+        hapticSuccess();
         void refreshUsage();
       } catch (error) {
+        hapticError();
         failTurn(
           targetChatId,
           turnId,
