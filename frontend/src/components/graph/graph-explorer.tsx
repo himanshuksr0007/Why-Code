@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2Icon } from "lucide-react";
 
-import { GraphPathView } from "@/components/graph/graph-path-view";
+import {
+  GraphCanvas,
+  KIND_COLORS,
+} from "@/components/graph/graph-canvas";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import type { GraphPath } from "@/lib/api/types";
-import { NODE_LABEL, nodeColor } from "@/lib/labels";
+import { graphPathToPlanGraph } from "@/lib/graph";
 
 export interface DecisionOption {
   id: string;
@@ -88,11 +91,12 @@ export function GraphExplorer({
     setNonce((value) => value + 1);
   }, []);
 
-  const legend = path
-    ? Array.from(new Set(path.nodes.map((node) => node.label))).map(
-        (label) => ({
-          label: NODE_LABEL[label] ?? label,
-          color: nodeColor(label),
+  const planGraph = path ? graphPathToPlanGraph(path) : null;
+  const legend = planGraph
+    ? Array.from(new Set(planGraph.nodes.map((node) => node.kind))).map(
+        (kind) => ({
+          label: kind,
+          color: KIND_COLORS[kind] ?? KIND_COLORS.module,
         }),
       )
     : [];
@@ -155,9 +159,16 @@ export function GraphExplorer({
         </p>
       ) : null}
 
-      {state === "ready" && path ? (
+      {state === "ready" && planGraph ? (
         <div className="space-y-3">
-          <GraphPathView path={path} />
+          <div className="overflow-hidden rounded-xl border border-border/70 bg-card/40 shadow-[inset_2px_2px_5px_var(--neu-dark),inset_-2px_-2px_5px_var(--neu-light)]">
+            <GraphCanvas
+              graph={planGraph}
+              variant="connections"
+              interactive
+              className="h-[520px] [&_svg]:h-full [&_svg]:w-full"
+            />
+          </div>
           {legend.length > 0 ? (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               {legend.map((item) => (

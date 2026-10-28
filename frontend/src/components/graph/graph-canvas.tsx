@@ -220,6 +220,7 @@ export function GraphCanvas({
   variant,
   interactive = false,
   focusWindow = false,
+  sizing = "fit",
   className,
 }: {
   graph: PlanGraph;
@@ -228,6 +229,9 @@ export function GraphCanvas({
   /** Start zoomed into the top-left of the graph (rail thumbnails:
    * a long chain fitted whole would be an unreadable sliver). */
   focusWindow?: boolean;
+  /** "fit" scales the graph into its box; "natural" renders at full
+   * size inside a horizontally scrolling frame (answer-panel tabs). */
+  sizing?: "fit" | "natural";
   className?: string;
 }) {
   const markerId = useId().replace(/[^a-zA-Z0-9]/g, "");
@@ -356,12 +360,15 @@ export function GraphCanvas({
   const hoveredNode = hovered ? positionOf(hovered) : undefined;
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative", sizing === "natural" && "overflow-x-auto", className)}>
       <svg
         ref={svgRef}
         viewBox={`${currentView.x} ${currentView.y} ${currentView.w} ${currentView.h}`}
+        width={sizing === "natural" ? width : undefined}
+        height={sizing === "natural" ? height : undefined}
         className={cn(
-          "block h-full w-full",
+          "block",
+          sizing === "fit" && "h-full w-full",
           interactive && "touch-none select-none",
         )}
         role="img"

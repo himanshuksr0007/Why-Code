@@ -5,10 +5,15 @@ import { toast } from "sonner";
 
 import { AnswerMarkdown, normalizeMarkdown } from "@/components/answer/answer-markdown";
 import { CitationCard } from "@/components/answer/citation-card";
-import { PlanGraphView, PlanTable } from "@/components/answer/plan-view";
+import { PlanTable } from "@/components/answer/plan-view";
 import { DecisionCard } from "@/components/answer/decision-card";
 import { CodeChangeCard } from "@/components/changes/code-change-card";
-import { GraphPathView } from "@/components/graph/graph-path-view";
+import {
+  GraphCanvas,
+  KIND_COLORS,
+} from "@/components/graph/graph-canvas";
+import { graphPathToPlanGraph } from "@/lib/graph";
+import type { PlanGraph } from "@/lib/api/types";
 import { AnswerStatusBadge, ConfidenceBadge } from "@/components/badges";
 import { Button } from "@/components/ui/button";
 import TextAnimation from "@/components/ui/staggerText";
@@ -47,6 +52,40 @@ function splitLead(markdown: string): { lead: string | null; rest: string } {
     .trim();
 
   return lead ? { lead, rest } : { lead: null, rest: normalized };
+}
+
+/**
+ * The one graph figure for the answer panel: the shared GraphCanvas
+ * (the same renderer as the rail bubble and the fullscreen viewer),
+ * at natural size in a scrollable frame, with a kind legend.
+ */
+function GraphFigure({
+  graph,
+  caption,
+}: {
+  graph: PlanGraph;
+  caption: string;
+}) {
+  const kinds = [...new Set(graph.nodes.map((node) => node.kind))];
+  return (
+    <figure className="space-y-2.5">
+      <div className="overflow-hidden rounded-xl border border-border/70 bg-card/40 shadow-[inset_2px_2px_5px_var(--neu-dark),inset_-2px_-2px_5px_var(--neu-light)]">
+        <GraphCanvas graph={graph} variant="connections" sizing="natural" />
+      </div>
+      <figcaption className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+        <span className="min-w-0 flex-1">{caption}</span>
+        {kinds.map((kind) => (
+          <span key={kind} className="inline-flex items-center gap-1">
+            <span
+              className="size-1.5 rounded-full"
+              style={{ background: KIND_COLORS[kind] ?? KIND_COLORS.module }}
+            />
+            {kind}
+          </span>
+        ))}
+      </figcaption>
+    </figure>
+  );
 }
 
 export function AnswerPanel({ response }: { response: AskResponse }) {
@@ -193,7 +232,7 @@ export function AnswerPanel({ response }: { response: AskResponse }) {
 
         {plan ? (
           <TabsContent key="connections" value="connections" className="px-4 pt-3 pb-4">
-            <PlanGraphView graph={plan.graph} />
+            <GraphFigure graph={plan.graph} caption={plan.goal} />
           </TabsContent>
         ) : null}
 
@@ -217,7 +256,10 @@ export function AnswerPanel({ response }: { response: AskResponse }) {
 
         {graph_path ? (
           <TabsContent key="graph" value="graph" className="px-4 pt-3 pb-4">
-            <GraphPathView path={graph_path} />
+            <GraphFigure
+              graph={graphPathToPlanGraph(graph_path)}
+              caption="The path retrieval walked to ground this answer — the same graph the rail's View Graph opens fullscreen."
+            />
           </TabsContent>
         ) : null}
 
