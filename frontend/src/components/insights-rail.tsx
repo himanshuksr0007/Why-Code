@@ -2,11 +2,18 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { DatabaseIcon, MessageSquareIcon, SparklesIcon } from "lucide-react";
+import {
+  CheckIcon,
+  DatabaseIcon,
+  MessageSquareIcon,
+  RefreshCwIcon,
+  SparklesIcon,
+} from "lucide-react";
 
-import { findRepo } from "@/lib/api";
+import { api, findRepo } from "@/lib/api";
 import { useLocalProfile } from "@/lib/local/profile";
 import { exampleQuestionsFor } from "@/lib/mock";
+import { cn } from "@/lib/utils";
 
 /**
  * The right rail — what took the old floating panel's place once the
@@ -122,7 +129,57 @@ export function InsightsRail() {
             {repo.description}
           </p>
         )}
+        <RefreshButton repoSlug={repoSlug} />
       </section>
     </aside>
+  );
+}
+
+/**
+ * Manual refresh: asks the backend to drop this repo's cached
+ * decisions so the next read re-derives them from current data.
+ * The no-setup counterpart to the GitHub webhook — the server
+ * rate-limits it to one refresh per minute per repo.
+ */
+function RefreshButton({ repoSlug }: { repoSlug: string }) {
+  const [state, setState] = useState<"idle" | "working" | "done" | "cooldown">(
+    "idle",
+  );
+
+  const refresh = async () => {
+    if (state === "working") return;
+    setState("working");
+    try {
+      await api.refreshRepo(repoSlug);
+      setState("done");
+    } catch {
+      // A 429 means a refresh just happened — the data is fresh anyway.
+      setState("cooldown");
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={refresh}
+      disabled={state === "working"}
+      className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-[11px] font-medium text-primary transition-opacity hover:opacity-80 disabled:opacity-60"
+    >
+      {state === "done" || state === "cooldown" ? (
+        <CheckIcon className="size-3.5" aria-hidden="true" />
+      ) : (
+        <RefreshCwIcon
+          className={cn("size-3.5", state === "working" && "animate-spin")}
+          aria-hidden="true"
+        />
+      )}
+      {state === "working"
+        ? "Refreshing…"
+        : state === "done"
+          ? "Refreshed — next read is fresh"
+          : state === "cooldown"
+            ? "Just refreshed"
+            : "Refresh data"}
+    </button>
   );
 }

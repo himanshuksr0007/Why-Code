@@ -189,5 +189,13 @@ export function createHttpClient(): WhyCodeClient {
     recordExportUrl(decisionId, repo) {
       return `${API_BASE_URL}/api/v1/records/${encodeURIComponent(decisionId)}/export?repo=${encodeURIComponent(repo)}`;
     },
+
+    async refreshRepo(repo) {
+      const payload = await requestJson<{ repo: string; refreshed: boolean }>(
+        `/api/v1/repos/refresh?repo=${encodeURIComponent(repo)}`,
+        { method: "POST" },
+      );
+      return payload;
+    },
   };
 }

@@ -354,6 +354,11 @@ export function createMockClient(): WhyCodeClient {
       return { events: [], jobs: [] };
     },
 
+    async refreshRepo(repo) {
+      await sleep(200);
+      return { repo, refreshed: true };
+    },
+
     recordExportUrl(decisionId, repo) {
       const record = isIndexed(repo)
         ? mockRecordsFor(repo).find((r) => r.decision_id === decisionId)

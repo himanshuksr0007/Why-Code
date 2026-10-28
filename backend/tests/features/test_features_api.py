@@ -187,3 +187,19 @@ def test_webhook_merged_pr_records_event_job_and_dedupes(
 def test_webhook_unconfigured_is_503(client: TestClient) -> None:
     response = client.post("/api/v1/webhooks/github", content=b"{}")
     assert response.status_code == 503
+
+
+def test_manual_refresh_records_job_and_cools_down(
+    webhook_client: TestClient,
+) -> None:
+    first = webhook_client.post("/api/v1/repos/refresh", params={"repo": REPO})
+    assert first.status_code == 200
+    assert first.json()["refreshed"] is True
+
+    second = webhook_client.post("/api/v1/repos/refresh", params={"repo": REPO})
+    assert second.status_code == 429
+    assert "retry-after" in second.headers
+
+    events = webhook_client.get("/api/v1/webhooks/events").json()
+    kinds = [job["kind"] for job in events["jobs"]]
+    assert "manual_refresh" in kinds

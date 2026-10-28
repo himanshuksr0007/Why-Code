@@ -222,6 +222,7 @@ export interface WhyCodeClient {
   getAudit(repo: string): Promise<AuditReport>;
   listWebhookEvents(): Promise<WebhookEvents>;
   recordExportUrl(decisionId: string, repo: string): string;
+  refreshRepo(repo: string): Promise<{ repo: string; refreshed: boolean }>;
 }
 
 /* ------------------------------------------------------------------ */

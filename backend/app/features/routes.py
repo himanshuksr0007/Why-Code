@@ -10,6 +10,7 @@ or badly signed deliveries with 401.
 from __future__ import annotations
 
 import json
+import time
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -173,5 +174,39 @@ def build_feature_router(
         if webhook_store is None:
             return {"events": [], "jobs": []}
         return webhook_store.recent(limit=limit)
+
+    # Manual refresh: the no-setup alternative to webhooks. Invalidating
+    # a repo makes the next read re-derive its decisions; a per-repo
+    # cooldown keeps the endpoint from being used to force expensive
+    # re-derivation in a loop.
+    refresh_cooldown_seconds = 60.0
+    last_refresh: dict[str, float] = {}
+
+    @router.post("/api/v1/repos/refresh")
+    def refresh_repo(repo: str = Query(min_length=1)) -> dict[str, Any]:
+        now = time.monotonic()
+        previous = last_refresh.get(repo, 0.0)
+        if now - previous < refresh_cooldown_seconds:
+            retry_after = int(refresh_cooldown_seconds - (now - previous)) + 1
+            raise HTTPException(
+                status_code=429,
+                detail="this repository was refreshed just now",
+                headers={"Retry-After": str(retry_after)},
+            )
+        last_refresh[repo] = now
+        provider.invalidate(repo)
+        job_id = (
+            webhook_store.record_job(
+                kind="manual_refresh",
+                repo=repo,
+                detail=(
+                    "Refresh requested from the site; cached decision"
+                    " threads invalidated, decisions re-derive on next read."
+                ),
+            )
+            if webhook_store is not None
+            else None
+        )
+        return {"repo": repo, "refreshed": True, "job_id": job_id}
 
     return router
