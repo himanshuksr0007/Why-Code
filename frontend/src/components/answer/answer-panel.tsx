@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { AnswerMarkdown, normalizeMarkdown } from "@/components/answer/answer-markdown";
 import { CitationCard } from "@/components/answer/citation-card";
+import { PlanGraphView, PlanTable } from "@/components/answer/plan-view";
 import { DecisionCard } from "@/components/answer/decision-card";
 import { CodeChangeCard } from "@/components/changes/code-change-card";
 import { GraphPathView } from "@/components/graph/graph-path-view";
@@ -50,6 +51,7 @@ function splitLead(markdown: string): { lead: string | null; rest: string } {
 export function AnswerPanel({ response }: { response: AskResponse }) {
   const citations = coerceCitations(response);
   const { graph_path, decisions, changes } = response;
+  const plan = response.plan ?? null;
   const latency = formatLatency(response.latency_ms);
   const decisionList = decisions ?? [];
   const changeList = changes ?? [];
@@ -85,6 +87,11 @@ export function AnswerPanel({ response }: { response: AskResponse }) {
         </div>
         {response.status ? <AnswerStatusBadge status={response.status} /> : null}
         {response.confidence ? <ConfidenceBadge confidence={response.confidence} /> : null}
+        {plan ? (
+          <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+            Plan mode
+          </span>
+        ) : null}
         {latency ? (
           <span className="text-xs text-muted-foreground">{latency}</span>
         ) : null}
@@ -129,9 +136,22 @@ export function AnswerPanel({ response }: { response: AskResponse }) {
         ) : null}
       </div>
 
-      <Tabs defaultValue="evidence" className="border-t border-border/70">
+      <Tabs defaultValue={plan ? "plan" : "evidence"} className="border-t border-border/70">
         <div className="px-4 pt-3">
           <TabsList variant="line">
+            {plan ? (
+              <TabsTrigger key="plan" value="plan">
+                Plan
+                <span className="ml-1 font-mono text-[11px] text-muted-foreground">
+                  {plan.steps.length}
+                </span>
+              </TabsTrigger>
+            ) : null}
+            {plan ? (
+              <TabsTrigger key="connections" value="connections">
+                Connections
+              </TabsTrigger>
+            ) : null}
             <TabsTrigger key="evidence" value="evidence">
               Evidence
               <span className="ml-1 font-mono text-[11px] text-muted-foreground">
@@ -159,6 +179,18 @@ export function AnswerPanel({ response }: { response: AskResponse }) {
             ) : null}
           </TabsList>
         </div>
+
+        {plan ? (
+          <TabsContent key="plan" value="plan" className="px-4 pt-3 pb-4">
+            <PlanTable steps={plan.steps} citations={citations} />
+          </TabsContent>
+        ) : null}
+
+        {plan ? (
+          <TabsContent key="connections" value="connections" className="px-4 pt-3 pb-4">
+            <PlanGraphView graph={plan.graph} />
+          </TabsContent>
+        ) : null}
 
         <TabsContent key="evidence" value="evidence" className="px-4 pt-3 pb-4">
           {citations.length > 0 ? (

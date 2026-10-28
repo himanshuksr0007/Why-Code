@@ -50,6 +50,9 @@ export type GraphNodeLabel =
   | "ExternalRef"
   | "Decision";
 
+/** What the visitor is asking for: an explanation, or a plan. */
+export type AskMode = "why" | "plan";
+
 export interface AskRequest {
   question: string;
   repo: string;
@@ -59,6 +62,42 @@ export interface AskRequest {
   client_id?: string;
   /** Selected model: "default" or a custom model id from the models API. */
   model_id?: string;
+  /** Ask mode (see AskMode). Defaults to "why" when omitted. */
+  mode?: AskMode;
+}
+
+/** One row of a plan's code timeline. `done` means the retrieved
+ * decisions prove the work is already in the repository. */
+export interface PlanStep {
+  title: string;
+  detail: string;
+  status: "done" | "needed" | "in_progress";
+  evidence_ids: string[];
+}
+
+export interface PlanGraphNode {
+  id: string;
+  label: string;
+  kind: string;
+  caption?: string | null;
+}
+
+export interface PlanGraphEdge {
+  source: string;
+  target: string;
+  rel_type: string;
+}
+
+export interface PlanGraph {
+  nodes: PlanGraphNode[];
+  edges: PlanGraphEdge[];
+}
+
+/** A plan-mode answer's structure: timeline steps + connection graph. */
+export interface PlanView {
+  goal: string;
+  steps: PlanStep[];
+  graph: PlanGraph;
 }
 
 /** One verifiable piece of evidence behind an answer. */
@@ -131,6 +170,9 @@ export interface AskResponse {
   retrieval_trace_id: string;
   refusal?: RefusalInfo | null;
   decisions?: Decision[];
+  /** Plan mode only: the structured plan built from this answer's
+   * retrieval (see PlanView). Absent for why-mode answers. */
+  plan?: PlanView | null;
   /** Code changes the decisions in this answer refer to. */
   changes?: CodeChange[];
   /** Wall-clock latency in ms, when the transport can measure it. */

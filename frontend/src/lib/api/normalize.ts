@@ -14,6 +14,7 @@ import type {
   EvidenceDetail,
   GraphNodeLabel,
   GraphPath,
+  PlanView,
   RecordType,
 } from "./types";
 
@@ -123,6 +124,75 @@ export function coerceDecisions(value: unknown): Decision[] {
   });
 }
 
+/**
+ * The same underlying record can reach an answer through several
+ * decisions, so the raw payload may list one piece of evidence several
+ * times. The UI shows each distinct item once: first occurrence wins,
+ * keyed by evidence id, then by title+excerpt for id-less duplicates.
+ */
+function dedupeCitations(list: Citation[]): Citation[] {
+  const seenIds = new Set<string>();
+  const seenContent = new Set<string>();
+  const out: Citation[] = [];
+  for (const citation of list) {
+    const contentKey = `${citation.title ?? ""}|${citation.excerpt}`;
+    if (
+      seenIds.has(citation.evidence_id) ||
+      (citation.excerpt && seenContent.has(contentKey))
+    ) {
+      continue;
+    }
+    seenIds.add(citation.evidence_id);
+    if (citation.excerpt) seenContent.add(contentKey);
+    out.push(citation);
+  }
+  return out;
+}
+
+export function coercePlan(value: unknown): PlanView | null {
+  if (!isRecord(value)) return null;
+  const steps = Array.isArray(value.steps)
+    ? value.steps
+        .filter(isRecord)
+        .map((step) => ({
+          title: String(step.title ?? ""),
+          detail: String(step.detail ?? ""),
+          status: (step.status === "done" || step.status === "in_progress"
+            ? step.status
+            : "needed") as PlanView["steps"][number]["status"],
+          evidence_ids: Array.isArray(step.evidence_ids)
+            ? step.evidence_ids.map(String)
+            : [],
+        }))
+        .filter((step) => step.title)
+    : [];
+  const rawGraph = isRecord(value.graph) ? value.graph : {};
+  const nodes = Array.isArray(rawGraph.nodes)
+    ? rawGraph.nodes.filter(isRecord).map((node, index) => ({
+        id: String(node.id ?? `node-${index}`),
+        label: String(node.label ?? "Node"),
+        kind: String(node.kind ?? "module"),
+        caption: typeof node.caption === "string" ? node.caption : null,
+      }))
+    : [];
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  const edges = Array.isArray(rawGraph.edges)
+    ? rawGraph.edges
+        .filter(isRecord)
+        .map((edge) => ({
+          source: String(edge.source ?? ""),
+          target: String(edge.target ?? ""),
+          rel_type: String(edge.rel_type ?? "connects"),
+        }))
+        .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
+    : [];
+  return {
+    goal: String(value.goal ?? ""),
+    steps,
+    graph: { nodes, edges },
+  };
+}
+
 export function coerceCitations(payload: unknown): Citation[] {
   if (!isRecord(payload)) return [];
 
@@ -179,7 +249,7 @@ export function coerceCitations(payload: unknown): Citation[] {
 
   // If citations are provided
   if (rawCitations.length > 0) {
-    return rawCitations.map((item, index) => {
+    return dedupeCitations(rawCitations.map((item, index) => {
       // If already a structured object
       if (isRecord(item)) {
         const id = String(item.evidence_id || item.id || `citation-${index + 1}`);
@@ -261,12 +331,12 @@ export function coerceCitations(payload: unknown): Citation[] {
         author: null,
         created_at: null,
       };
-    });
+    }));
   }
 
   // If citations array was empty, but evidence array exists, use evidence:
   if (rawEvidence.length > 0) {
-    return rawEvidence.filter(isRecord).map(toCitationFromEvidence);
+    return dedupeCitations(rawEvidence.filter(isRecord).map(toCitationFromEvidence));
   }
 
   return [];

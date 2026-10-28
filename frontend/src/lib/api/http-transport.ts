@@ -24,6 +24,7 @@ import {
   coerceDecisions,
   coerceEvidenceDetail,
   coerceGraphPath,
+  coercePlan,
 } from "./normalize";
 import type {
   AskRequest,
@@ -68,6 +69,9 @@ export function createHttpClient(): WhyCodeClient {
           include_graph_path: request.include_graph_path ?? true,
           ...(request.client_id ? { client_id: request.client_id } : {}),
           ...(request.model_id ? { model_id: request.model_id } : {}),
+          // Only sent for plan asks: why-asks stay byte-identical, so a
+          // backend that predates modes never sees a field it rejects.
+          ...(request.mode === "plan" ? { mode: "plan" } : {}),
         }),
       });
       const raw = payload as unknown as Record<string, unknown>;
@@ -77,6 +81,7 @@ export function createHttpClient(): WhyCodeClient {
         citations: coerceCitations(payload),
         graph_path: coerceGraphPath(payload.graph_path),
         decisions: coerceDecisions(payload.decisions),
+        plan: coercePlan(raw.plan),
         retrieval_trace_id: String(raw.retrieval_trace_id ?? "trace_live"),
         latency_ms: payload.latency_ms ?? Date.now() - startedAt,
       };

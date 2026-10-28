@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useRef, KeyboardEvent } from "react";
+import { useRef, KeyboardEvent } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ModeSwitch } from "@/components/chat/mode-switch";
 import { ModelPicker } from "@/components/chat/model-picker";
 import { TokenUsageChip } from "@/components/chat/token-usage-chip";
 import {
   PaperclipIcon,
   MicIcon,
   SendIcon,
-  CodeIcon,
 } from "lucide-react";
 
 interface InputToolbarProps {
@@ -36,7 +36,6 @@ export function InputToolbar({
   className,
   contextTokens = null,
 }: InputToolbarProps) {
-  const [mode, setMode] = useState<"chat" | "code">("code");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -52,23 +51,11 @@ export function InputToolbar({
 
   return (
     <div className={cn("space-y-3", className)}>
-      {/* Mode and model selector pills — above input */}
+      {/* Ask mode (Why? / Plan) and model selector pills — above input.
+          The old "Code" toggle that sat here only restyled itself; the
+          mode switch is wired into every ask. */}
       <div className="flex items-center gap-2 px-1">
-        {/* Code mode toggle */}
-        <button
-          onClick={() => setMode(mode === "chat" ? "code" : "chat")}
-          disabled={disabled}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5",
-            "text-xs font-medium transition-all duration-200",
-            mode === "code"
-              ? "bg-card border-border/80 text-foreground shadow-neumorph-inset"
-              : "bg-card border-border/60 text-muted-foreground hover:border-primary/30 shadow-neumorph"
-          )}
-        >
-          <CodeIcon className="size-3" />
-          Code
-        </button>
+        <ModeSwitch disabled={disabled} />
 
         {/* Model selector */}
         <ModelPicker disabled={disabled} />

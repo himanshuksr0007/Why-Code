@@ -24,6 +24,9 @@ import type {
   GraphPath,
   PersonProfile,
   PersonSummary,
+  PlanGraphEdge,
+  PlanGraphNode,
+  PlanView,
   PullRequestDetail,
   WhyCodeClient,
 } from "./types";
@@ -77,6 +80,91 @@ function buildFallback(question: string, repo: string): AskResponse {
   };
 }
 
+const KIND_BY_LABEL: Record<string, string> = {
+  Repo: "repo",
+  PullRequest: "pr",
+  Commit: "commit",
+  ChangedFile: "file",
+  CodeRegion: "code",
+  Symbol: "symbol",
+  ConfigKey: "config",
+  Decision: "decision",
+  Evidence: "evidence",
+  Person: "person",
+  Issue: "issue",
+  Doc: "doc",
+};
+
+/**
+ * The mock transport's plan, mirroring the backend builder: decisions in
+ * the fixture answer become done steps, and the fixture's graph path
+ * becomes the connection graph rooted at the goal.
+ */
+function buildMockPlan(question: string, response: AskResponse): PlanView {
+  const steps: PlanView["steps"] = (response.decisions ?? []).map(
+    (decision) => ({
+      title: decision.title ?? decision.claim,
+      detail: decision.claim,
+      status: "done" as const,
+      evidence_ids: decision.evidence_ids ?? [],
+    }),
+  );
+  steps.push(
+    {
+      title: "Implement the change in the owning modules",
+      detail:
+        "Keep the change inside the modules on the retrieved code path and follow the decisions recorded above.",
+      status: "needed",
+      evidence_ids: [],
+    },
+    {
+      title: "Cover the new behaviour with tests",
+      detail:
+        "Add tests at the same seams the existing decisions were verified at, including the default path.",
+      status: "needed",
+      evidence_ids: [],
+    },
+    {
+      title: "Record the decision",
+      detail:
+        "Land the change as a reviewed pull request that states the why; it becomes a done step in the next plan.",
+      status: "needed",
+      evidence_ids: [],
+    },
+  );
+
+  const nodes: PlanGraphNode[] = [
+    { id: "goal", label: "Goal", kind: "feature", caption: question },
+  ];
+  const edges: PlanGraphEdge[] = [];
+  const path = response.graph_path;
+  if (path) {
+    for (const node of path.nodes) {
+      nodes.push({
+        id: node.id,
+        label: node.label,
+        kind: KIND_BY_LABEL[node.label] ?? "module",
+        caption: node.caption ?? node.label,
+      });
+    }
+    for (const edge of path.edges) {
+      edges.push({
+        source: edge.source,
+        target: edge.target,
+        rel_type: edge.rel_type,
+      });
+    }
+    if (path.nodes.length > 0) {
+      edges.push({
+        source: "goal",
+        target: path.nodes[0].id,
+        rel_type: "starts from",
+      });
+    }
+  }
+  return { goal: question, steps, graph: { nodes, edges } };
+}
+
 function resolveAnswer(question: string, repo: string): AskResponse {
   const fixtures = fixturesFor(repo);
   const normalised = question.toLowerCase();
@@ -121,6 +209,9 @@ export function createMockClient(): WhyCodeClient {
       const changes = changesForDecision(fixtures.changes, decisionIds);
       if (changes.length > 0) {
         response.changes = changes;
+      }
+      if (request.mode === "plan") {
+        response.plan = buildMockPlan(request.question, response);
       }
       return { ...response, latency_ms: Date.now() - startedAt };
     },

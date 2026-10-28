@@ -46,8 +46,10 @@ import {
 import type { ChatTurn } from "@/lib/chat/store";
 import { exampleQuestionsFor } from "@/lib/mock";
 import { useLocalProfile } from "@/lib/local/profile";
+import { ModeSwitch } from "@/components/chat/mode-switch";
 import { ModelPicker } from "@/components/chat/model-picker";
 import { TokenUsageChip } from "@/components/chat/token-usage-chip";
+import { getMode } from "@/lib/modes/store";
 import { getClientId } from "@/lib/models/api";
 import { refreshUsage, useModelSelection } from "@/lib/models/store";
 
@@ -144,7 +146,7 @@ function AssistantTurn({
     );
   }
 
-  return <ThinkingIndicator />;
+  return <ThinkingIndicator mode={turn.mode} />;
 }
 
 function ConversationSkeleton() {
@@ -390,14 +392,15 @@ function AskSession({
 
       pendingRef.current = true;
       setValue("");
+      const mode = getMode();
 
       let targetChatId = chatId;
       let turnId: string | null = null;
 
       if (targetChatId) {
-        turnId = addTurn(targetChatId, question, repo);
+        turnId = addTurn(targetChatId, question, repo, mode);
       } else {
-        const created = createChat(repo, question);
+        const created = createChat(repo, question, mode);
         targetChatId = created.chat.id;
         turnId = created.turnId;
         setChatId(targetChatId);
@@ -420,6 +423,7 @@ function AskSession({
             max_evidence_items: 8,
             client_id: getClientId(),
             model_id: selectedModelId,
+            mode,
           }),
           new Promise((resolve) => setTimeout(resolve, MIN_THINKING_MS)),
         ]);
@@ -517,11 +521,14 @@ function AskSession({
             autoFocus
           />
 
-          {/* Same model picker and real usage meter as the conversation
-              composer, so the active model is visible before the first
-              question too. */}
+          {/* Same mode switch, model picker and real usage meter as the
+              conversation composer, so the mode and model are visible
+              before the first question too. */}
           <div className="mt-3 flex items-center justify-between px-1">
-            <ModelPicker disabled={pending} />
+            <div className="flex items-center gap-2">
+              <ModeSwitch disabled={pending} />
+              <ModelPicker disabled={pending} />
+            </div>
             {usage ? (
               <TokenUsageChip
                 used={usage.used_tokens}

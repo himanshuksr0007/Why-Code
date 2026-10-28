@@ -9,7 +9,7 @@
 
 import { useSyncExternalStore } from "react";
 
-import type { AskResponse } from "@/lib/api/types";
+import type { AskMode, AskResponse } from "@/lib/api/types";
 import { coerceCitations, coerceDecisions, coerceGraphPath } from "@/lib/api/normalize";
 
 export interface ChatTurn {
@@ -17,6 +17,8 @@ export interface ChatTurn {
   question: string;
   repo: string;
   asked_at: string;
+  /** The ask mode the question was sent with (older turns predate it). */
+  mode?: AskMode;
   /** `null` while the answer is still being retrieved. */
   response: AskResponse | null;
   error: string | null;
@@ -167,12 +169,13 @@ export function titleFromQuestion(question: string, max = 64): string {
   return `${cleaned.slice(0, max - 1).trimEnd()}…`;
 }
 
-function newTurn(question: string, repo: string): ChatTurn {
+function newTurn(question: string, repo: string, mode: AskMode = "why"): ChatTurn {
   return {
     id: makeId("turn"),
     question,
     repo,
     asked_at: new Date().toISOString(),
+    mode,
     response: null,
     error: null,
   };
@@ -181,9 +184,10 @@ function newTurn(question: string, repo: string): ChatTurn {
 export function createIncognitoChat(
   repo: string,
   question: string,
+  mode: AskMode = "why",
 ): { chat: Chat; turnId: string } {
   const now = new Date().toISOString();
-  const turn = newTurn(question, repo);
+  const turn = newTurn(question, repo, mode);
   const chat: Chat = {
     id: makeId("incognito"),
     title: titleFromQuestion(question),
@@ -206,9 +210,10 @@ export function addIncognitoTurn(
   chatId: string,
   question: string,
   repo: string,
+  mode: AskMode = "why",
 ): string | null {
   if (!privateChat || privateChat.id !== chatId) return null;
-  const turn = newTurn(question, repo);
+  const turn = newTurn(question, repo, mode);
   privateChat = {
     ...privateChat,
     repo,
@@ -259,10 +264,11 @@ export function discardIncognitoChat(): void {
 export function createChat(
   repo: string,
   question: string,
+  mode: AskMode = "why",
 ): { chat: Chat; turnId: string } {
   ensureLoaded();
   const now = new Date().toISOString();
-  const turn = newTurn(question, repo);
+  const turn = newTurn(question, repo, mode);
   const chat: Chat = {
     id: makeId("chat"),
     title: titleFromQuestion(question),
@@ -281,9 +287,10 @@ export function addTurn(
   chatId: string,
   question: string,
   repo: string,
+  mode: AskMode = "why",
 ): string | null {
   ensureLoaded();
-  const turn = newTurn(question, repo);
+  const turn = newTurn(question, repo, mode);
   let found = false;
   chats = chats.map((chat) => {
     if (chat.id !== chatId) return chat;
