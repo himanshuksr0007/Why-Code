@@ -153,6 +153,19 @@ def create_app(
 
         app.include_router(build_models_router(model_service))
 
+    # User accounts (email + password, OTP email verification). Built
+    # from the environment like the model service; a failure here must
+    # never take the answer service down with it.
+    try:
+        from app.auth import build_auth_service
+        from app.auth.routes import build_auth_router
+
+        auth_service = build_auth_service()
+        app.state.auth_service = auth_service
+        app.include_router(build_auth_router(auth_service))
+    except Exception as exc:  # noqa: BLE001 - degrade, never block startup
+        logger.warning("Auth service unavailable: %s", exc)
+
     from app.features.routes import build_feature_router
     from app.features.webhooks import WebhookStore
 
