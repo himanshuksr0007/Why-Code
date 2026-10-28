@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { RotateCcwIcon, TriangleAlertIcon, ShareIcon, MoreVerticalIcon, PencilIcon, DownloadIcon, Trash2Icon, NetworkIcon } from "lucide-react";
+import { RotateCcwIcon, TriangleAlertIcon, ShareIcon, MoreVerticalIcon, PencilIcon, DownloadIcon, Trash2Icon, NetworkIcon, FileTextIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -45,7 +45,11 @@ import {
   updateChatTitle,
   useChatStore,
 } from "@/lib/chat/store";
-import type { ChatTurn } from "@/lib/chat/store";
+import type { ChatTurn, TurnAttachment } from "@/lib/chat/store";
+import {
+  composeQuestionWithAttachments,
+  type ComposerAttachment,
+} from "@/lib/attachments";
 import { exampleQuestionsFor } from "@/lib/mock";
 import { useIdentity } from "@/lib/identity";
 import { useLocalProfile } from "@/lib/local/profile";
@@ -71,20 +75,47 @@ function prefersReducedMotion(): boolean {
 
 function UserTurn({ turn }: { turn: ChatTurn }) {
   const identity = useIdentity();
+  const attachments = turn.attachments ?? [];
   return (
     <div className="flex justify-end">
       <div className="flex items-start gap-3 max-w-[70%]">
-        <div className="rounded-2xl rounded-br-md bg-card px-5 py-3 shadow-neumorph border border-border/40">
-          <p className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
-            {turn.repo}
-          </p>
-          <p className="mt-0.5 text-sm leading-relaxed whitespace-pre-wrap text-foreground">
-            {turn.question}
-          </p>
+        <div className="flex min-w-0 flex-col items-end gap-2">
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap justify-end gap-1.5">
+              {attachments.map((item) =>
+                item.kind === "image" && item.dataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={item.name}
+                    src={item.dataUrl}
+                    alt={item.name}
+                    title={item.name}
+                    className="max-h-44 max-w-full rounded-2xl border border-border/40 object-cover shadow-neumorph"
+                  />
+                ) : (
+                  <span
+                    key={item.name}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card px-2.5 py-1 text-xs text-foreground shadow-neumorph"
+                  >
+                    <FileTextIcon className="size-3.5 text-primary" />
+                    <span className="max-w-44 truncate">{item.name}</span>
+                  </span>
+                ),
+              )}
+            </div>
+          )}
+          <div className="rounded-2xl rounded-br-md bg-card px-5 py-3 shadow-neumorph border border-border/40">
+            <p className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
+              {turn.repo}
+            </p>
+            <p className="mt-0.5 text-sm leading-relaxed whitespace-pre-wrap text-foreground">
+              {turn.question}
+            </p>
+          </div>
         </div>
         <PersonAvatar
           login={identity.handle || identity.name}
-          className="mt-1 size-8 shadow-floating"
+          className="mt-1 size-8 shrink-0 shadow-floating"
         />
       </div>
     </div>
@@ -388,9 +419,10 @@ function AskSession({
   }, [chatId]);
 
   const send = useCallback(
-    async (raw: string) => {
-      const question = raw.trim();
-      if (!question || pendingRef.current) return;
+    async (raw: string, composerAttachments: ComposerAttachment[] = []) => {
+      const typed = raw.trim();
+      if ((!typed && composerAttachments.length === 0) || pendingRef.current)
+        return;
       if (!indexed) {
         toast.error("This repository is not indexed yet");
         return;
@@ -399,14 +431,29 @@ function AskSession({
       pendingRef.current = true;
       setValue("");
       const mode = getMode();
+      // The turn shows the question as typed; the backend receives it
+      // with the text attachments inlined as context.
+      const question = typed || "Explain the attached file(s).";
+      const sentQuestion = composeQuestionWithAttachments(
+        question,
+        composerAttachments,
+      );
+      const turnAttachments: TurnAttachment[] = composerAttachments.map(
+        (item) => ({
+          name: item.name,
+          kind: item.kind,
+          size: item.size,
+          ...(item.kind === "image" ? { dataUrl: item.content } : {}),
+        }),
+      );
 
       let targetChatId = chatId;
       let turnId: string | null = null;
 
       if (targetChatId) {
-        turnId = addTurn(targetChatId, question, repo, mode);
+        turnId = addTurn(targetChatId, question, repo, mode, turnAttachments);
       } else {
-        const created = createChat(repo, question, mode);
+        const created = createChat(repo, question, mode, turnAttachments);
         targetChatId = created.chat.id;
         turnId = created.turnId;
         setChatId(targetChatId);
@@ -424,7 +471,7 @@ function AskSession({
       try {
         const [response] = await Promise.all([
           api.ask({
-            question,
+            question: sentQuestion,
             repo,
             include_graph_path: true,
             max_evidence_items: 8,
@@ -615,8 +662,8 @@ function AskSession({
           <InputToolbar
             value={value}
             onChange={setValue}
-            onSubmit={() => {
-              if (value.trim()) void send(value);
+            onSubmit={(composerAttachments) => {
+              void send(value, composerAttachments);
             }}
             disabled={pending}
             contextTokens={

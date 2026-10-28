@@ -12,6 +12,17 @@ import { useSyncExternalStore } from "react";
 import type { AskMode, AskResponse } from "@/lib/api/types";
 import { coerceCitations, coerceDecisions, coerceGraphPath } from "@/lib/api/normalize";
 
+/** A file or screenshot the user attached to a question. Text files
+ * are inlined into the question sent to the backend; only their
+ * metadata is kept on the turn. Images keep a downscaled data URL so
+ * the turn can render them after a reload. */
+export interface TurnAttachment {
+  name: string;
+  kind: "text" | "image";
+  size: number;
+  dataUrl?: string;
+}
+
 export interface ChatTurn {
   id: string;
   question: string;
@@ -19,6 +30,8 @@ export interface ChatTurn {
   asked_at: string;
   /** The ask mode the question was sent with (older turns predate it). */
   mode?: AskMode;
+  /** Files/screenshots sent with the question (older turns predate it). */
+  attachments?: TurnAttachment[];
   /** `null` while the answer is still being retrieved. */
   response: AskResponse | null;
   error: string | null;
@@ -169,13 +182,19 @@ export function titleFromQuestion(question: string, max = 64): string {
   return `${cleaned.slice(0, max - 1).trimEnd()}…`;
 }
 
-function newTurn(question: string, repo: string, mode: AskMode = "why"): ChatTurn {
+function newTurn(
+  question: string,
+  repo: string,
+  mode: AskMode = "why",
+  attachments?: TurnAttachment[],
+): ChatTurn {
   return {
     id: makeId("turn"),
     question,
     repo,
     asked_at: new Date().toISOString(),
     mode,
+    ...(attachments && attachments.length > 0 ? { attachments } : {}),
     response: null,
     error: null,
   };
@@ -265,10 +284,11 @@ export function createChat(
   repo: string,
   question: string,
   mode: AskMode = "why",
+  attachments?: TurnAttachment[],
 ): { chat: Chat; turnId: string } {
   ensureLoaded();
   const now = new Date().toISOString();
-  const turn = newTurn(question, repo, mode);
+  const turn = newTurn(question, repo, mode, attachments);
   const chat: Chat = {
     id: makeId("chat"),
     title: titleFromQuestion(question),
@@ -288,9 +308,10 @@ export function addTurn(
   question: string,
   repo: string,
   mode: AskMode = "why",
+  attachments?: TurnAttachment[],
 ): string | null {
   ensureLoaded();
-  const turn = newTurn(question, repo, mode);
+  const turn = newTurn(question, repo, mode, attachments);
   let found = false;
   chats = chats.map((chat) => {
     if (chat.id !== chatId) return chat;
