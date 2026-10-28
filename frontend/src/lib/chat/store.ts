@@ -56,6 +56,8 @@ export interface ChatSnapshot {
    */
   newChatNonce: number;
   hydrated: boolean;
+  /** The ephemeral incognito conversation, kept separate from saved chats. */
+  incognitoChat: Chat | null;
 }
 
 const STORAGE_KEY = "whycode.chats.v1";
@@ -66,6 +68,7 @@ const SERVER_SNAPSHOT: ChatSnapshot = {
   activeId: null,
   newChatNonce: 0,
   hydrated: false,
+  incognitoChat: null,
 };
 
 let chats: Chat[] = EMPTY_CHATS;
@@ -82,6 +85,10 @@ const listeners = new Set<() => void>();
  * added to `chats` and is therefore never written to localStorage.
  */
 let privateChat: Chat | null = null;
+
+function currentSnapshot(): ChatSnapshot {
+  return { chats, activeId, newChatNonce, hydrated, incognitoChat: privateChat };
+}
 
 function makeId(prefix: string): string {
   const random =
@@ -136,11 +143,11 @@ function ensureLoaded(): void {
     // Corrupt or unavailable storage: start empty rather than break the app.
   }
   hydrated = true;
-  snapshot = { chats, activeId, newChatNonce, hydrated };
+  snapshot = currentSnapshot();
 }
 
 function emit(): void {
-  snapshot = { chats, activeId, newChatNonce, hydrated };
+  snapshot = currentSnapshot();
   if (typeof window !== "undefined") {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
@@ -204,9 +211,11 @@ export function createIncognitoChat(
   repo: string,
   question: string,
   mode: AskMode = "why",
+  attachments?: TurnAttachment[],
 ): { chat: Chat; turnId: string } {
+  ensureLoaded();
   const now = new Date().toISOString();
-  const turn = newTurn(question, repo, mode);
+  const turn = newTurn(question, repo, mode, attachments);
   const chat: Chat = {
     id: makeId("incognito"),
     title: titleFromQuestion(question),
@@ -216,6 +225,7 @@ export function createIncognitoChat(
     turns: [turn],
   };
   privateChat = chat;
+  emit();
   return { chat, turnId: turn.id };
 }
 
@@ -230,15 +240,17 @@ export function addIncognitoTurn(
   question: string,
   repo: string,
   mode: AskMode = "why",
+  attachments?: TurnAttachment[],
 ): string | null {
   if (!privateChat || privateChat.id !== chatId) return null;
-  const turn = newTurn(question, repo, mode);
+  const turn = newTurn(question, repo, mode, attachments);
   privateChat = {
     ...privateChat,
     repo,
     updated_at: turn.asked_at,
     turns: [...privateChat.turns, turn],
   };
+  emit();
   return turn.id;
 }
 
@@ -256,6 +268,7 @@ export function resolveIncognitoTurn(
       turn.id === turnId ? { ...turn, response, error: null } : turn,
     ),
   };
+  emit();
 }
 
 /** Mark a failed private turn without writing conversation data to storage. */
@@ -272,11 +285,16 @@ export function failIncognitoTurn(
       turn.id === turnId ? { ...turn, response: null, error: message } : turn,
     ),
   };
+  emit();
 }
 
 /** Drop the in-memory incognito conversation as soon as private mode ends. */
 export function discardIncognitoChat(): void {
+  ensureLoaded();
+  if (privateChat === null) return;
+  if (activeId === privateChat.id) activeId = null;
   privateChat = null;
+  emit();
 }
 
 /** Create a chat with its first (pending) turn. Returns the fresh chat. */
@@ -365,6 +383,12 @@ export function failTurn(
 
 export function deleteChat(chatId: string): void {
   ensureLoaded();
+  if (privateChat?.id === chatId) {
+    privateChat = null;
+    if (activeId === chatId) activeId = null;
+    emit();
+    return;
+  }
   chats = chats.filter((chat) => chat.id !== chatId);
   if (activeId === chatId) activeId = null;
   emit();
@@ -372,6 +396,15 @@ export function deleteChat(chatId: string): void {
 
 export function updateChatTitle(chatId: string, newTitle: string): void {
   ensureLoaded();
+  if (privateChat?.id === chatId) {
+    privateChat = {
+      ...privateChat,
+      title: newTitle,
+      updated_at: new Date().toISOString(),
+    };
+    emit();
+    return;
+  }
   chats = chats.map((chat) =>
     chat.id === chatId
       ? {
@@ -387,6 +420,7 @@ export function updateChatTitle(chatId: string, newTitle: string): void {
 export function clearChats(): void {
   ensureLoaded();
   chats = EMPTY_CHATS;
+  privateChat = null;
   activeId = null;
   newChatNonce += 1;
   emit();
@@ -402,6 +436,7 @@ export function setActiveChat(chatId: string | null): void {
 /** Reset the Ask workspace to the entrance (used by the sidebar). */
 export function startNewChat(): void {
   ensureLoaded();
+  privateChat = null;
   activeId = null;
   newChatNonce += 1;
   emit();

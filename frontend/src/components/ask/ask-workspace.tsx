@@ -37,15 +37,20 @@ import { api, findRepo } from "@/lib/api";
 import { graphForResponse, openGraphViewer } from "@/lib/graph";
 import { hapticError, hapticLight, hapticSelection, hapticSuccess } from "@/lib/haptics";
 import {
+  addIncognitoTurn,
   addTurn,
   createChat,
+  createIncognitoChat,
   deleteChat,
+  failIncognitoTurn,
   failTurn,
+  resolveIncognitoTurn,
   resolveTurn,
   setActiveChat,
   updateChatTitle,
   useChatStore,
 } from "@/lib/chat/store";
+import { useIncognitoMode } from "@/lib/chat/incognito";
 import type { ChatTurn, TurnAttachment } from "@/lib/chat/store";
 import {
   composeQuestionWithAttachments,
@@ -206,7 +211,13 @@ function ConversationHeader({ title }: { title: string }) {
   const [editWidth, setEditWidth] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
-  const { activeId, chats } = useChatStore();
+  const { activeId, chats, incognitoChat } = useChatStore();
+  const isIncognitoChat = Boolean(
+    activeId && incognitoChat?.id === activeId,
+  );
+  const activeChat =
+    chats.find((chat) => chat.id === activeId) ??
+    (isIncognitoChat ? incognitoChat : null);
   const router = useRouter();
 
   if (prevTitle !== title) {
@@ -239,11 +250,15 @@ function ConversationHeader({ title }: { title: string }) {
   }, [activeId, editedTitle, title]);
 
   const handleShare = useCallback(() => {
+    if (isIncognitoChat) {
+      toast.error("Incognito chats can't be shared");
+      return;
+    }
     setShowShareDialog(true);
-  }, []);
+  }, [isIncognitoChat]);
 
   const handleExport = useCallback(() => {
-    const chat = chats.find((c) => c.id === activeId);
+    const chat = activeChat;
     if (!chat) return;
     const lines: string[] = [`# ${chat.title}`, ""];
     for (const turn of chat.turns) {
@@ -265,7 +280,7 @@ function ConversationHeader({ title }: { title: string }) {
     anchor.click();
     URL.revokeObjectURL(url);
     toast.success("Chat exported as Markdown");
-  }, [activeId, chats]);
+  }, [activeChat]);
 
   const handleDelete = useCallback(() => {
     if (!activeId) return;
@@ -362,7 +377,7 @@ function ConversationHeader({ title }: { title: string }) {
       </div>
     </div>
 
-    {activeId && (
+    {activeId && !isIncognitoChat && (
       <ShareDialog
         chatId={activeId}
         open={showShareDialog}
@@ -408,7 +423,8 @@ function AskSession({
   initialChatId?: string;
   initialQuestion?: string;
 }) {
-  const { chats, hydrated } = useChatStore();
+  const { chats, incognitoChat, hydrated } = useChatStore();
+  const { enabled: incognitoEnabled } = useIncognitoMode();
   const { profile, update, hydrated: profileHydrated } = useLocalProfile();
   const { selectedId: selectedModelId, usage } = useModelSelection();
   const [chatId, setChatId] = useState<string | null>(initialChatId ?? null);
@@ -417,7 +433,13 @@ function AskSession({
   const endRef = useRef<HTMLDivElement | null>(null);
   const lastTurnRef = useRef<HTMLDivElement | null>(null);
 
-  const chat = chats.find((item) => item.id === chatId) ?? null;
+  // Saved history is inaccessible while incognito is on; the only chat
+  // this session may show then is the ephemeral incognito conversation.
+  const chat = incognitoEnabled
+    ? incognitoChat?.id === chatId
+      ? incognitoChat
+      : null
+    : (chats.find((item) => item.id === chatId) ?? null);
   const repo = profile.default_repo;
   const repoOption = findRepo(repo);
   const indexed = Boolean(repoOption?.indexed);
@@ -432,6 +454,19 @@ function AskSession({
     setActiveChat(chatId);
   }, [chatId]);
 
+  // Entering incognito closes the saved conversation; leaving it drops
+  // the private one (the panel toggle discards it). Either transition
+  // returns this session to the entrance with a clean URL.
+  const wasIncognito = useRef(incognitoEnabled);
+  useEffect(() => {
+    if (wasIncognito.current === incognitoEnabled) return;
+    wasIncognito.current = incognitoEnabled;
+    setChatId(null);
+    if (window.location.search.includes("chat=")) {
+      window.history.replaceState(null, "", "/");
+    }
+  }, [incognitoEnabled]);
+
   const send = useCallback(
     async (raw: string, composerAttachments: ComposerAttachment[] = []) => {
       const typed = raw.trim();
@@ -444,6 +479,7 @@ function AskSession({
 
       pendingRef.current = true;
       setValue("");
+      const privateMode = incognitoEnabled;
       const mode = getMode();
       // The turn shows the question as typed; the backend receives it
       // with the text attachments inlined as context.
@@ -461,19 +497,31 @@ function AskSession({
         }),
       );
 
-      let targetChatId = chatId;
+      // Reuse only the conversation this session is actually showing:
+      // the ephemeral one in incognito mode, a saved one otherwise.
+      let targetChatId = chat?.id ?? null;
       let turnId: string | null = null;
 
       if (targetChatId) {
-        turnId = addTurn(targetChatId, question, repo, mode, turnAttachments);
+        turnId = privateMode
+          ? addIncognitoTurn(targetChatId, question, repo, mode, turnAttachments)
+          : addTurn(targetChatId, question, repo, mode, turnAttachments);
       } else {
-        const created = createChat(repo, question, mode, turnAttachments);
+        const created = privateMode
+          ? createIncognitoChat(repo, question, mode, turnAttachments)
+          : createChat(repo, question, mode, turnAttachments);
         targetChatId = created.chat.id;
         turnId = created.turnId;
         setChatId(targetChatId);
         setActiveChat(targetChatId);
-        // Shareable and reload-safe, without a server navigation mid-answer.
-        window.history.replaceState(null, "", `/?chat=${targetChatId}`);
+        // Saved chats get a shareable, reload-safe URL. Incognito chats
+        // deliberately do not — the URL stays clean and a reload finds
+        // nothing, because nothing was stored.
+        window.history.replaceState(
+          null,
+          "",
+          privateMode ? "/" : `/?chat=${targetChatId}`,
+        );
       }
 
       if (!targetChatId || !turnId) {
@@ -495,22 +543,22 @@ function AskSession({
           }),
           new Promise((resolve) => setTimeout(resolve, MIN_THINKING_MS)),
         ]);
-        resolveTurn(targetChatId, turnId, response);
+        if (privateMode) resolveIncognitoTurn(targetChatId, turnId, response);
+        else resolveTurn(targetChatId, turnId, response);
         hapticSuccess();
         void refreshUsage();
       } catch (error) {
         hapticError();
-        failTurn(
-          targetChatId,
-          turnId,
-          error instanceof Error ? error.message : "Unexpected error",
-        );
+        const message =
+          error instanceof Error ? error.message : "Unexpected error";
+        if (privateMode) failIncognitoTurn(targetChatId, turnId, message);
+        else failTurn(targetChatId, turnId, message);
         toast.error("The answer service could not be reached");
       } finally {
         pendingRef.current = false;
       }
     },
-    [chatId, repo, indexed, selectedModelId],
+    [chat, repo, indexed, selectedModelId, incognitoEnabled],
   );
 
   // Questions arriving from a deep link (?q=) are asked once on mount — after
@@ -541,7 +589,10 @@ function AskSession({
     return <ConversationSkeleton />;
   }
 
-  if (chatId && !chat) {
+  // While incognito is on (or just after a private chat was dropped) a
+  // stale chat id means "no open conversation", not a missing one —
+  // fall through to the entrance instead of the not-found screen.
+  if (chatId && !chat && !incognitoEnabled && !chatId.startsWith("incognito_")) {
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-3 px-4 py-16 text-center">
         <p className="font-heading text-lg font-semibold">

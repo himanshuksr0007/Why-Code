@@ -113,8 +113,10 @@ export function graphForResponse(
 }
 
 export function useLatestGraph(): TurnGraph | null {
-  const { chats, activeId } = useChatStore();
-  const chat = chats.find((candidate) => candidate.id === activeId);
+  const { chats, incognitoChat, activeId } = useChatStore();
+  const chat =
+    chats.find((candidate) => candidate.id === activeId) ??
+    (incognitoChat?.id === activeId ? incognitoChat : null);
   const lastTurn = chat?.turns[chat.turns.length - 1];
   if (!lastTurn) return null;
   return graphForResponse(lastTurn.response, lastTurn.id);

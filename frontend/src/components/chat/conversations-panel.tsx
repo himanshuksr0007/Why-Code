@@ -4,7 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { MessageSquareIcon, Trash2Icon, MoreVerticalIcon, Trash2Icon as TrashAllIcon, EyeOffIcon, XIcon } from "lucide-react";
-import { useChatStore, deleteChat, setActiveChat, clearChats } from "@/lib/chat/store";
+import {
+  useChatStore,
+  deleteChat,
+  setActiveChat,
+  clearChats,
+  discardIncognitoChat,
+} from "@/lib/chat/store";
+import { useIncognitoMode, setIncognitoMode } from "@/lib/chat/incognito";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,10 +26,15 @@ export function ConversationsPanel() {
   const pathname = usePathname();
   const router = useRouter();
   const { chats, activeId } = useChatStore();
+  const { enabled: isIncognito } = useIncognitoMode();
   const onChatsRoute = pathname === "/";
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [confirmText, setConfirmText] = useState("");
-  const [isIncognito, setIsIncognito] = useState(false);
+
+  const handleToggleIncognito = () => {
+    if (isIncognito) discardIncognitoChat();
+    setIncognitoMode(!isIncognito);
+  };
 
   const handleClearAll = () => {
     if (confirmText.toLowerCase() === "confirm") {
@@ -52,7 +64,7 @@ export function ConversationsPanel() {
               <MoreVerticalIcon className="size-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => setIsIncognito((v) => !v)}>
+              <DropdownMenuItem onClick={handleToggleIncognito}>
                 <EyeOffIcon className="size-4" />
                 {isIncognito ? "Exit incognito" : "Incognito mode"}
               </DropdownMenuItem>
@@ -79,7 +91,20 @@ export function ConversationsPanel() {
         {/* Conversations List Bubble */}
         <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border border-border/40 bg-card/95 backdrop-blur-sm">
           <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin p-3">
-            {chats.length === 0 ? (
+            {isIncognito ? (
+              <div className="py-8 px-4 text-center">
+                <div className="flex items-center justify-center size-12 rounded-xl bg-primary/10 mx-auto mb-3">
+                  <EyeOffIcon className="size-6 text-primary" aria-hidden="true" />
+                </div>
+                <p className="text-sm font-medium text-foreground">
+                  Saved conversations are hidden
+                </p>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                  Chats started in incognito mode are not saved. Exit
+                  incognito to see your conversation history again.
+                </p>
+              </div>
+            ) : chats.length === 0 ? (
               <div className="py-8 px-4 text-center">
                 <div className="flex items-center justify-center size-12 rounded-xl bg-primary/10 mx-auto mb-3">
                   <MessageSquareIcon className="size-6 text-primary fill-current" aria-hidden="true" />
