@@ -10,6 +10,7 @@
   --font-sans: var(--font-inter);
   --font-mono: var(--font-jetbrains-mono);
   --font-heading: var(--font-inter);
+  --font-brand: var(--font-newsreader);
 
   /* Neumorphic shadow system */
   --shadow-neumorph-raised:
@@ -313,6 +314,32 @@
   }
   to {
     width: 100%;
+  }
+}
+
+/* Explorer pages: staggered entrances and growing stat bars. */
+.animate-rise-in {
+  animation: why-rise-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes why-bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.animate-bar-grow {
+  transform-origin: left;
+  animation: why-bar-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise-in,
+  .animate-bar-grow {
+    animation: none;
   }
 }
 

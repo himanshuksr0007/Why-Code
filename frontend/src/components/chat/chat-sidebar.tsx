@@ -1,14 +1,39 @@
 "use client";
 
 import Link from "next/link";
-import { PanelLeftOpenIcon, SquarePenIcon } from "lucide-react";
+import { usePathname } from "next/navigation";
+import {
+  GitCommitHorizontalIcon,
+  NetworkIcon,
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
+  PlusIcon,
+  ScaleIcon,
+  SearchIcon,
+  SquarePenIcon,
+  XIcon,
+} from "lucide-react";
 
 import { ConversationsPanel } from "@/components/chat/conversations-panel";
 import { ProfileBubble } from "@/components/chat/profile-bubble";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import {
+  closeChatSearch,
+  setChatSearchOpen,
+  setChatSearchQuery,
+  useChatSearch,
+} from "@/lib/chat/search";
 import { startNewChat } from "@/lib/chat/store";
+import { cn } from "@/lib/utils";
+
+/** The explorer pages, linked from the rail under the brand bubble. */
+const NAV_ITEMS = [
+  { href: "/decisions", label: "Decisions", icon: ScaleIcon },
+  { href: "/graph", label: "Graph explorer", icon: NetworkIcon },
+  { href: "/changes", label: "Code changes", icon: GitCommitHorizontalIcon },
+] as const;
 
 /**
  * The left column, top to bottom: the brand card with New chat, the
@@ -25,6 +50,9 @@ export function ChatSidebar({
   onToggleCollapse?: () => void;
   onNavigate?: () => void;
 }) {
+  const { open: searchOpen, query: searchQuery } = useChatSearch();
+  const pathname = usePathname();
+
   if (collapsed) {
     return (
       <div className="flex h-full min-h-0 w-full min-w-0 flex-col items-center bg-transparent text-sidebar-foreground p-3">
@@ -65,6 +93,29 @@ export function ChatSidebar({
           >
             <PanelLeftOpenIcon aria-hidden="true" />
           </Button>
+          {NAV_ITEMS.map((item) => {
+            const active = pathname === item.href;
+            const ItemIcon = item.icon;
+            return (
+              <Button
+                key={item.href}
+                render={<Link href={item.href} />}
+                nativeButton={false}
+                variant="ghost"
+                size="icon"
+                aria-label={item.label}
+                title={item.label}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "text-muted-foreground hover:text-primary",
+                  active && "bg-primary/15 text-primary",
+                )}
+                onClick={onNavigate}
+              >
+                <ItemIcon aria-hidden="true" />
+              </Button>
+            );
+          })}
         </div>
 
         <div className="mt-auto flex w-full flex-col items-center gap-2 py-2">
@@ -77,45 +128,121 @@ export function ChatSidebar({
 
   return (
     <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-4 bg-transparent p-4 text-sidebar-foreground">
-      {/* Header — Logo + Brand + New Chat Button */}
+      {/* Header — collapse toggle, brand, and the New / Search rows */}
       <div className="rounded-2xl bg-card shadow-neumorph p-4 animate-scale">
-        <div className="flex items-center gap-3 mb-3">
-          <Logo className="size-9" />
+        <div className="flex items-center gap-2 mb-2">
+          {onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
+            >
+              <PanelLeftCloseIcon className="size-5" aria-hidden="true" />
+            </button>
+          )}
+          <Logo className="size-8" />
           <div className="min-w-0 flex-1">
             <Link
               href="/"
               onClick={onNavigate}
               className="block outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded"
             >
-              <h1 className="font-heading text-base font-bold text-foreground tracking-tight">
+              <h1 className="font-brand text-[1.35rem] leading-none font-semibold text-foreground">
                 WhyCode
               </h1>
             </Link>
           </div>
-          {onToggleCollapse && (
-            <button
-              onClick={onToggleCollapse}
-              className="text-muted-foreground hover:text-foreground p-1 rounded-lg transition-colors"
-              aria-label="Collapse sidebar"
-            >
-              ×
-            </button>
-          )}
         </div>
 
-        <Button
-          render={<Link href="/" />}
-          nativeButton={false}
-          className="w-full justify-center rounded-full bg-primary-gradient text-white font-medium shadow-floating hover-lift transition-all duration-200 hover:shadow-floating-lg active:scale-[0.97]"
-          onClick={() => {
-            startNewChat();
-            onNavigate?.();
-          }}
-        >
-          <SquarePenIcon className="size-4" aria-hidden="true" />
-          New chat
-        </Button>
+        <div className="flex flex-col gap-0.5">
+          <Link
+            href="/"
+            onClick={() => {
+              startNewChat();
+              onNavigate?.();
+            }}
+            className="flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-sm text-foreground/85 transition-colors hover:bg-accent/70 hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <PlusIcon className="size-4.5 shrink-0" aria-hidden="true" />
+            New chat
+          </Link>
+          <button
+            type="button"
+            onClick={() => setChatSearchOpen(!searchOpen)}
+            aria-expanded={searchOpen}
+            className={cn(
+              "flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm transition-colors hover:bg-accent/70 hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+              searchOpen ? "text-foreground" : "text-foreground/85",
+            )}
+          >
+            <SearchIcon className="size-4.5 shrink-0" aria-hidden="true" />
+            Search
+          </button>
+        </div>
+
+        {searchOpen && (
+          <div className="mt-2 flex h-9 items-center gap-2 rounded-lg border border-border/50 bg-background/60 px-2.5">
+            <SearchIcon
+              className="size-4 shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <input
+              autoFocus
+              value={searchQuery}
+              onChange={(e) => setChatSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") closeChatSearch();
+              }}
+              placeholder="Search chats"
+              aria-label="Search chats"
+              className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            />
+            {searchQuery !== "" && (
+              <button
+                type="button"
+                onClick={() => setChatSearchQuery("")}
+                aria-label="Clear search"
+                className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground"
+              >
+                <XIcon className="size-4" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Explore — decision center, graph explorer, code changes */}
+      <nav
+        aria-label="Explore"
+        className="rounded-2xl bg-card shadow-neumorph p-2 animate-scale"
+      >
+        {NAV_ITEMS.map((item) => {
+          const active = pathname === item.href;
+          const ItemIcon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onNavigate}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                active
+                  ? "bg-primary/15 font-medium text-foreground"
+                  : "text-foreground/85 hover:bg-accent/70 hover:text-foreground",
+              )}
+            >
+              <ItemIcon
+                className={cn("size-4.5 shrink-0", active && "text-primary")}
+                aria-hidden="true"
+              />
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
 
       {/* Conversations — moved in from the old floating right panel. */}
       <ConversationsPanel />

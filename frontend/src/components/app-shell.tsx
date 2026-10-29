@@ -31,6 +31,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   const collapsed = useSidebarCollapsed();
   const pathname = usePathname();
 
+  // The explorer pages run wide two-column layouts (content + their
+  // own right rail). They keep the sidebar's space reserved at every
+  // desktop width and get a wider center column; the chat-style
+  // pages keep the approved narrow, viewport-centered composition.
+  const isExplorerPage =
+    pathname === "/decisions" ||
+    pathname === "/graph" ||
+    pathname === "/changes";
+
   // The auth pages and shared-chat links are standalone: no sidebar,
   // no insights rail, no mobile top bar.
   if (
@@ -44,9 +53,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div
       className={`flex min-h-svh relative justify-center ${
-        collapsed
-          ? "lg:pl-24 min-[1440px]:pl-0!"
-          : "lg:pl-[21rem] min-[1440px]:pl-0!"
+        isExplorerPage
+          ? collapsed
+            ? "lg:pl-24"
+            : "lg:pl-[21rem]"
+          : collapsed
+            ? "lg:pl-24 min-[1440px]:pl-0!"
+            : "lg:pl-[21rem] min-[1440px]:pl-0!"
       }`}
     >
       {/* Left Sidebar - Made 'fixed' to float without taking up layout space */}
@@ -72,7 +85,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       </Sheet>
 
       {/* Center Column - Constrained width and centered */}
-      <main className="flex-1 w-full max-w-4xl mx-auto flex flex-col px-4 transition-all duration-300 ease-in-out">
+      <main
+        className={`flex-1 w-full mx-auto flex flex-col px-4 transition-all duration-300 ease-in-out ${
+          isExplorerPage ? "max-w-[84rem]" : "max-w-4xl"
+        }`}
+      >
         {/* Mobile top bar: opens the drawer; theme stays one tap away. */}
         <div className="sticky top-0 z-40 flex items-center justify-between py-3 lg:hidden">
           <button
@@ -83,7 +100,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <MenuIcon className="size-5" />
           </button>
-          <span className="rounded-full border border-border/40 bg-card/90 px-4 py-2 text-sm font-semibold tracking-tight text-foreground shadow-sm backdrop-blur">
+          <span className="rounded-full border border-border/40 bg-card/90 px-4 py-2 font-brand text-base font-semibold text-foreground shadow-sm backdrop-blur">
             WhyCode
           </span>
           <span className="flex size-10 items-center justify-center rounded-full border border-border/40 bg-card/90 shadow-sm backdrop-blur">

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { MessageSquareIcon, Trash2Icon, MoreVerticalIcon, Trash2Icon as TrashAllIcon, EyeOffIcon, XIcon } from "lucide-react";
+import { MessageSquareIcon, Trash2Icon, MoreVerticalIcon, Trash2Icon as TrashAllIcon, EyeOffIcon, SearchXIcon, XIcon } from "lucide-react";
 import {
   useChatStore,
   deleteChat,
@@ -12,6 +12,8 @@ import {
   discardIncognitoChat,
 } from "@/lib/chat/store";
 import { useIncognitoMode, setIncognitoMode } from "@/lib/chat/incognito";
+import { useChatSearch } from "@/lib/chat/search";
+import { searchChats } from "@/lib/chat/fuzzy";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +29,12 @@ export function ConversationsPanel() {
   const router = useRouter();
   const { chats, activeId } = useChatStore();
   const { enabled: isIncognito } = useIncognitoMode();
+  const { query: searchQuery } = useChatSearch();
+  const searching = !isIncognito && searchQuery.trim() !== "";
+  const visibleChats = useMemo(
+    () => (searching ? searchChats(chats, searchQuery) : chats),
+    [chats, searchQuery, searching],
+  );
   const onChatsRoute = pathname === "/";
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [confirmText, setConfirmText] = useState("");
@@ -54,7 +62,9 @@ export function ConversationsPanel() {
         {/* Header Bubble */}
         <div className="rounded-2xl bg-card/95 backdrop-blur-sm border border-border/40 px-4 py-3 flex items-center justify-between shadow-none">
           <h2 className="text-sm font-medium text-foreground">
-            Conversations
+            {searching
+              ? `Results (${visibleChats.length})`
+              : "Conversations"}
           </h2>
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -104,6 +114,19 @@ export function ConversationsPanel() {
                   incognito to see your conversation history again.
                 </p>
               </div>
+            ) : searching && visibleChats.length === 0 ? (
+              <div className="py-8 px-4 text-center">
+                <div className="flex items-center justify-center size-12 rounded-xl bg-primary/10 mx-auto mb-3">
+                  <SearchXIcon className="size-6 text-primary" aria-hidden="true" />
+                </div>
+                <p className="text-sm font-medium text-foreground">
+                  {`No chats match "${searchQuery.trim()}"`}
+                </p>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                  Try a word from the chat&rsquo;s title or its answers —
+                  small typos are fine.
+                </p>
+              </div>
             ) : chats.length === 0 ? (
               <div className="py-8 px-4 text-center">
                 <div className="flex items-center justify-center size-12 rounded-xl bg-primary/10 mx-auto mb-3">
@@ -115,7 +138,7 @@ export function ConversationsPanel() {
               </div>
             ) : (
               <div className="space-y-2">
-                {chats.map((chat) => {
+                {visibleChats.map((chat) => {
                   const isActive = onChatsRoute && chat.id === activeId;
                   return (
                     <div key={chat.id} className="group relative">
