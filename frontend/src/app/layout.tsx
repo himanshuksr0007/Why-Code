@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     "Ask why a codebase works the way it does, and see the pull requests, reviews and commits that decided it.",
   icons: {
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/whycode-logo.png", type: "image/png" },
       { url: "/favicon.ico" },
     ],
     apple: "/apple-icon.png",

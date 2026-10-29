@@ -33,9 +33,9 @@ export function ChatSidebar({
           aria-label="WhyCode home"
           title="WhyCode home"
           onClick={onNavigate}
-          className="flex size-12 items-center justify-center rounded-full bg-primary-gradient text-white shadow-neumorph transition-transform outline-none hover:scale-105 hover-lift"
+          className="flex size-12 items-center justify-center transition-transform outline-none hover:scale-105 hover-lift"
         >
-          <Logo className="size-5" />
+          <Logo className="size-12" />
         </Link>
 
         <div className="mt-4 flex flex-col items-center gap-2">
@@ -80,9 +80,7 @@ export function ChatSidebar({
       {/* Header — Logo + Brand + New Chat Button */}
       <div className="rounded-2xl bg-card shadow-neumorph p-4 animate-scale">
         <div className="flex items-center gap-3 mb-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#242424] text-white">
-            <Logo className="size-5" />
-          </div>
+          <Logo className="size-9" />
           <div className="min-w-0 flex-1">
             <Link
               href="/"

@@ -20,8 +20,8 @@ export function AuthCard({
     <div className="flex w-full flex-col items-center">
       <div className="w-full rounded-3xl border border-border/60 bg-card p-6 shadow-neumorph sm:p-8">
         <div className="mb-6 flex flex-col items-center text-center">
-          <span className="flex size-14 items-center justify-center rounded-full bg-primary-gradient text-white shadow-neumorph">
-            <Logo className="size-6" />
+          <span className="flex size-14 items-center justify-center">
+            <Logo className="size-14" />
           </span>
           <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
             {title}

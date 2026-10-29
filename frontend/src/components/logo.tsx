@@ -1,19 +1,27 @@
-/** The WhyCode mark: a circled question mark. */
+import { cn } from "@/lib/utils";
+
+/**
+ * The WhyCode mark (interlocked triangles and nodes), recolored with
+ * the site's primary gradient — the same caramel-orange as the
+ * "New chat" button — so it stays visible on both themes. Two
+ * static assets (`public/whycode-logo*.png`) carry each theme's
+ * gradient stops; the shape itself is the owner's artwork with its
+ * background knocked out.
+ */
 export function Logo({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-      <line x1="12" y1="17" x2="12.01" y2="17" strokeWidth="2.5" />
-    </svg>
+    <>
+      <img
+        src="/whycode-logo-light.png"
+        alt="WhyCode"
+        className={cn("size-8 shrink-0 dark:hidden", className)}
+      />
+      <img
+        src="/whycode-logo.png"
+        alt=""
+        aria-hidden="true"
+        className={cn("hidden size-8 shrink-0 dark:block", className)}
+      />
+    </>
   );
 }

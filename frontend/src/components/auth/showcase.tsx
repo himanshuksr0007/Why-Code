@@ -261,8 +261,8 @@ export function Showcase() {
       className="w-full rounded-3xl border border-border/60 bg-card p-5 shadow-neumorph sm:p-6"
     >
       <header className="flex items-center gap-3 px-1">
-        <span className="flex size-10 items-center justify-center rounded-full bg-primary-gradient text-white shadow-neumorph">
-          <Logo className="size-5" />
+        <span className="flex size-10 items-center justify-center">
+          <Logo className="size-10" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-foreground">
