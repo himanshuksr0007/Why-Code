@@ -145,7 +145,7 @@ ruff check app tests
 mypy app
 ```
 
-Current state: **1,103 passed, 15 pre-existing failures in the live-mode contract tests, 12 skipped**.
+Current state: **1,109 passed, 13 pre-existing failures in the live-mode contract tests, 12 skipped**.
 
 - `tests/structure/` is a legacy parallel contract suite that conflicts with `tests/structural/` at collection. The canonical suite excludes it.
 - The skipped tests are opt-in live integrations: Neo4j store tests (enable with `WHYCODE_TEST_NEO4J_URI` plus `_USER`, `_PASSWORD` and `_DATABASE`) and the live-LLM smoke test (`tests/intent/test_llm_live.py`, one tiny request with a throwaway ledger; enable with `WHYCODE_TEST_LLM=1` plus `WHYCODE_TEST_LLM_API_KEY`).

@@ -61,13 +61,17 @@ in the real modules and config the answer touched — never invented.
 One graph engine renders every view: the answer's Connections tab, its Graph path tab, the rail
 thumbnail, the fullscreen explorer (pan, zoom, drag nodes) and the `/graph` page. Edges are typed —
 *changed in*, *decided in*, *supported by* — so the chain from a question to its evidence is auditable.
+The explorer page pairs the canvas with a decision tracer that retells the traced path step by step,
+one hop at a time.
 
 ### Decision center — every decision on record, kept honest
 
 <img src="assets/readme/decisions-dark.png" alt="Decisions page: audit summary cards, search, status filters and decision record cards with ADR export" width="100%" />
 
 Extracted decisions are browsable, searchable and auditable. A later revision or reversal is recorded
-as a supersession — the original is never silently overwritten.
+as a supersession — the original is never silently overwritten. The page pairs the explorer with a
+live audit rail — a status breakdown, the records that need attention, and recent webhook activity —
+and the repository can be switched right on the page.
 
 ### Sharing and settings
 
@@ -115,6 +119,8 @@ as a supersession — the original is never silently overwritten.
 
 ### Conversations
 
+- The sidebar collapses to an icon rail from its panel control, and its search **tolerates typos** —
+  one or two wrong letters still find the chat, across titles and answer text.
 - Chats are saved locally in your browser: rename (the header keeps its size while you edit), export
   to Markdown, delete one or clear all.
 - **Incognito mode** — while it's on, your saved history disappears from the panel entirely, anything
@@ -147,6 +153,15 @@ as a supersession — the original is never silently overwritten.
 - **Audit & compliance report** — rationale/evidence coverage, plus the flags that matter:
   security- or incident-relevant decisions missing a rationale, and decisions with no evidence.
 - **ADR export** — download any record as an Architecture Decision Record (Markdown) or JSON.
+- **Explorer pages** — the decision center, the graph explorer and code changes are one click away in
+  the sidebar. Each page carries its own repository switcher and a dedicated right rail: decision
+  health (status breakdown, needs-attention flags, live updates), a step-by-step path tracer, and
+  change activity (line volume, top contributors, most-touched files).
+- **Code changes feed** — every change card shows the reasoning behind the change, who wrote,
+  reviewed and took part, and a button that opens the carrying commit on GitHub. Line stats and
+  touched files come from the real commit data; a commit that references a pull request links to
+  that pull request, and one that landed directly is labelled "Direct commit" — nothing is
+  synthesized to fill a gap.
 - **Fresh data without setup** — the Repository card's **Refresh data** button re-derives a repo's
   decisions from current GitHub data (rate-limited per repo). Repository *owners* can additionally
   register a GitHub webhook for automatic refresh on merged PRs (HMAC-verified, deduplicated);
@@ -301,7 +316,7 @@ ruff check app tests
 mypy app
 ```
 
-Current backend result: **1,103 passed**, 15 pre-existing failures in the live-mode contract tests,
+Current backend result: **1,109 passed**, 13 pre-existing failures in the live-mode contract tests,
 12 skipped (opt-in live Neo4j / live LLM tests). `tests/structure/` is a legacy parallel contract
 suite that conflicts with `tests/structural/` at collection time; the canonical suite excludes it.
 

@@ -55,9 +55,9 @@ npm run typecheck  # tsc --noEmit
 | Route | Screen |
 | --- | --- |
 | `/` | **Chat.** Landing hero (repo selector, example questions, Why?/Plan mode switch, model picker) that turns into a conversation: answers with Evidence / Graph path / Decisions tabs — plus Plan and Connections tabs in Plan mode. The right rail (wide screens) carries rotating "Ask a why" prompts, the active answer's graph bubble and the Repository card with its real GitHub *About* text and a **Refresh data** button. |
-| `/decisions` | **Decision center.** Audit summary, live-updates feed, and the decision explorer: search (optionally across all indexed repos), status filters, Records/Supersessions views, evidence drill-down and ADR export. |
-| `/graph` | **Graph explorer.** The shared graph canvas over the repository's decisions. |
-| `/changes` | **Code changes.** What changed, the reasoning behind it and the PR that carried it. |
+| `/decisions` | **Decision center.** Audit summary, live-updates feed, and the decision explorer: search (optionally across all indexed repos), status filters, Records/Supersessions views, evidence drill-down and ADR export. A right rail adds the status breakdown, needs-attention flags and live updates; the repository can be switched on the page. |
+| `/graph` | **Graph explorer.** The shared graph canvas over the repository's decisions, with a tracer rail that retells the traced path step by step. |
+| `/changes` | **Code changes.** What changed, the reasoning behind it and the PR that carried it — real commit stats, a view-on-GitHub button per commit, and a change-activity rail (volume, contributors, most-touched files). |
 | `/people`, `/people/[login]` | **People.** Contributors and their changes, PRs and reviews. |
 | `/settings` | **Settings.** Identity (account name/handle when signed in, editable guest profile otherwise), appearance/theme, haptics toggle, default repository, session and data controls. |
 | `/login`, `/signup` | **Auth.** Standalone pages (no sidebar) with an animated product showcase; signup verifies the email with a 6-digit OTP step. |
