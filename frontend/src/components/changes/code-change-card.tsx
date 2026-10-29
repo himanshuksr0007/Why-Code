@@ -1,13 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { GitPullRequestIcon, RouteIcon } from "lucide-react";
+import {
+  GitCommitHorizontalIcon,
+  GitPullRequestIcon,
+  RouteIcon,
+} from "lucide-react";
 
 import {
   ChangeKindBadge,
   ConfidenceBadge,
   DecisionStatusBadge,
 } from "@/components/badges";
+import { GithubMark } from "@/components/icons/github-mark";
 import { PersonAvatarStack, PersonChip } from "@/components/people/person-chip";
 import { Button } from "@/components/ui/button";
 import { useEvidencePanel } from "@/components/evidence/evidence-provider";
@@ -82,6 +87,30 @@ export function CodeChangeCard({
   const reviewers = pr.reviewers;
   const participants = pr.participants;
 
+  // A PR number of 0 means the commit landed directly — there is no
+  // pull request to open, and the card must not offer one.
+  const hasPr = pr.number > 0;
+  const commitUrl =
+    change.commit_url ??
+    (() => {
+      const commitEvidence = change.evidence_ids.find((id) =>
+        id.includes(":commit:"),
+      );
+      const sha = commitEvidence?.split(":")[2];
+      if (!sha) return hasPr ? null : pr.url;
+      // Live evidence ids carry the full slug ("owner/repo:commit:…");
+      // fixture ids carry just the repo name, so fall back to the
+      // owner/repo embedded in the pull request URL.
+      const evidenceRepo = commitEvidence.split(":")[0];
+      const repoSlug = evidenceRepo.includes("/")
+        ? evidenceRepo
+        : (pr.url ?? "").match(/github\.com\/([^/]+\/[^/]+)\//)?.[1];
+      return repoSlug
+        ? `https://github.com/${repoSlug}/commit/${sha}`
+        : null;
+    })();
+  const hasStats = change.additions > 0 || change.deletions > 0;
+
   return (
     <article className="rounded-xl border border-border/70 bg-card">
       <header className="flex flex-wrap items-center gap-2 border-b border-border/70 px-4 py-3">
@@ -92,9 +121,31 @@ export function CodeChangeCard({
             ? `:${change.start_line}${change.end_line ? `-${change.end_line}` : ""}`
             : ""}
         </span>
-        <span className="ml-auto flex shrink-0 items-center gap-2 font-mono text-[11px]">
-          <span className="text-primary">+{change.additions}</span>
-          <span className="text-destructive">−{change.deletions}</span>
+        <span className="ml-auto flex shrink-0 items-center gap-2.5">
+          {hasStats ? (
+            <span className="flex items-center gap-2 font-mono text-[11px]">
+              <span className="text-primary">+{change.additions}</span>
+              <span className="text-destructive">−{change.deletions}</span>
+            </span>
+          ) : change.files_changed ? (
+            <span className="font-mono text-[11px] text-muted-foreground">
+              {change.files_changed} file
+              {change.files_changed === 1 ? "" : "s"}
+            </span>
+          ) : null}
+          {commitUrl ? (
+            <a
+              href={commitUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#171009] px-2.5 py-1.5 text-xs font-medium text-white shadow-neumorph transition-transform outline-none hover:scale-[1.04] focus-visible:ring-2 focus-visible:ring-ring/50"
+              aria-label="View this commit on GitHub"
+              title="View this commit on GitHub"
+            >
+              <GithubMark className="size-4" />
+              GitHub
+            </a>
+          ) : null}
         </span>
       </header>
 
@@ -169,22 +220,34 @@ export function CodeChangeCard({
 
         <section className="border-t border-border/70 pt-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => openPullRequest(pr.number)}
-            >
-              <GitPullRequestIcon aria-hidden="true" />
-              <span className="font-mono">#{pr.number}</span>
-              <span className="hidden max-w-56 truncate font-normal text-muted-foreground sm:inline">
-                {truncate(pr.title, 48)}
+            {hasPr ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openPullRequest(pr.number)}
+                >
+                  <GitPullRequestIcon aria-hidden="true" />
+                  <span className="font-mono">#{pr.number}</span>
+                  <span className="hidden max-w-56 truncate font-normal text-muted-foreground sm:inline">
+                    {truncate(pr.title, 48)}
+                  </span>
+                </Button>
+                {pr.merged_at ? (
+                  <span className="text-xs text-muted-foreground">
+                    merged {formatDate(pr.merged_at)}
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <GitCommitHorizontalIcon
+                  className="size-4"
+                  aria-hidden="true"
+                />
+                Direct commit — no pull request carried this change
               </span>
-            </Button>
-            {pr.merged_at ? (
-              <span className="text-xs text-muted-foreground">
-                merged {formatDate(pr.merged_at)}
-              </span>
-            ) : null}
+            )}
           </div>
 
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -196,32 +259,36 @@ export function CodeChangeCard({
               )}
             </Field>
 
-            <Field label={`Reviewed by (${reviewers.length})`}>
-              {reviewers.length > 0 ? (
-                reviewers.map((reviewer, idx) => (
-                  <PersonChip key={`${reviewer.login}-${idx}`} person={reviewer} />
-                ))
-              ) : (
-                <span className="text-xs text-muted-foreground">
-                  No reviewers recorded
-                </span>
-              )}
-            </Field>
+            {hasPr ? (
+              <>
+                <Field label={`Reviewed by (${reviewers.length})`}>
+                  {reviewers.length > 0 ? (
+                    reviewers.map((reviewer, idx) => (
+                      <PersonChip key={`${reviewer.login}-${idx}`} person={reviewer} />
+                    ))
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      No reviewers recorded
+                    </span>
+                  )}
+                </Field>
 
-            <Field label={`Participants (${participants.length})`}>
-              {participants.length > 0 ? (
-                <>
-                  <PersonAvatarStack people={participants} />
-                  <span className="text-xs text-muted-foreground">
-                    {participants.length} in this pull request
-                  </span>
-                </>
-              ) : (
-                <span className="text-xs text-muted-foreground">
-                  No participants recorded
-                </span>
-              )}
-            </Field>
+                <Field label={`Participants (${participants.length})`}>
+                  {participants.length > 0 ? (
+                    <>
+                      <PersonAvatarStack people={participants} />
+                      <span className="text-xs text-muted-foreground">
+                        {participants.length} in this pull request
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      No participants recorded
+                    </span>
+                  )}
+                </Field>
+              </>
+            ) : null}
           </div>
         </section>
       </div>

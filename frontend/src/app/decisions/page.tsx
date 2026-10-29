@@ -1,8 +1,12 @@
 import { Suspense } from "react";
+import { ScaleIcon } from "lucide-react";
 
 import { AuditSummary } from "@/components/decisions/audit-summary";
 import { DecisionExplorer } from "@/components/decisions/decision-explorer";
 import { DecisionTimeline } from "@/components/decisions/decision-timeline";
+import { DecisionsAside } from "@/components/decisions/decisions-aside";
+import { PageHeader } from "@/components/explorer/page-header";
+import { RepoSwitcher } from "@/components/explorer/repo-switcher";
 import { RepoNotIndexed } from "@/components/repo/not-indexed";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getActiveRepo } from "@/lib/active-repo";
@@ -34,31 +38,33 @@ async function DecisionsContent() {
   if (!findRepo(repo)?.indexed) return <RepoNotIndexed repo={repo} />;
   const threads = await api.listDecisions(repo);
   return (
-    <>
-      <AuditSummary repo={repo} />
-      <DecisionExplorer repo={repo} />
-      <DecisionTimeline threads={threads} />
-    </>
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="min-w-0">
+        <AuditSummary repo={repo} />
+        <DecisionExplorer repo={repo} />
+        <DecisionTimeline threads={threads} />
+      </div>
+      <DecisionsAside repo={repo} />
+    </div>
   );
 }
 
 export default function DecisionsPage() {
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-10">
-      <header className="mb-6">
-        <h1 className="font-heading text-xl font-semibold sm:text-2xl">
-          Decision timeline
-        </h1>
-        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Decisions are extracted from the evidence, then kept honest: a later
-          revision or reversal is recorded rather than silently overwriting the
-          original.
-        </p>
-      </header>
+    <div className="mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6 sm:py-10">
+      <PageHeader
+        icon={ScaleIcon}
+        title="Decision center"
+        subtitle="Decisions are extracted from the evidence, then kept honest: a later revision or reversal is recorded rather than silently overwriting the original."
+      >
+        <RepoSwitcher />
+      </PageHeader>
 
-      <Suspense fallback={<DecisionsSkeleton />}>
-        <DecisionsContent />
-      </Suspense>
+      <div className="mt-8">
+        <Suspense fallback={<DecisionsSkeleton />}>
+          <DecisionsContent />
+        </Suspense>
+      </div>
     </div>
   );
 }

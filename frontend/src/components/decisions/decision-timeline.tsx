@@ -16,9 +16,18 @@ const STEP_META: Record<
   reversal: { label: "Reversal", dot: "var(--destructive)" },
 };
 
-function ThreadCard({ thread }: { thread: DecisionThread }) {
+function ThreadCard({
+  thread,
+  index = 0,
+}: {
+  thread: DecisionThread;
+  index?: number;
+}) {
   return (
-    <Card className="gap-0 overflow-hidden py-0">
+    <Card
+      className="animate-rise-in gap-0 overflow-hidden py-0"
+      style={{ animationDelay: `${Math.min(index, 6) * 80}ms` }}
+    >
       <CardHeader className="gap-1 border-b border-border/70 py-4">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="font-heading text-base font-semibold">
@@ -84,8 +93,8 @@ export function DecisionTimeline({ threads }: { threads: DecisionThread[] }) {
 
   return (
     <div className="space-y-5">
-      {threads.map((thread) => (
-        <ThreadCard key={thread.thread_id} thread={thread} />
+      {threads.map((thread, index) => (
+        <ThreadCard key={thread.thread_id} thread={thread} index={index} />
       ))}
     </div>
   );

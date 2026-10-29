@@ -382,6 +382,11 @@ export interface CodeChange {
   /** Optional before/after excerpt, for a compact in-line diff. */
   code_before?: string | null;
   code_after?: string | null;
+  /** The commit that carried this change (live data; fixtures may omit). */
+  commit_sha?: string | null;
+  commit_url?: string | null;
+  /** How many files the carrying commit touched, when known. */
+  files_changed?: number | null;
   /** The reasoning attached to this change. */
   reasoning: string;
   decision: Decision | null;

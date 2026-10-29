@@ -1,5 +1,8 @@
 import { Suspense } from "react";
+import { NetworkIcon } from "lucide-react";
 
+import { PageHeader } from "@/components/explorer/page-header";
+import { RepoSwitcher } from "@/components/explorer/repo-switcher";
 import { GraphExplorer } from "@/components/graph/graph-explorer";
 import { RepoNotIndexed } from "@/components/repo/not-indexed";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,21 +53,20 @@ async function GraphContent({
 
 export default function GraphPage(props: PageProps<"/graph">) {
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-10">
-      <header className="mb-6">
-        <h1 className="font-heading text-xl font-semibold sm:text-2xl">
-          Graph path
-        </h1>
-        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Every claim should be traceable. This view walks a decision back
-          through the graph — from the config key or symbol, to the commit and
-          pull request, to the evidence that supports it.
-        </p>
-      </header>
+    <div className="mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6 sm:py-10">
+      <PageHeader
+        icon={NetworkIcon}
+        title="Graph explorer"
+        subtitle="Every claim should be traceable. This view walks a decision back through the graph — from the config key or symbol, to the commit and pull request, to the evidence that supports it."
+      >
+        <RepoSwitcher />
+      </PageHeader>
 
-      <Suspense fallback={<GraphSkeleton />}>
-        <GraphContent searchParams={props.searchParams} />
-      </Suspense>
+      <div className="mt-8">
+        <Suspense fallback={<GraphSkeleton />}>
+          <GraphContent searchParams={props.searchParams} />
+        </Suspense>
+      </div>
     </div>
   );
 }

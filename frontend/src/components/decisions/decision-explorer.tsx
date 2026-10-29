@@ -32,17 +32,22 @@ function RecordCard({
   record,
   expanded,
   onToggle,
+  index = 0,
 }: {
   record: DecisionRecord;
   expanded: boolean;
   onToggle: () => void;
+  index?: number;
 }) {
   const evidenceCount = Math.max(
     record.evidence.length,
     record.evidence_ids.length,
   );
   return (
-    <article className="rounded-[1.5rem] border border-border/70 bg-card p-4 shadow-neumorph sm:p-5">
+    <article
+      className="animate-rise-in rounded-[1.5rem] border border-border/70 bg-card p-4 shadow-neumorph sm:p-5"
+      style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
+    >
       <div className="flex flex-wrap items-center gap-2">
         <DecisionStatusBadge status={record.status as DecisionStatus} />
         <ConfidenceBadge confidence={record.confidence as Confidence} />
@@ -180,7 +185,13 @@ function RecordCard({
   );
 }
 
-function SupersessionCard({ pair }: { pair: SupersessionPair }) {
+function SupersessionCard({
+  pair,
+  index = 0,
+}: {
+  pair: SupersessionPair;
+  index?: number;
+}) {
   const side = (record: DecisionRecord, muted: boolean) => (
     <div
       className={cn(
@@ -208,7 +219,10 @@ function SupersessionCard({ pair }: { pair: SupersessionPair }) {
     </div>
   );
   return (
-    <article className="rounded-[1.5rem] border border-border/70 bg-card p-4 shadow-neumorph sm:p-5">
+    <article
+      className="animate-rise-in rounded-[1.5rem] border border-border/70 bg-card p-4 shadow-neumorph sm:p-5"
+      style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
+    >
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
         {side(pair.earlier, true)}
         <div className="flex shrink-0 items-center justify-center gap-1.5 text-primary">
@@ -379,10 +393,11 @@ export function DecisionExplorer({ repo }: { repo: string }) {
       <div className="mt-5 space-y-4">
         {view === "supersessions" ? (
           pairs.length > 0 ? (
-            pairs.map((pair) => (
+            pairs.map((pair, index) => (
               <SupersessionCard
                 key={`${pair.earlier.decision_id}->${pair.later.decision_id}`}
                 pair={pair}
+                index={index}
               />
             ))
           ) : (
@@ -415,10 +430,11 @@ export function DecisionExplorer({ repo }: { repo: string }) {
                 ? `${total} result${total === 1 ? "" : "s"} across indexed repos`
                 : `${total} decision record${total === 1 ? "" : "s"}`}
             </p>
-            {visibleRecords.map((record) => (
+            {visibleRecords.map((record, index) => (
               <RecordCard
                 key={`${record.repo}:${record.decision_id}`}
                 record={record}
+                index={index}
                 expanded={expandedId === record.decision_id}
                 onToggle={() => {
                   hapticSelection();

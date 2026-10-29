@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ShieldAlertIcon, WebhookIcon } from "lucide-react";
+import {
+  FileTextIcon,
+  HistoryIcon,
+  ScrollTextIcon,
+  ShieldAlertIcon,
+  WebhookIcon,
+} from "lucide-react";
 
+import { CountUp } from "@/components/explorer/count-up";
 import { api } from "@/lib/api";
 import type { AuditReport, WebhookEvents } from "@/lib/api/types";
 
@@ -10,14 +17,22 @@ function StatCard({
   label,
   value,
   hint,
+  icon: Icon,
+  delay,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   hint: string;
+  icon: typeof ScrollTextIcon;
+  delay: number;
 }) {
   return (
-    <div className="rounded-[1.5rem] border border-border/70 bg-card p-4 shadow-neumorph">
-      <p className="font-mono text-[10px] font-medium tracking-widest text-muted-foreground uppercase">
+    <div
+      className="animate-rise-in rounded-[1.5rem] border border-border/70 bg-card p-4 shadow-neumorph"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <p className="flex items-center gap-1.5 font-mono text-[10px] font-medium tracking-widest text-muted-foreground uppercase">
+        <Icon className="size-3.5 text-primary" aria-hidden="true" />
         {label}
       </p>
       <p className="mt-1.5 text-2xl font-semibold text-foreground">{value}</p>
@@ -64,22 +79,30 @@ export function AuditSummary({ repo }: { repo: string }) {
       <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         <StatCard
           label="Decisions on record"
-          value={String(audit.total)}
+          icon={ScrollTextIcon}
+          delay={0}
+          value={<CountUp value={audit.total} />}
           hint={`${audit.with_evidence_pct}% carry evidence`}
         />
         <StatCard
           label="With rationale"
-          value={`${audit.with_rationale_pct}%`}
+          icon={FileTextIcon}
+          delay={70}
+          value={<CountUp value={audit.with_rationale_pct} suffix="%" />}
           hint="claims backed by a written why"
         />
         <StatCard
           label="Superseded / reversed"
-          value={String(audit.superseded)}
+          icon={HistoryIcon}
+          delay={140}
+          value={<CountUp value={audit.superseded} />}
           hint="kept on record, never overwritten"
         />
         <StatCard
           label="Security-flagged"
-          value={String(audit.security_flagged)}
+          icon={ShieldAlertIcon}
+          delay={210}
+          value={<CountUp value={audit.security_flagged} />}
           hint={
             audit.security_missing_rationale.length > 0
               ? `${audit.security_missing_rationale.length} missing a rationale`
