@@ -8,6 +8,7 @@ import { MenuIcon } from "lucide-react";
 import { AuthNav } from "@/components/auth/auth-nav";
 import { ChatSidebar } from "@/components/chat/chat-sidebar";
 import { GraphViewerHost } from "@/components/graph/graph-viewer";
+import { TutorialHost } from "@/components/onboarding/tutorial-dialog";
 import { InsightsRail } from "@/components/insights-rail";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -100,6 +101,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Fullscreen graph viewer (rail bubble / mobile View Graph). */}
       <GraphViewerHost />
+
+      {/* First-visit product tour (auto-opens once on the home page;
+          replayable from the profile bubble's menu). */}
+      <TutorialHost />
 
       {/* Guest Log in / Sign up bubble (top-right; hides when signed in). */}
       <AuthNav />

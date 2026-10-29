@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import {
   ChevronsUpDownIcon,
+  CompassIcon,
   LogInIcon,
   LogOutIcon,
   SettingsIcon,
@@ -23,6 +24,7 @@ import { authApi } from "@/lib/auth/api";
 import { useAuth } from "@/lib/auth/store";
 import { hapticSelection } from "@/lib/haptics";
 import { useIdentity } from "@/lib/identity";
+import { openTour } from "@/lib/onboarding/tour";
 import { cn } from "@/lib/utils";
 
 /**
@@ -54,6 +56,12 @@ export function ProfileBubble({
     router.push("/settings");
   };
 
+  const replayTour = () => {
+    hapticSelection();
+    onNavigate?.();
+    openTour();
+  };
+
   const goAuth = (path: "/login" | "/signup") => {
     hapticSelection();
     onNavigate?.();
@@ -83,6 +91,10 @@ export function ProfileBubble({
           <DropdownMenuSeparator />
         </>
       ) : null}
+      <DropdownMenuItem onClick={replayTour}>
+        <CompassIcon className="size-4" />
+        Product tour
+      </DropdownMenuItem>
       <DropdownMenuItem onClick={goSettings}>
         <SettingsIcon className="size-4" />
         Settings
