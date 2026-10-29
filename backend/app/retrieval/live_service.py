@@ -441,6 +441,20 @@ class LiveService:
             "changes": changes,
         }
 
+    def _commit_detail_cached(self, repo: str, sha: str) -> dict[str, Any] | None:
+        """Commit detail (stats + files), cached per service instance so
+        paging the changes feed does not re-hit the GitHub API."""
+        cache = getattr(self, "_commit_detail_cache", None)
+        if cache is None:
+            cache = self._commit_detail_cache = {}
+        key = f"{repo}@{sha}"
+        if key not in cache:
+            try:
+                cache[key] = self.gh.commit_detail(repo, sha) if self.gh else None
+            except Exception:
+                cache[key] = None
+        return cache[key]
+
     def get_changes(self, repo: str, limit: int = 20) -> list[dict[str, Any]]:
         if not self.gh:
             return []
@@ -452,26 +466,49 @@ class LiveService:
             msg = commit_info.get("message", "").splitlines()[0] if commit_info.get("message") else "Update"
             author_info = c.get("author") or {}
             login = author_info.get("login") or commit_info.get("author", {}).get("name") or "developer"
-            avatar = author_info.get("avatar_url")
-            date_str = commit_info.get("author", {}).get("date")
 
             pr_match = re.search(r"#(\d+)", msg)
             pr_num = int(pr_match.group(1)) if pr_match else 0
 
+            # Real line stats and the real first touched file come from
+            # the commit detail; when GitHub does not answer, the stats
+            # stay 0 (unknown) instead of invented numbers.
+            detail = self._commit_detail_cached(repo, sha) if sha else None
+            stats = (detail or {}).get("stats") or {}
+            files = (detail or {}).get("files") or []
+            additions = int(stats.get("additions", 0) or 0)
+            deletions = int(stats.get("deletions", 0) or 0)
+            if files:
+                first_file = files[0]
+                path = first_file.get("filename") or f"{repo} / commit {sha[:7]}"
+                status = str(first_file.get("status", "modified"))
+                change_kind = status if status in ("added", "removed", "renamed") else "modified"
+            else:
+                path = f"{repo} / commit {sha[:7]}"
+                change_kind = "modified"
+
+            commit_url = f"https://github.com/{repo}/commit/{sha}"
             changes.append({
                 "change_id": f"change_{sha[:7]}",
-                "path": f"{repo} / commit {sha[:7]}",
+                "path": path,
                 "symbol": None,
-                "change_kind": "modified",
-                "additions": 15,
-                "deletions": 5,
+                "change_kind": change_kind,
+                "additions": additions,
+                "deletions": deletions,
                 "reasoning": msg,
                 "decision": None,
                 "evidence_ids": [f"{repo}:commit:{sha[:7]}"],
+                "commit_sha": sha or None,
+                "commit_url": commit_url,
+                "files_changed": len(files) if detail else None,
                 "pr": {
                     "number": pr_num,
                     "title": msg,
-                    "url": f"https://github.com/{repo}/commit/{sha}",
+                    # A referenced PR links to the pull request itself;
+                    # without one, the change is a direct commit and the
+                    # URL stays the commit URL (the UI keys the PR
+                    # affordance off number > 0).
+                    "url": f"https://github.com/{repo}/pull/{pr_num}" if pr_num else commit_url,
                     "author": {"login": login, "name": login, "url": f"https://github.com/{login}"},
                     "reviewers": [],
                     "participants": [],
