@@ -7,6 +7,7 @@ import {
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   PlusIcon,
+  ScaleIcon,
   SearchIcon,
   SquarePenIcon,
   XIcon,
@@ -28,6 +29,7 @@ import { cn } from "@/lib/utils";
 
 /** The explorer pages, linked from the rail under the brand bubble. */
 const NAV_ITEMS = [
+  { href: "/decisions", label: "Decisions", icon: ScaleIcon },
   { href: "/changes", label: "Code changes", icon: GitCommitHorizontalIcon },
 ] as const;
 

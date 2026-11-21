@@ -88,7 +88,7 @@ def test_system_prompt_contains_every_rule() -> None:
         "2. Cite every factual statement with evidence IDs.",
         "3. If evidence conflicts, explain the conflict.",
         "4. If a decision was reversed or revised, say so.",
-        "5. If evidence is insufficient, return INSUFFICIENT_EVIDENCE.",
+        "5. If evidence is insufficient, set answer_status to \"insufficient_evidence\".",
         "6. Never invent file names, PR numbers, people, dates, or quotes.",
         "7. Do not use knowledge outside the supplied context.",
         "8. Be concise and technical.",
@@ -117,8 +117,8 @@ def test_user_prompt_names_every_required_field() -> None:
     )
     user = generator.calls[0].user
     assert "answer_status: answered | insufficient_evidence | contested" in user
-    assert "- answer\n" in user
-    assert "citations: list of evidence IDs used" in user
+    assert "- answer: Every factual sentence" in user
+    assert "citations: list of evidence aliases used" in user
     assert "- caveats\n" in user
     assert "confidence: high | medium | low | none" in user
 
