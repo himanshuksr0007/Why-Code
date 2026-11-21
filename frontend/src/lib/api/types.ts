@@ -270,10 +270,16 @@ export interface CodeChange {
 export interface PersonSummary extends PersonRef {
   /** Free-form tags such as "Maintainer". */
   role_tags: string[];
-  authored_pull_requests: number;
-  reviews: number;
-  comments: number;
-  commits: number;
+  /**
+   * Exact totals from GitHub's own counts. Null means "not known":
+   * GitHub search did not answer (e.g. its rate limit) or this view
+   * does not compute that stat. The UI hides null stats — an unknown
+   * figure is never displayed as 0 or as a sample size.
+   */
+  authored_pull_requests: number | null;
+  reviews: number | null;
+  comments: number | null;
+  commits: number | null;
   decisions?: number;
   first_seen?: string | null;
   last_seen?: string | null;

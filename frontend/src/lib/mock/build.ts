@@ -221,12 +221,26 @@ export function derivePeople(
     url: `https://github.com/${login}`,
   });
 
-  const summaries = new Map<string, PersonSummary>();
+  // The mock derives every stat by counting, so inside this builder
+  // the totals are always real numbers (the live API's null = "GitHub
+  // did not answer" case never arises here).
+  type CountedSummary = Omit<
+    PersonSummary,
+    "authored_pull_requests" | "reviews" | "comments" | "commits" | "decisions"
+  > & {
+    authored_pull_requests: number;
+    reviews: number;
+    comments: number;
+    commits: number;
+    decisions: number;
+  };
 
-  const ensure = (ref: PersonRef): PersonSummary => {
+  const summaries = new Map<string, CountedSummary>();
+
+  const ensure = (ref: PersonRef): CountedSummary => {
     const existing = summaries.get(ref.login);
     if (existing) return existing;
-    const created: PersonSummary = {
+    const created: CountedSummary = {
       ...person(ref.login),
       role_tags: dir.tags[ref.login] ?? ["Contributor"],
       authored_pull_requests: 0,

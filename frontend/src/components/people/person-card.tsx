@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import type { PersonSummary } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value }: { label: string; value: number | null }) {
+  if (value === null) return null;
   return (
     <div className="rounded-lg border border-border/70 bg-muted/20 px-2 py-1.5">
       <dt className="text-[10px] tracking-wide text-muted-foreground uppercase">

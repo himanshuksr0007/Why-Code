@@ -18,7 +18,8 @@ import type {
 } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value }: { label: string; value: number | null }) {
+  if (value === null) return null;
   return (
     <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
       <dt className="text-[10px] tracking-wide text-muted-foreground uppercase">

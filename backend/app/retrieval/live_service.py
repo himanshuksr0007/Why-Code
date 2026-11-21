@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import re
+import time
 from collections.abc import Iterator
 from typing import Any
 
@@ -33,12 +34,24 @@ logger = logging.getLogger("whycode.live")
 _GITHUB_API_ROOT = "https://api.github.com"
 
 
+# Search results are cached briefly: totals change slowly, and the
+# search budget (30 requests/minute) is far smaller than the core API
+# budget, so repeat views must not re-ask GitHub.
+_SEARCH_TTL_SECONDS = 600.0
+# When GitHub does refuse a search call (403/429), firing more searches
+# only prolongs the refusal. All search calls pause for this long (or
+# the Retry-After GitHub sends, when it sends one).
+_SEARCH_COOLDOWN_SECONDS = 60.0
+
+
 class LiveGitHubClient:
     """Wrapper around GitHub REST API with caching and error handling."""
 
     def __init__(self, token: str) -> None:
         self.token = token.strip()
         self._cache: dict[str, Any] = {}
+        self._search_cache: dict[str, tuple[float, Any]] = {}
+        self._search_blocked_until = 0.0
         self._client = httpx.Client(
             base_url=_GITHUB_API_ROOT,
             headers={
@@ -53,16 +66,47 @@ class LiveGitHubClient:
         self._client.close()
 
     def _get(self, path: str, params: dict[str, Any] | None = None) -> Any:
+        is_search = path.startswith("/search/")
         cache_key = f"{path}:{json.dumps(params or {}, sort_keys=True)}"
-        if cache_key in self._cache:
+        if is_search:
+            now = time.monotonic()
+            hit = self._search_cache.get(cache_key)
+            if hit is not None and now - hit[0] < _SEARCH_TTL_SECONDS:
+                return hit[1]
+            if now < self._search_blocked_until:
+                # Search budget exhausted: do not fire. Callers treat
+                # None as "unknown" and omit the figure rather than
+                # printing a wrong one.
+                return None
+        elif cache_key in self._cache:
             return self._cache[cache_key]
         try:
             resp = self._client.get(path, params=params)
             if resp.status_code == 404:
                 return None
+            if is_search and resp.status_code in (403, 429):
+                wait = _SEARCH_COOLDOWN_SECONDS
+                retry_after = resp.headers.get("Retry-After", "")
+                try:
+                    wait = float(retry_after)
+                except ValueError:
+                    pass
+                wait = min(max(wait, 1.0), 300.0)
+                self._search_blocked_until = time.monotonic() + wait
+                logger.warning(
+                    "GitHub search refused (%s) on %s; pausing search "
+                    "calls for %.0fs",
+                    resp.status_code,
+                    path,
+                    wait,
+                )
+                return None
             resp.raise_for_status()
             data = resp.json()
-            self._cache[cache_key] = data
+            if is_search:
+                self._search_cache[cache_key] = (time.monotonic(), data)
+            else:
+                self._cache[cache_key] = data
             return data
         except Exception as exc:
             logger.warning("GitHub API error on %s: %s", path, exc)
@@ -382,22 +426,23 @@ class LiveService:
             is_maintainer = idx < 3
             role_tags = ["Maintainer"] if is_maintainer else ["Contributor"]
             # Honest counts only: the PR total is an exact GitHub search
-            # total and commits is the contributors API's own count. The
-            # remaining stats are computed for real on the profile endpoint
-            # (one person at a time); the list view does not estimate them —
-            # it previously derived them from contribution ratios, which
-            # presented invented numbers as fetched data.
+            # total and commits is the contributors API's own count. When
+            # search does not answer (rate limit), the PR total is None —
+            # unknown, and the UI hides it. A fetched-sample size is never
+            # presented as a total: the list previously derived stats from
+            # contribution ratios, which presented invented numbers as
+            # fetched data. Reviews/comments/decisions are computed for
+            # real on the profile endpoint (one person at a time); the
+            # list view leaves them None rather than estimating them.
             pr_total = self.gh.search_total(repo, f"type:pr author:{login}")
-            if pr_total is None:
-                pr_total = len(self.gh.pulls(repo, creator=login, limit=100))
             people.append({
                 "login": login,
                 "name": login,
                 "url": f"https://github.com/{login}",
                 "role_tags": role_tags,
                 "authored_pull_requests": pr_total,
-                "reviews": 0,
-                "comments": 0,
+                "reviews": None,
+                "comments": None,
                 "commits": contributions,
                 "first_seen": None,
                 "last_seen": None,
@@ -411,10 +456,10 @@ class LiveService:
                 "name": login,
                 "url": f"https://github.com/{login}",
                 "role_tags": ["Contributor"],
-                "authored_pull_requests": 0,
-                "reviews": 0,
-                "comments": 0,
-                "commits": 0,
+                "authored_pull_requests": None,
+                "reviews": None,
+                "comments": None,
+                "commits": None,
                 "authored": [],
                 "reviewed": [],
                 "participated": [],
@@ -482,8 +527,10 @@ class LiveService:
                 "author": {"login": login, "name": u.get("name") or login, "url": f"https://github.com/{login}"},
             })
 
-        # Exact totals from GitHub's own search indexes; each falls back to
-        # the size of the fetched sample only when search does not answer.
+        # Exact totals from GitHub's own search indexes. When search
+        # does not answer (rate limit), a total stays None — unknown —
+        # and the UI hides that stat. A fetched sample's size is never
+        # substituted: it understates silently and reads as exact.
         pr_total = self.gh.search_total(repo, f"type:pr author:{login}")
         reviews_total = self.gh.search_total(repo, f"type:pr reviewed-by:{login}")
         comments_total = self.gh.search_total(repo, f"commenter:{login}")
@@ -509,10 +556,10 @@ class LiveService:
             "name": u.get("name") or login,
             "url": f"https://github.com/{login}",
             "role_tags": ["Contributor"],
-            "authored_pull_requests": pr_total if pr_total is not None else len(pulls),
-            "reviews": reviews_total if reviews_total is not None else 0,
-            "comments": comments_total if comments_total is not None else 0,
-            "commits": commits_total if commits_total is not None else len(commits),
+            "authored_pull_requests": pr_total,
+            "reviews": reviews_total,
+            "comments": comments_total,
+            "commits": commits_total,
             "first_seen": u.get("created_at"),
             "last_seen": commits[0].get("commit", {}).get("author", {}).get("date") if commits else None,
             "authored": authored_prs,
