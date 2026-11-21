@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 import threading
 from typing import Any
 
@@ -145,7 +147,13 @@ def build_router(
                 return service.resolve_repo(repo)
             except Exception:
                 pass
-        return "encode/httpx"
+        default = os.environ.get("WHYCODE_DEFAULT_REPO", "").strip()
+        if default:
+            return default
+        if getattr(live_service, "generator", None) is not None:
+            # The hosted app's historical default; override per deploy.
+            return "encode/httpx"
+        raise HTTPException(status_code=400, detail="repo is required")
 
     @router.post("/ask", response_model=AskResponse)
     @router.post(
@@ -218,30 +226,27 @@ def build_router(
                     start_line=item.start_line,
                     end_line=item.end_line,
                 )
-        excerpt = evidence_id
-        path = evidence_id if ("/" in evidence_id or "." in evidence_id) else None
+        # Only real records are served. A file is served when its content
+        # was actually fetched from the repository; anything else is a 404,
+        # never a synthesized placeholder.
         if live_service is not None and getattr(live_service, "gh", None) is not None:
             clean_path = evidence_id.split(":", 2)[-1] if ":" in evidence_id else evidence_id
             if "/" in clean_path or "." in clean_path:
                 content = live_service.gh.file_content(resolved, clean_path)
                 if content:
-                    excerpt = "\n".join(content.splitlines()[:50])
-                    path = clean_path
-        url = f"https://github.com/{resolved}"
-        if path:
-            url = f"https://github.com/{resolved}/blob/main/{path}"
-        kind_val = "doc_file" if (evidence_id.endswith(".md") or "doc" in evidence_id.lower()) else "changed_file"
-        return EvidenceDetail(
-            evidence_id=evidence_id,
-            kind=kind_val,
-            record_type=kind_val,
-            source_type=kind_val,
-            url=url,
-            excerpt=excerpt,
-            author="maintainers",
-            created_at=None,
-            path=path,
-        )
+                    kind_val = "doc_file" if clean_path.endswith(".md") else "changed_file"
+                    return EvidenceDetail(
+                        evidence_id=evidence_id,
+                        kind=kind_val,
+                        record_type=kind_val,
+                        source_type=kind_val,
+                        url=f"https://github.com/{resolved}/blob/HEAD/{clean_path}",
+                        excerpt="\n".join(content.splitlines()[:50]),
+                        author=None,
+                        created_at=None,
+                        path=clean_path,
+                    )
+        raise HTTPException(status_code=404, detail="evidence not found")
 
     @router.get("/people")
     @router.get("/api/v1/people", include_in_schema=False)

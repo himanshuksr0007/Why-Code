@@ -27,6 +27,7 @@ from app.retrieval.demo.data import (
     QUESTION_3,
     QUESTION_4,
     QUESTION_5,
+    QUESTION_6,
     TIMEOUT_PHASES,
 )
 from app.retrieval.models import (
@@ -64,7 +65,7 @@ def _assert_cited(answer: str) -> None:
         assert re.search(r"\[E\d+\]", sentence), sentence
 
 
-def test_script_is_exactly_the_rehearsed_five(client: TestClient) -> None:
+def test_script_is_exactly_the_rehearsed_six(client: TestClient) -> None:
     response = client.get("/demo/script")
     assert response.status_code == 200
     payload = response.json()
@@ -77,9 +78,10 @@ def test_script_is_exactly_the_rehearsed_five(client: TestClient) -> None:
         QUESTION_3,
         QUESTION_4,
         QUESTION_5,
+        QUESTION_6,
     ]
-    assert payload["questions"][-1]["expected_status"] == "insufficient_evidence"
-    assert payload["questions"][-1]["expected_refusal_mode"] == "NO_ENTITY"
+    assert payload["questions"][4]["expected_status"] == "insufficient_evidence"
+    assert payload["questions"][4]["expected_refusal_mode"] == "NO_ENTITY"
     assert client.get("/api/v1/demo/script").json() == payload
 
 
@@ -226,7 +228,7 @@ def test_rehearsal_passes_and_stays_under_budget(
     assert response.status_code == 200
     payload = response.json()
     assert payload["passed"] is True
-    assert payload["passed_count"] == payload["total"] == 5
+    assert payload["passed_count"] == payload["total"] == 6
     assert all(item["within_budget"] for item in payload["questions"])
     assert all(item["latency_ms"] < 8000 for item in payload["questions"])
     assert any(

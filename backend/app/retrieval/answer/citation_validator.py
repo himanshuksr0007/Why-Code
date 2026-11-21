@@ -75,9 +75,6 @@ class CitationValidator:
 
         evidence_by_id = {item.evidence_id: item for item in pack.evidence}
         selected_decisions = {item.decision_id for item in pack.decisions}
-        decision_by_alias = {
-            alias.upper(): dec_id for alias, dec_id in pack.decision_alias_map.items()
-        }
         declared = list(draft.citations)
         inline = _tokens(draft.answer)
         invalid: list[str] = []
@@ -86,9 +83,8 @@ class CitationValidator:
             cleaned = token.strip().strip("[]").strip()
             if not cleaned:
                 continue
-            if cleaned.upper() in decision_by_alias:
-                # Valid decision reference from the evidence pack
-                continue
+            # A decision alias (D1) is not evidence: claims must cite the
+            # evidence rows themselves, so it falls through to rejection.
             resolved = pack.resolve_citation(token)
             if resolved is None or resolved not in evidence_by_id:
                 if cleaned and cleaned not in invalid:
@@ -111,10 +107,7 @@ class CitationValidator:
                 continue
             claim_tokens = _tokens(claim)
             resolved_ids = _resolved(claim_tokens, pack, evidence_by_id)
-            has_decision_ref = any(
-                t.strip().strip("[]").upper() in decision_by_alias for t in claim_tokens
-            )
-            if not resolved_ids and not has_decision_ref:
+            if not resolved_ids:
                 unsupported.append(claim)
                 continue
             cited = [evidence_by_id[evidence_id] for evidence_id in resolved_ids]

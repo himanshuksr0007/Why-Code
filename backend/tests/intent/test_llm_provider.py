@@ -78,8 +78,10 @@ def test_payload_targets_the_configured_endpoint() -> None:
     assert payload["seed"] == 7
     assert payload["reasoning_effort"] == "low"
     assert payload["temperature"] == 0
-    assert payload["response_format"]["json_schema"]["strict"] is True
-    assert payload["response_format"]["json_schema"]["schema"] == SCHEMA
+    # Non-OpenAI hosts use JSON mode with the schema embedded in the system
+    # message; the response is still validated by Pydantic downstream.
+    assert payload["response_format"] == {"type": "json_object"}
+    assert "probe" in payload["messages"][0]["content"]
 
 
 def test_usage_is_exposed_for_the_quota_wrapper() -> None:
