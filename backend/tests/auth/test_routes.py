@@ -42,35 +42,35 @@ def test_http_lifecycle(client) -> None:
     http, mailer = client
     response = http.post(
         "/api/v1/auth/signup",
-        json={"name": "Ada", "email": "ada@example.com", "password": "passw0rd9"},
+        json={"name": "Ada", "email": "ada@gmail.com", "password": "passw0rd9"},
     )
     assert response.status_code == 201, response.text
-    assert response.json() == {"email": "ada@example.com", "otp_sent": True}
+    assert response.json() == {"email": "ada@gmail.com", "otp_sent": True}
 
     response = http.post(
         "/api/v1/auth/verify-email",
-        json={"email": "ada@example.com", "code": "999999"},
+        json={"email": "ada@gmail.com", "code": "999999"},
     )
     assert response.status_code == 400
     assert response.json()["code"] == "code_mismatch"
 
     response = http.post(
         "/api/v1/auth/verify-email",
-        json={"email": "ada@example.com", "code": mailer.code_for("ada@example.com")},
+        json={"email": "ada@gmail.com", "code": mailer.code_for("ada@gmail.com")},
     )
     assert response.status_code == 200
     token = response.json()["token"]
 
     response = http.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
-    assert response.json()["user"]["email"] == "ada@example.com"
+    assert response.json()["user"]["email"] == "ada@gmail.com"
 
     assert http.get("/api/v1/auth/me").status_code == 401
     assert http.post("/api/v1/auth/logout").status_code == 204
 
     response = http.post(
         "/api/v1/auth/login",
-        json={"email": "ada@example.com", "password": "passw0rd9"},
+        json={"email": "ada@gmail.com", "password": "passw0rd9"},
     )
     assert response.status_code == 200
     assert response.json()["user"]["name"] == "Ada"
@@ -80,12 +80,12 @@ def test_http_validation_errors(client) -> None:
     http, _ = client
     response = http.post(
         "/api/v1/auth/signup",
-        json={"name": "Ada", "email": "ada@example.com", "password": "weak"},
+        json={"name": "Ada", "email": "ada@gmail.com", "password": "weak"},
     )
     assert response.status_code == 422
     response = http.post(
         "/api/v1/auth/login",
-        json={"email": "ghost@example.com", "password": "passw0rd9"},
+        json={"email": "ghost@gmail.com", "password": "passw0rd9"},
     )
     assert response.status_code == 401
     assert response.json() == {

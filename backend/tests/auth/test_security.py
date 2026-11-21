@@ -30,12 +30,12 @@ def test_verify_rejects_garbage_hashes() -> None:
 
 
 def test_otp_digest_is_keyed_and_scoped() -> None:
-    digest = security.hash_otp_code("s3cret", "a@example.com", "verify_email", "123456")
-    assert digest != security.hash_otp_code("other", "a@example.com", "verify_email", "123456")
-    assert digest != security.hash_otp_code("s3cret", "b@example.com", "verify_email", "123456")
-    assert digest != security.hash_otp_code("s3cret", "a@example.com", "verify_email", "123457")
-    assert security.otp_code_matches("s3cret", "a@example.com", "verify_email", "123456", digest)
-    assert not security.otp_code_matches("s3cret", "a@example.com", "verify_email", "000000", digest)
+    digest = security.hash_otp_code("s3cret", "a@gmail.com", "verify_email", "123456")
+    assert digest != security.hash_otp_code("other", "a@gmail.com", "verify_email", "123456")
+    assert digest != security.hash_otp_code("s3cret", "b@gmail.com", "verify_email", "123456")
+    assert digest != security.hash_otp_code("s3cret", "a@gmail.com", "verify_email", "123457")
+    assert security.otp_code_matches("s3cret", "a@gmail.com", "verify_email", "123456", digest)
+    assert not security.otp_code_matches("s3cret", "a@gmail.com", "verify_email", "000000", digest)
 
 
 def test_generated_codes_are_six_digits() -> None:
@@ -46,23 +46,23 @@ def test_generated_codes_are_six_digits() -> None:
 
 def test_token_roundtrip_and_claims() -> None:
     token = security.issue_token(
-        "signing-key", user_id="usr_1", email="a@example.com", name="A", ttl_seconds=600
+        "signing-key", user_id="usr_1", email="a@gmail.com", name="A", ttl_seconds=600
     )
     payload = security.verify_token("signing-key", token)
     assert payload is not None
     assert payload["sub"] == "usr_1"
-    assert payload["email"] == "a@example.com"
+    assert payload["email"] == "a@gmail.com"
 
 
 def test_token_rejects_wrong_secret_tampering_and_expiry() -> None:
     token = security.issue_token(
-        "signing-key", user_id="usr_1", email="a@example.com", name="A", ttl_seconds=600
+        "signing-key", user_id="usr_1", email="a@gmail.com", name="A", ttl_seconds=600
     )
     assert security.verify_token("other-key", token) is None
     head, body, sig = token.split(".")
     assert security.verify_token("signing-key", f"{head}.{body}.AAAA{sig[4:]}") is None
     expired = security.issue_token(
-        "signing-key", user_id="usr_1", email="a@example.com", name="A", ttl_seconds=-5
+        "signing-key", user_id="usr_1", email="a@gmail.com", name="A", ttl_seconds=-5
     )
     assert security.verify_token("signing-key", expired) is None
     assert security.verify_token("signing-key", "not.a.token") is None

@@ -99,6 +99,40 @@ def validate_email(email: str) -> str:
     return normalized
 
 
+# Direct email sign-up accepts addresses from widely used mailbox
+# providers only. Disposable / throwaway domains are the main source of
+# junk accounts, and an OTP round-trip alone does not stop them (the
+# mailboxes are real). Social sign-in (Google/GitHub via Clerk) is NOT
+# gated by this list: the provider has already verified the address,
+# and GitHub accounts legitimately use custom domains.
+ALLOWED_EMAIL_DOMAINS = frozenset({
+    "gmail.com", "googlemail.com",
+    "outlook.com", "outlook.in", "outlook.co.uk", "hotmail.com",
+    "hotmail.in", "hotmail.co.uk", "hotmail.fr", "live.com", "live.in",
+    "msn.com",
+    "yahoo.com", "yahoo.in", "yahoo.co.in", "yahoo.co.uk", "ymail.com",
+    "icloud.com", "me.com", "mac.com",
+    "protonmail.com", "proton.me", "pm.me",
+    "aol.com", "gmx.com", "gmx.net", "mail.com", "zoho.com",
+    "zohomail.com", "rediffmail.com", "yandex.com", "qq.com",
+    "naver.com", "fastmail.com", "tuta.com", "hey.com", "web.de",
+    "t-online.de", "orange.fr", "free.fr", "libero.it", "mail.ru",
+})
+
+
+def validate_email_domain(email: str) -> None:
+    domain = email.rsplit("@", 1)[-1] if "@" in email else ""
+    if domain not in ALLOWED_EMAIL_DOMAINS:
+        raise AuthError(
+            422,
+            "Please use an email from a common provider (Gmail, Outlook, "
+            "Hotmail, Yahoo, iCloud, Proton…) — disposable or uncommon "
+            "domains can't sign up directly. You can still continue with "
+            "Google or GitHub above.",
+            code="email_domain_not_allowed",
+        )
+
+
 def validate_password(password: str) -> None:
     if len(password) < 8:
         raise AuthError(
@@ -129,11 +163,15 @@ class AuthService:
         *,
         secret: str,
         limiter: RateLimiter | None = None,
+        clerk_publishable_key: str = "",
+        clerk_secret_key: str = "",
     ) -> None:
         self._store = store
         self._mailer = mailer
         self._secret = secret
         self._limiter = limiter or RateLimiter()
+        self._clerk_publishable_key = clerk_publishable_key
+        self._clerk_secret_key = clerk_secret_key
 
     # -- internal helpers ---------------------------------------------------
 
@@ -212,6 +250,7 @@ class AuthService:
             )
         name = validate_name(name)
         email = validate_email(email)
+        validate_email_domain(email)
         validate_password(password)
 
         existing = self._store.get_user_by_email(email)
@@ -337,6 +376,89 @@ class AuthService:
         updated = self._store.update_user(user.id, last_login_at=_iso(_now()))
         return self._session(updated or user)
 
+    def social_login(self, *, email: str, name: str, provider: str, client_ip: str) -> dict:
+        """Find-or-create the account for a provider-verified email and
+        issue a normal session. This is the account-linking rule: the
+        email IS the identity, so Google, GitHub and direct sign-ups with
+        the same address all land on the same account — never a duplicate.
+        """
+        email = validate_email(email)
+        retry = self._limiter.check(
+            f"social:{client_ip}:{email}", limit=20, window_seconds=900
+        )
+        if retry:
+            raise AuthError(
+                429,
+                "Too many sign-in attempts. Wait a few minutes and try again.",
+                code="rate_limited",
+                retry_after=retry,
+            )
+        try:
+            name = validate_name(name)
+        except AuthError:
+            name = email.split("@")[0]
+        user = self._store.get_user_by_email(email)
+        if user is not None:
+            # The provider verified this email, so a still-unverified
+            # direct sign-up with the same address becomes verified too.
+            updated = self._store.update_user(
+                user.id,
+                email_verified=True,
+                last_login_at=_iso(_now()),
+                updated_at=_iso(_now()),
+            )
+            return self._session(updated or user)
+        moment = _iso(_now())
+        user = self._store.create_user(
+            UserRecord(
+                id=f"usr_{uuid.uuid4().hex}",
+                name=name,
+                email=email,
+                # Social accounts have no usable password: the stored hash
+                # is of a random secret nobody knows. Direct login for this
+                # address stays impossible until a password flow sets one;
+                # the person signs in with their provider, as intended.
+                password_hash=security.hash_password(uuid.uuid4().hex),
+                email_verified=True,
+                created_at=moment,
+                updated_at=moment,
+                last_login_at=moment,
+            )
+        )
+        logger.info("Social sign-in created account for %s via %s", email, provider or "oauth")
+        return self._session(user)
+
+    def exchange_clerk_token(self, *, token: str, client_ip: str) -> dict:
+        """Verify a Clerk session token and exchange it for a session."""
+        from app.auth import clerk
+
+        if not self._clerk_publishable_key or not self._clerk_secret_key:
+            raise AuthError(
+                503,
+                "Social sign-in is not configured on this server yet.",
+                code="social_not_configured",
+            )
+        issuer = clerk.issuer_from_publishable_key(self._clerk_publishable_key)
+        if issuer is None:
+            raise AuthError(
+                503,
+                "Social sign-in is misconfigured on this server.",
+                code="social_not_configured",
+            )
+        try:
+            claims = clerk.verify_session_token(token, issuer=issuer)
+            profile = clerk.fetch_clerk_user(
+                str(claims["sub"]), secret_key=self._clerk_secret_key
+            )
+        except clerk.ClerkError as exc:
+            raise AuthError(exc.status, exc.detail, code=exc.code) from None
+        return self.social_login(
+            email=profile["email"],
+            name=profile["name"],
+            provider=profile["provider"],
+            client_ip=client_ip,
+        )
+
     def me(self, token: str) -> dict:
         payload = security.verify_token(self._secret, token)
         if payload is None:
@@ -387,4 +509,18 @@ def build_auth_service() -> AuthService:
             "WHYCODE_AUTH_SECRET is not set — generated an ephemeral secret;"
             " sessions and pending OTPs will not survive a restart"
         )
-    return AuthService(store, build_mailer(), secret=secret)
+    clerk_publishable = env("CLERK_PUBLISHABLE_KEY") or os.environ.get(
+        "CLERK_PUBLISHABLE_KEY", ""
+    ).strip()
+    clerk_secret = env("CLERK_SECRET_KEY") or os.environ.get(
+        "CLERK_SECRET_KEY", ""
+    ).strip()
+    if clerk_publishable and clerk_secret:
+        logger.info("Social sign-in (Clerk) configured")
+    return AuthService(
+        store,
+        build_mailer(),
+        secret=secret,
+        clerk_publishable_key=clerk_publishable,
+        clerk_secret_key=clerk_secret,
+    )

@@ -29,6 +29,10 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=256)
 
 
+class SocialRequest(BaseModel):
+    token: str = Field(min_length=10, max_length=4096)
+
+
 def _client_ip(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for", "")
     if forwarded:
@@ -82,6 +86,18 @@ def build_auth_router(service: AuthService) -> APIRouter:
             return service.login(
                 email=payload.email,
                 password=payload.password,
+                client_ip=_client_ip(request),
+            )
+        except AuthError as exc:
+            return _error(exc)
+
+    @router.post("/social")
+    def social(payload: SocialRequest, request: Request):
+        """Exchange a verified Clerk session token (Google/GitHub OAuth)
+        for a WhyCode session on the account with the same email."""
+        try:
+            return service.exchange_clerk_token(
+                token=payload.token,
                 client_ip=_client_ip(request),
             )
         except AuthError as exc:
