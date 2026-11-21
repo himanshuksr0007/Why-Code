@@ -14,6 +14,7 @@ def build_webhook_router(
     *,
     webhook_store: WebhookStore | None = None,
     webhook_secret: str | None = None,
+    ledger: Any = None,
 ) -> APIRouter:
     router = APIRouter(tags=["webhooks"])
 
@@ -37,6 +38,7 @@ def build_webhook_router(
             delivery_id=request.headers.get("x-github-delivery") or "",
             event=request.headers.get("x-github-event") or "",
             payload=payload,
+            ledger=ledger,
         )
 
     @router.get("/api/v1/webhooks/events")

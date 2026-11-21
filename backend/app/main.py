@@ -206,6 +206,21 @@ def create_app(
     except Exception as exc:  # noqa: BLE001 - degrade, never block startup
         logger.warning("Share service unavailable: %s", exc)
 
+    # The decision ledger: the system of record for *why*. SQLite, so it
+    # needs no external service; a failure degrades, never blocks startup.
+    ledger = None
+    try:
+        from app.ledger import LedgerStore
+        from app.ledger.routes import build_ledger_router
+
+        ledger = LedgerStore(os.environ.get("WHYCODE_LEDGER_DB", "artifacts/ledger.db"))
+        app.state.ledger = ledger
+        app.include_router(build_ledger_router(ledger))
+        if live_service is not None:
+            live_service.ledger = ledger
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Decision ledger unavailable: %s", exc)
+
     from app.features.routes import build_webhook_router
     from app.features.webhooks import WebhookStore
 
@@ -215,6 +230,7 @@ def create_app(
                 os.environ.get("WHYCODE_WEBHOOK_DB", "artifacts/webhooks.db")
             ),
             webhook_secret=os.environ.get("WHYCODE_WEBHOOK_SECRET") or None,
+            ledger=ledger,
         )
     )
     if demo_service is not None:
