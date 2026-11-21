@@ -59,3 +59,15 @@ jobs:
           else
             echo "No candidates.jsonl artifact; gate skipped."
           fi
+
+  # Dogfood the reusable action (action.yml at the repo root): comment with
+  # the decisions in force over this PR's files and block pinned-decision
+  # changes that carry no "Decision-Ack: <id>".
+  decisions:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./

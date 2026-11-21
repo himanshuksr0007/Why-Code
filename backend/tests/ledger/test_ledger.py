@@ -508,3 +508,25 @@ def test_cli_roundtrip(repo: Path, tmp_path: Path, capsys: pytest.CaptureFixture
     assert cli(["check", "--db", db, "--repo", REPO, "--files", "shop/payments/charge.py"]) == 1
     assert cli(["export", "--db", db, "--repo", REPO, "--path", str(repo)]) == 0
     assert "integer cents" in (repo / ".whycode/decisions.yaml").read_text()
+    # CI path: a fresh ledger rebuilt from the checkout plus the committed
+    # manifest still knows the pinned decision and blocks the change.
+    fresh = str(tmp_path / "ci.db")
+    assert cli(["index", str(repo), "--db", fresh, "--repo", REPO]) == 0
+    assert cli(["import", "--db", fresh, "--repo", REPO, "--path", str(repo)]) == 0
+    capsys.readouterr()
+    assert (
+        cli(
+            [
+                "check",
+                "--db",
+                fresh,
+                "--repo",
+                REPO,
+                "--files",
+                "shop/payments/charge.py",
+                "--markdown",
+            ]
+        )
+        == 1
+    )
+    assert "Blocked" in capsys.readouterr().out

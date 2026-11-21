@@ -356,6 +356,18 @@ def _dispatch(args: argparse.Namespace, store: LedgerStore, engine: WhyEngine) -
                     evidence_ref=MANIFEST,
                 ),
             )
+            current = store.get(decision.decision_id)
+            if row.get("pinned") and current is not None and not current.pinned:
+                store.act(
+                    decision.decision_id,
+                    AuthorityEvent(
+                        decision_id=decision.decision_id,
+                        action=Action.PIN,
+                        reason="pinned in the committed manifest",
+                        signer=MANIFEST,
+                        signer_kind=SignerKind.IMPORT,
+                    ),
+                )
             count += 1
         print(f"imported {count} decisions")
         return 0

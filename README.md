@@ -19,7 +19,7 @@
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" />
   <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white" />
   <img alt="Neo4j" src="https://img.shields.io/badge/Neo4j-AuraDB-4581C3?logo=neo4j&logoColor=white" />
-  <img alt="Tests" src="https://img.shields.io/badge/tests-1100%2B%20passing-2ea44f" />
+  <img alt="Tests" src="https://img.shields.io/badge/tests-1148%20passing-2ea44f" />
   <img alt="Status" src="https://img.shields.io/badge/status-live-2ea44f" />
 </p>
 
@@ -76,6 +76,25 @@ thumbnail and the fullscreen viewer (pan, zoom, drag nodes). Edges are typed —
 
 ## Features
 
+### Decision ledger — the system of record for *why*
+
+Chat models can explain code; they cannot be the durable, verifiable record of
+**which decision governs which file, on what evidence, signed by whom, and
+whether it still holds**. The ledger is that record
+([`docs/DECISION_LEDGER.md`](docs/DECISION_LEDGER.md)):
+
+- **Deterministic mining, no LLM key** — ADRs, `WHY:`/`DECISION:`/`TRADEOFF:` comments,
+  commits that state a choice *and* a reason, and `<!-- whycode:decisions -->` blocks in PR
+  descriptions (in force when the PR merges).
+- **Every quote verified** against the checkout (`verified` / `fuzzy` / `unverified`), and
+  **currency from git**: `active`, `needs_review` (half its files changed), `stale`, `superseded`.
+- **Append-only authority log** enforced by database triggers: accepting needs a reason, a scope
+  and evidence; pinned decisions cannot be retired by an agent.
+- **Agent-native** — a stdio MCP server (`get_why`, `search_decisions`, `check_change`,
+  `record_decision`) so Claude Code, Cursor or Codex ask *before* editing.
+- **In the merge path** — a GitHub Action ([`action.yml`](action.yml)) comments with the decisions
+  a PR touches and blocks changes to pinned decisions without a `Decision-Ack:`.
+
 ### Asking questions
 
 - **Why? mode** — grounded answers synthesized only from retrieved evidence, with deduplicated
@@ -126,8 +145,9 @@ thumbnail and the fullscreen viewer (pan, zoom, drag nodes). Edges are typed —
 
 ### Accounts
 
-- Sign up with email + password and a **6-digit email OTP** (10-minute, single-use codes; passwords
-  are Argon2id-hashed, sessions are 7-day JWTs, auth endpoints are rate-limited).
+- Sign in with **Clerk** (Google / GitHub OAuth). The backend verifies the Clerk session token
+  (RS256 against the instance JWKS, issuer pinned, expiry checked) and resolves identity through
+  Clerk's API — a client-supplied email is never trusted. The earlier email-OTP flow is retired.
 - **Guests can do everything except share** — no account required to ask. Guests get a friendly
   `userNNN` identity; signing in replaces it with your real name and handle everywhere at once.
 
@@ -179,6 +199,13 @@ flowchart LR
 4. If validation fails or the evidence is thin, the service refuses with a reason instead of
    improvising. In Plan mode, the validated answer's own retrieval is turned into the step table and
    connection graph — no second, ungrounded generation pass.
+
+**Two answer paths, one rule.** The hosted app answers any public repository live: it fetches the
+repository's key files and matching PRs/issues from GitHub, adds the repository's recorded decisions
+when the ledger has indexed it, and lets the model cite **only** that fetched evidence. Citations
+that do not resolve are dropped, an answer with none is refused, decisions come only from the
+ledger, and confidence is computed — never taken from the model. The Neo4j pipeline above serves
+fully ingested repositories (and the demo).
 
 **The trust model:** the LLM is a proposer, never the authority. Citations, confidence, supersession
 and the final graph writes are all computed by deterministic code, and every claim in the UI can be
@@ -281,14 +308,15 @@ Generated artifacts land in `artifacts/` and are git-ignored.
 
 ```bash
 cd backend
-PYTHONPATH=. python -m pytest --ignore=tests/structure
-ruff check app tests
-mypy app
+PYTHONPATH=. python -m pytest
+ruff check app/ledger tests/ledger
+mypy app/ledger
 ```
 
-Current backend result: **1,109 passed**, 13 pre-existing failures in the live-mode contract tests,
-12 skipped (opt-in live Neo4j / live LLM tests). `tests/structure/` is a legacy parallel contract
-suite that conflicts with `tests/structural/` at collection time; the canonical suite excludes it.
+Current backend result: **1,148 passed, 0 failed**, 12 skipped (opt-in live Neo4j / live LLM
+tests). `tests/structure/` targets an unimplemented stub package (`app/structure`) and is skipped
+by its `conftest.py`; the shipped structural pipeline is `app/structural`. The ledger package is
+`ruff`- and `mypy --strict`-clean; older packages still carry lint debt.
 
 ```bash
 cd frontend
@@ -319,6 +347,9 @@ npm run build && npm run typecheck && npm run lint
 | `WHYCODE_WEBHOOK_SECRET` | webhooks | GitHub webhook secret; the receiver returns 503 until it is set |
 | `WHYCODE_WEBHOOK_DB` | — | Webhook delivery store (default `artifacts/webhooks.db`) |
 | `WHYCODE_ARTIFACTS_DIR` | — | Pipeline output directory (default `artifacts`) |
+| `WHYCODE_LEDGER_DB` | — | Decision ledger SQLite path (default `artifacts/ledger.db`) |
+| `WHYCODE_LEDGER_ADMIN_TOKEN` | ledger writes | Bearer token for ledger write routes; writes return 503 until it is set |
+| `WHYCODE_DEFAULT_REPO` | — | Repository `/ask` uses when the request names none |
 
 ### Frontend (`frontend/.env.local`)
 
@@ -355,8 +386,9 @@ Any equivalent split (static/Node host + a Python host) works the same way.
 │   │   ├── intent/        # decision extraction (LLM + gates)
 │   │   ├── retrieval/     # hybrid retrieval, synthesis, plan + structure builders
 │   │   ├── models/        # visitor custom models + token usage
-│   │   ├── auth/          # accounts, email OTP, sessions
+│   │   ├── auth/          # accounts, Clerk session bridge
 │   │   ├── shares/        # public/private chat share links
+│   │   ├── ledger/        # decision ledger: miners, verification, currency, MCP, PR check
 │   │   ├── features/      # webhooks and decision policy
 │   │   └── main.py        # FastAPI factories (live + demo)
 │   ├── tools/             # policy gate, PR decision assistant, golden runner
@@ -378,10 +410,18 @@ Any equivalent split (static/Node host + a Python host) works the same way.
 | Structural enricher | [`backend/app/structural/README.md`](backend/app/structural/README.md) |
 | Decision extractor | [`backend/app/intent/README.md`](backend/app/intent/README.md) |
 | Retrieval | [`backend/app/retrieval/README.md`](backend/app/retrieval/README.md) |
+| Decision ledger | [`docs/DECISION_LEDGER.md`](docs/DECISION_LEDGER.md) |
 | Product decisions | [`docs/DECISIONS.md`](docs/DECISIONS.md) |
 | Golden decision set | [`docs/GOLDEN_SET.md`](docs/GOLDEN_SET.md) |
 
 ## Known limitations
+
+- The live path reads the first 70 lines of up to four ranked files plus GitHub issue search; it is
+  bounded and honest (it refuses rather than guesses), but it is not the deep pipeline. Index a
+  repository with the ledger (or the full ingestion pipeline) for decision-grade answers.
+- Ledger commit mining is heuristic: roughly two in three mined commit decisions are real design
+  decisions on httpx. They start as *background* and are labelled as such until someone accepts them.
+- There is no published precision/recall benchmark yet; `docs/GOLDEN_SET.md` covers one repository.
 
 - Attached **images and screenshots are conversation artifacts**: they render in the chat, but the
   answering pipeline is text-only today, so the model reads inlined *text* files, not image content.

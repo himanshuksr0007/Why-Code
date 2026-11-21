@@ -1,0 +1,87 @@
+name: Why-Code decision check
+description: >
+  Index the repository's decisions (ADRs, WHY:-style markers, commits and the
+  committed .whycode/decisions.yaml manifest), then comment on the pull request
+  with the decisions in force over the changed files. Fails when the change
+  touches a pinned decision without a "Decision-Ack: <id>" line.
+branding:
+  icon: book-open
+  color: orange
+
+inputs:
+  github-token:
+    description: Token used to post the PR comment.
+    default: ${{ github.token }}
+  fail-on-violation:
+    description: Fail the job when a pinned decision is touched without acknowledgement.
+    default: "true"
+  comment:
+    description: Post (or update) a PR comment with the result.
+    default: "true"
+  commit-limit:
+    description: How many commits of history to mine.
+    default: "1000"
+
+outputs:
+  passed:
+    description: "'true' when no policy was violated."
+    value: ${{ steps.check.outputs.passed }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Install Why-Code ledger
+      shell: bash
+      run: python -m pip install --quiet "pydantic>=2.7" "pyyaml>=6"
+    - name: Index decisions and check the change
+      id: check
+      shell: bash
+      env:
+        PR_BODY: ${{ github.event.pull_request.body }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        REPO: ${{ github.repository }}
+        WHYCODE_LEDGER_DB: ${{ runner.temp }}/whycode-ledger.db
+      run: |
+        set -euo pipefail
+        cd "${{ github.action_path }}/backend"
+        python -m app.ledger index "$GITHUB_WORKSPACE" --repo "$REPO" \
+          --commits "${{ inputs.commit-limit }}" > "$RUNNER_TEMP/whycode-index.json"
+        if [ -f "$GITHUB_WORKSPACE/.whycode/decisions.yaml" ]; then
+          python -m app.ledger import --repo "$REPO" --path "$GITHUB_WORKSPACE"
+        fi
+        printf '%s' "${PR_BODY:-}" > "$RUNNER_TEMP/whycode-body.md"
+        set +e
+        python -m app.ledger check --repo "$REPO" --path "$GITHUB_WORKSPACE" \
+          --base "$BASE_SHA" --head "$HEAD_SHA" \
+          --body-file "$RUNNER_TEMP/whycode-body.md" --markdown > "$RUNNER_TEMP/whycode-comment.md"
+        status=$?
+        set -e
+        if [ "$status" -gt 1 ]; then exit "$status"; fi
+        echo "passed=$([ "$status" -eq 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+        cat "$RUNNER_TEMP/whycode-comment.md" >> "$GITHUB_STEP_SUMMARY"
+    - name: Comment on the pull request
+      if: inputs.comment == 'true' && github.event.pull_request.number
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        PR: ${{ github.event.pull_request.number }}
+      run: |
+        set -euo pipefail
+        existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+          --jq '.[] | select(.body | startswith("<!-- whycode:pr-check -->")) | .id' | head -n1)
+        if [ -n "$existing" ]; then
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing" \
+            -F body=@"$RUNNER_TEMP/whycode-comment.md" > /dev/null
+        else
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/whycode-comment.md"
+        fi
+    - name: Enforce
+      if: inputs.fail-on-violation == 'true' && steps.check.outputs.passed != 'true'
+      shell: bash
+      run: |
+        echo "::error::This change touches a pinned decision without 'Decision-Ack: <id>'. See the PR comment."
+        exit 1
