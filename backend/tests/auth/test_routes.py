@@ -1,4 +1,4 @@
-"""The auth HTTP surface: status codes and payload shapes."""
+"""The auth HTTP surface: the Clerk bridge and session endpoints."""
 
 from __future__ import annotations
 
@@ -11,84 +11,41 @@ from app.auth.service import AuthService, RateLimiter
 from app.auth.store import SQLiteAuthStore
 
 
-class CapturingMailer:
-    """Records the codes the service mails, for assertions."""
-
-    def __init__(self) -> None:
-        self.sent: list[tuple[str, str]] = []
-
-    def send_otp(self, to: str, code: str, *, purpose: str) -> None:
-        self.sent.append((to, code))
-
-    def code_for(self, email: str) -> str:
-        return [code for to, code in self.sent if to == email][-1]
-
-
 @pytest.fixture()
-def client(tmp_path) -> tuple[TestClient, CapturingMailer]:
-    mailer = CapturingMailer()
+def client(tmp_path) -> TestClient:
     service = AuthService(
         SQLiteAuthStore(str(tmp_path / "auth.db")),
-        mailer,
-        secret="route-secret",
+        secret="test-secret",
         limiter=RateLimiter(),
     )
     app = FastAPI()
     app.include_router(build_auth_router(service))
-    return TestClient(app), mailer
+    return TestClient(app)
 
 
-def test_http_lifecycle(client) -> None:
-    http, mailer = client
-    response = http.post(
-        "/api/v1/auth/signup",
-        json={"name": "Ada", "email": "ada@gmail.com", "password": "passw0rd9"},
+def test_social_exchange_503_until_clerk_configured(client) -> None:
+    response = client.post(
+        "/api/v1/auth/social", json={"token": "x" * 40}
     )
-    assert response.status_code == 201, response.text
-    assert response.json() == {"email": "ada@gmail.com", "otp_sent": True}
-
-    response = http.post(
-        "/api/v1/auth/verify-email",
-        json={"email": "ada@gmail.com", "code": "999999"},
-    )
-    assert response.status_code == 400
-    assert response.json()["code"] == "code_mismatch"
-
-    response = http.post(
-        "/api/v1/auth/verify-email",
-        json={"email": "ada@gmail.com", "code": mailer.code_for("ada@gmail.com")},
-    )
-    assert response.status_code == 200
-    token = response.json()["token"]
-
-    response = http.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 200
-    assert response.json()["user"]["email"] == "ada@gmail.com"
-
-    assert http.get("/api/v1/auth/me").status_code == 401
-    assert http.post("/api/v1/auth/logout").status_code == 204
-
-    response = http.post(
-        "/api/v1/auth/login",
-        json={"email": "ada@gmail.com", "password": "passw0rd9"},
-    )
-    assert response.status_code == 200
-    assert response.json()["user"]["name"] == "Ada"
+    assert response.status_code == 503
+    assert response.json()["code"] == "social_not_configured"
 
 
-def test_http_validation_errors(client) -> None:
-    http, _ = client
-    response = http.post(
-        "/api/v1/auth/signup",
-        json={"name": "Ada", "email": "ada@gmail.com", "password": "weak"},
-    )
-    assert response.status_code == 422
-    response = http.post(
-        "/api/v1/auth/login",
-        json={"email": "ghost@gmail.com", "password": "passw0rd9"},
-    )
+def test_me_requires_a_session(client) -> None:
+    response = client.get("/api/v1/auth/me")
     assert response.status_code == 401
-    assert response.json() == {
-        "detail": "Invalid email or password.",
-        "code": "invalid_credentials",
-    }
+    assert response.json()["code"] == "no_session"
+
+
+def test_direct_auth_routes_are_gone(client) -> None:
+    """Sign-up / login moved to Clerk; the old endpoints must not linger
+    as a second, weaker front door."""
+    for path in ("/api/v1/auth/signup", "/api/v1/auth/login",
+                 "/api/v1/auth/verify-email", "/api/v1/auth/resend-otp"):
+        response = client.post(path, json={})
+        assert response.status_code == 404, path
+
+
+def test_logout_is_a_noop_204(client) -> None:
+    response = client.post("/api/v1/auth/logout")
+    assert response.status_code == 204

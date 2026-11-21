@@ -1,15 +1,19 @@
-"""The authentication service: signup with email OTP verification,
-password login, and bearer-token sessions.
+"""The authentication service: Clerk in front, app sessions behind it.
 
-Security posture:
-- Passwords are stored only as Argon2id/PBKDF2 hashes (see security.py).
-- OTP codes are 6 digits, stored only as HMAC digests, expire after 10
-  minutes, are single-use, allow at most 5 guesses, and can be re-sent at
-  most once a minute (5 per hour) per address.
-- Login answers are generic ("invalid email or password") and a dummy
-  hash verification runs for unknown accounts, so neither the response
-  nor its timing reveals whether an email is registered.
-- Signup, login and OTP endpoints are rate limited per IP / email.
+Identity is Clerk's job now (email + password, email codes, Google and
+GitHub OAuth — verification mail, leaked-password screening, brute-force
+protection). This service owns only what the app itself needs:
+
+- the account records the rest of the product hangs off (shares address
+  users by the account created here), and
+- the app's own bearer-token sessions (see security.py).
+
+The bridge between the two is `exchange_clerk_token`: the frontend
+presents a Clerk session token, it is verified properly (see clerk.py),
+and the caller gets a normal session for the account with the same
+email. The email IS the identity — an address that arrives via Google,
+GitHub or Clerk email sign-in always resolves to the same account here,
+never a duplicate.
 """
 
 from __future__ import annotations
@@ -22,18 +26,13 @@ import threading
 import time
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from app.auth import security
-from app.auth.mailer import Mailer, build_mailer
-from app.auth.store import AuthStore, OtpRecord, UserRecord
+from app.auth.store import AuthStore, UserRecord
 
 logger = logging.getLogger("whycode.auth")
 
-OTP_PURPOSE_VERIFY = "verify_email"
-OTP_TTL = timedelta(minutes=10)
-OTP_MAX_ATTEMPTS = 5
-OTP_RESEND_COOLDOWN_SECONDS = 60
 TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60  # 7 days
 
 _EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
@@ -99,55 +98,6 @@ def validate_email(email: str) -> str:
     return normalized
 
 
-# Direct email sign-up accepts addresses from widely used mailbox
-# providers only. Disposable / throwaway domains are the main source of
-# junk accounts, and an OTP round-trip alone does not stop them (the
-# mailboxes are real). Social sign-in (Google/GitHub via Clerk) is NOT
-# gated by this list: the provider has already verified the address,
-# and GitHub accounts legitimately use custom domains.
-ALLOWED_EMAIL_DOMAINS = frozenset({
-    "gmail.com", "googlemail.com",
-    "outlook.com", "outlook.in", "outlook.co.uk", "hotmail.com",
-    "hotmail.in", "hotmail.co.uk", "hotmail.fr", "live.com", "live.in",
-    "msn.com",
-    "yahoo.com", "yahoo.in", "yahoo.co.in", "yahoo.co.uk", "ymail.com",
-    "icloud.com", "me.com", "mac.com",
-    "protonmail.com", "proton.me", "pm.me",
-    "aol.com", "gmx.com", "gmx.net", "mail.com", "zoho.com",
-    "zohomail.com", "rediffmail.com", "yandex.com", "qq.com",
-    "naver.com", "fastmail.com", "tuta.com", "hey.com", "web.de",
-    "t-online.de", "orange.fr", "free.fr", "libero.it", "mail.ru",
-})
-
-
-def validate_email_domain(email: str) -> None:
-    domain = email.rsplit("@", 1)[-1] if "@" in email else ""
-    if domain not in ALLOWED_EMAIL_DOMAINS:
-        raise AuthError(
-            422,
-            "Please use an email from a common provider (Gmail, Outlook, "
-            "Hotmail, Yahoo, iCloud, Proton…) — disposable or uncommon "
-            "domains can't sign up directly. You can still continue with "
-            "Google or GitHub above.",
-            code="email_domain_not_allowed",
-        )
-
-
-def validate_password(password: str) -> None:
-    if len(password) < 8:
-        raise AuthError(
-            422, "Password must be at least 8 characters.", code="weak_password"
-        )
-    if len(password) > 128:
-        raise AuthError(422, "Password is too long.", code="weak_password")
-    if not (any(c.isalpha() for c in password) and any(c.isdigit() for c in password)):
-        raise AuthError(
-            422,
-            "Password must contain at least one letter and one digit.",
-            code="weak_password",
-        )
-
-
 def validate_name(name: str) -> str:
     cleaned = name.strip()
     if not (1 <= len(cleaned) <= 80):
@@ -159,7 +109,6 @@ class AuthService:
     def __init__(
         self,
         store: AuthStore,
-        mailer: Mailer,
         *,
         secret: str,
         limiter: RateLimiter | None = None,
@@ -167,65 +116,12 @@ class AuthService:
         clerk_secret_key: str = "",
     ) -> None:
         self._store = store
-        self._mailer = mailer
         self._secret = secret
         self._limiter = limiter or RateLimiter()
         self._clerk_publishable_key = clerk_publishable_key
         self._clerk_secret_key = clerk_secret_key
 
     # -- internal helpers ---------------------------------------------------
-
-    def _issue_otp(self, email: str) -> None:
-        """Create a fresh challenge for the email and mail the code."""
-        moment = _now()
-        code = security.generate_otp_code()
-        self._store.save_otp(
-            OtpRecord(
-                email=email,
-                purpose=OTP_PURPOSE_VERIFY,
-                code_hash=security.hash_otp_code(
-                    self._secret, email, OTP_PURPOSE_VERIFY, code
-                ),
-                created_at=_iso(moment),
-                expires_at=_iso(moment + OTP_TTL),
-                attempts=0,
-            )
-        )
-        try:
-            self._mailer.send_otp(email, code, purpose=OTP_PURPOSE_VERIFY)
-        except Exception as exc:  # noqa: BLE001 - surfaced as a clean 502
-            logger.error("Could not send verification email to %s: %s", email, exc)
-            raise AuthError(
-                502,
-                "We could not send the verification email. Check the address"
-                " and try again in a minute.",
-                code="mail_failed",
-            ) from exc
-
-    def _check_otp_send_limits(self, email: str) -> None:
-        # Cooldown derives from the live challenge so a resend cannot be
-        # spammed even across limiter restarts.
-        existing = self._store.get_otp(email, OTP_PURPOSE_VERIFY)
-        if existing is not None and existing.created_at:
-            created = datetime.fromisoformat(existing.created_at)
-            elapsed = (_now() - created).total_seconds()
-            if elapsed < OTP_RESEND_COOLDOWN_SECONDS:
-                raise AuthError(
-                    429,
-                    "A code was just sent. Wait a moment before asking for another.",
-                    code="otp_cooldown",
-                    retry_after=int(OTP_RESEND_COOLDOWN_SECONDS - elapsed) + 1,
-                )
-        retry = self._limiter.check(
-            f"otp-send:{email}", limit=5, window_seconds=3600
-        )
-        if retry:
-            raise AuthError(
-                429,
-                "Too many codes requested for this email. Try again later.",
-                code="rate_limited",
-                retry_after=retry,
-            )
 
     def _session(self, user: UserRecord) -> dict:
         token = security.issue_token(
@@ -239,148 +135,11 @@ class AuthService:
 
     # -- flows ---------------------------------------------------------------
 
-    def signup(self, *, name: str, email: str, password: str, client_ip: str) -> dict:
-        retry = self._limiter.check(
-            f"signup:{client_ip}", limit=10, window_seconds=3600
-        )
-        if retry:
-            raise AuthError(
-                429, "Too many signups from this network.", code="rate_limited",
-                retry_after=retry,
-            )
-        name = validate_name(name)
-        email = validate_email(email)
-        validate_email_domain(email)
-        validate_password(password)
-
-        existing = self._store.get_user_by_email(email)
-        if existing is not None and existing.email_verified:
-            raise AuthError(
-                409,
-                "An account with this email already exists. Log in instead.",
-                code="account_exists",
-            )
-        self._check_otp_send_limits(email)
-        password_hash = security.hash_password(password)
-        if existing is not None:
-            # An earlier signup never finished verification: refresh the
-            # credentials and send a fresh code.
-            self._store.update_user(
-                existing.id,
-                name=name,
-                password_hash=password_hash,
-                updated_at=_iso(_now()),
-            )
-        else:
-            moment = _iso(_now())
-            self._store.create_user(
-                UserRecord(
-                    id=f"usr_{uuid.uuid4().hex}",
-                    name=name,
-                    email=email,
-                    password_hash=password_hash,
-                    email_verified=False,
-                    created_at=moment,
-                    updated_at=moment,
-                )
-            )
-        self._issue_otp(email)
-        return {"email": email, "otp_sent": True}
-
-    def verify_email(self, *, email: str, code: str) -> dict:
-        email = validate_email(email)
-        code = code.strip()
-        if not (len(code) == 6 and code.isdigit()):
-            raise AuthError(422, "Enter the 6-digit code.", code="invalid_code")
-        challenge = self._store.get_otp(email, OTP_PURPOSE_VERIFY)
-        if challenge is None:
-            raise AuthError(
-                400,
-                "No verification is pending for this email. Sign up or ask"
-                " for a new code.",
-                code="no_pending_code",
-            )
-        if challenge.attempts >= OTP_MAX_ATTEMPTS:
-            self._store.delete_otp(email, OTP_PURPOSE_VERIFY)
-            raise AuthError(
-                400,
-                "Too many wrong codes — the code has been cancelled. Ask for"
-                " a new one.",
-                code="too_many_attempts",
-            )
-        if challenge.expires_at and datetime.fromisoformat(challenge.expires_at) <= _now():
-            self._store.delete_otp(email, OTP_PURPOSE_VERIFY)
-            raise AuthError(
-                400, "That code has expired. Ask for a new one.", code="code_expired"
-            )
-        if not security.otp_code_matches(
-            self._secret, email, OTP_PURPOSE_VERIFY, code, challenge.code_hash
-        ):
-            attempts = self._store.increment_otp_attempts(email, OTP_PURPOSE_VERIFY)
-            remaining = OTP_MAX_ATTEMPTS - attempts
-            raise AuthError(
-                400,
-                f"That code does not match. {remaining} attempt"
-                f"{'' if remaining == 1 else 's'} left."
-                if remaining > 0
-                else "That code does not match.",
-                code="code_mismatch",
-            )
-        user = self._store.get_user_by_email(email)
-        if user is None:  # challenge without an account: treat as stale
-            self._store.delete_otp(email, OTP_PURPOSE_VERIFY)
-            raise AuthError(400, "No account is waiting for this code.", code="no_account")
-        self._store.delete_otp(email, OTP_PURPOSE_VERIFY)
-        updated = self._store.update_user(
-            user.id, email_verified=True, updated_at=_iso(_now())
-        )
-        return self._session(updated or user)
-
-    def resend_otp(self, *, email: str) -> dict:
-        """Always answers the same way; only unverified accounts get mail."""
-        email = validate_email(email)
-        user = self._store.get_user_by_email(email)
-        if user is not None and not user.email_verified:
-            self._check_otp_send_limits(email)
-            self._issue_otp(email)
-        return {"email": email, "otp_sent": True}
-
-    def login(self, *, email: str, password: str, client_ip: str) -> dict:
-        email = validate_email(email)
-        retry = self._limiter.check(
-            f"login:{client_ip}:{email}", limit=10, window_seconds=900
-        )
-        if retry:
-            raise AuthError(
-                429,
-                "Too many login attempts. Wait a few minutes and try again.",
-                code="rate_limited",
-                retry_after=retry,
-            )
-        user = self._store.get_user_by_email(email)
-        if user is None:
-            security.verify_password(password, security.DUMMY_PASSWORD_HASH)
-            raise AuthError(
-                401, "Invalid email or password.", code="invalid_credentials"
-            )
-        if not security.verify_password(password, user.password_hash):
-            raise AuthError(
-                401, "Invalid email or password.", code="invalid_credentials"
-            )
-        if not user.email_verified:
-            raise AuthError(
-                403,
-                "Verify your email first — enter the code we sent you.",
-                code="email_not_verified",
-            )
-        updated = self._store.update_user(user.id, last_login_at=_iso(_now()))
-        return self._session(updated or user)
-
     def social_login(self, *, email: str, name: str, provider: str, client_ip: str) -> dict:
-        """Find-or-create the account for a provider-verified email and
-        issue a normal session. This is the account-linking rule: the
-        email IS the identity, so Google, GitHub and direct sign-ups with
-        the same address all land on the same account — never a duplicate.
+        """Find-or-create the account for a Clerk-verified email and
+        issue a normal session. Called only with an email Clerk has
+        already verified (OAuth profile or confirmed email sign-in), so
+        the account is created verified.
         """
         email = validate_email(email)
         retry = self._limiter.check(
@@ -399,8 +158,6 @@ class AuthService:
             name = email.split("@")[0]
         user = self._store.get_user_by_email(email)
         if user is not None:
-            # The provider verified this email, so a still-unverified
-            # direct sign-up with the same address becomes verified too.
             updated = self._store.update_user(
                 user.id,
                 email_verified=True,
@@ -414,10 +171,9 @@ class AuthService:
                 id=f"usr_{uuid.uuid4().hex}",
                 name=name,
                 email=email,
-                # Social accounts have no usable password: the stored hash
-                # is of a random secret nobody knows. Direct login for this
-                # address stays impossible until a password flow sets one;
-                # the person signs in with their provider, as intended.
+                # Passwords live in Clerk now. The stored hash is of a
+                # random secret nobody knows; it exists only because the
+                # record schema predates the migration.
                 password_hash=security.hash_password(uuid.uuid4().hex),
                 email_verified=True,
                 created_at=moment,
@@ -425,7 +181,7 @@ class AuthService:
                 last_login_at=moment,
             )
         )
-        logger.info("Social sign-in created account for %s via %s", email, provider or "oauth")
+        logger.info("Clerk sign-in created account for %s via %s", email, provider or "clerk")
         return self._session(user)
 
     def exchange_clerk_token(self, *, token: str, client_ip: str) -> dict:
@@ -435,14 +191,14 @@ class AuthService:
         if not self._clerk_publishable_key or not self._clerk_secret_key:
             raise AuthError(
                 503,
-                "Social sign-in is not configured on this server yet.",
+                "Sign-in is not configured on this server yet.",
                 code="social_not_configured",
             )
         issuer = clerk.issuer_from_publishable_key(self._clerk_publishable_key)
         if issuer is None:
             raise AuthError(
                 503,
-                "Social sign-in is misconfigured on this server.",
+                "Sign-in is misconfigured on this server.",
                 code="social_not_configured",
             )
         try:
@@ -470,9 +226,9 @@ class AuthService:
 
 
 def build_auth_service() -> AuthService:
-    """Wire the store + mailer from the environment: Neo4j when its
-    variables are configured (and reachable), the SQLite file store
-    otherwise — the same degrade-never-block pattern as the model store.
+    """Wire the store from the environment: Neo4j when its variables are
+    configured (and reachable), the SQLite file store otherwise — the
+    same degrade-never-block pattern as the model store.
     """
     from app.auth.store import Neo4jAuthStore, SQLiteAuthStore
 
@@ -507,7 +263,7 @@ def build_auth_service() -> AuthService:
         secret = secrets.token_hex(32)
         logger.warning(
             "WHYCODE_AUTH_SECRET is not set — generated an ephemeral secret;"
-            " sessions and pending OTPs will not survive a restart"
+            " sessions will not survive a restart"
         )
     clerk_publishable = env("CLERK_PUBLISHABLE_KEY") or os.environ.get(
         "CLERK_PUBLISHABLE_KEY", ""
@@ -516,10 +272,9 @@ def build_auth_service() -> AuthService:
         "CLERK_SECRET_KEY", ""
     ).strip()
     if clerk_publishable and clerk_secret:
-        logger.info("Social sign-in (Clerk) configured")
+        logger.info("Clerk sign-in configured")
     return AuthService(
         store,
-        build_mailer(),
         secret=secret,
         clerk_publishable_key=clerk_publishable,
         clerk_secret_key=clerk_secret,

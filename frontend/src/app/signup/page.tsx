@@ -13,7 +13,10 @@ import {
 } from "@/components/auth/auth-card";
 import { SocialButtons } from "@/components/auth/social-buttons";
 import { VerifyEmailForm } from "@/components/auth/verify-email-form";
+import { ClerkSignupForm } from "@/components/auth/clerk-signup-form";
+import { CLERK_ENABLED } from "@/components/clerk-shell";
 import { Button } from "@/components/ui/button";
+import { API_MODE } from "@/lib/api/config";
 import { AuthApiError, authApi } from "@/lib/auth/api";
 import {
   EMAIL_DOMAIN_MESSAGE,
@@ -22,7 +25,7 @@ import {
 import { useAuth } from "@/lib/auth/store";
 import { hapticError, hapticLight, hapticSelection } from "@/lib/haptics";
 
-export default function SignupPage() {
+function LegacySignupPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [name, setName] = useState("");
@@ -196,4 +199,59 @@ export default function SignupPage() {
     </AuthCard>
     </AuthLayout>
   );
+}
+
+function ClerkSignupPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) router.replace("/");
+  }, [user, router]);
+
+  return (
+    <AuthLayout>
+      <AuthCard
+        title="Create your account"
+        subtitle="Save your models, sync your history, and pick up where you left off."
+        footer={
+          <>
+            Already have an account?{" "}
+            <Link
+              href="/login"
+              onClick={() => hapticSelection()}
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Log in
+            </Link>
+          </>
+        }
+      >
+        <SocialButtons mode="signup" />
+        <ClerkSignupForm />
+      </AuthCard>
+    </AuthLayout>
+  );
+}
+
+export default function SignupPage() {
+  // The offline demo keeps its self-contained mock accounts. Everywhere
+  // else, sign-up is Clerk's — email, Google and GitHub alike.
+  if (API_MODE === "mock") return <LegacySignupPage />;
+  if (!CLERK_ENABLED) {
+    return (
+      <AuthLayout>
+        <AuthCard
+          title="Create your account"
+          subtitle="Save your models, sync your history, and pick up where you left off."
+        >
+          <p className="text-sm text-muted-foreground">
+            Sign-up is being set up — please check back in a few minutes.
+            You can keep asking questions as a guest in the meantime.
+          </p>
+        </AuthCard>
+      </AuthLayout>
+    );
+  }
+  return <ClerkSignupPage />;
 }

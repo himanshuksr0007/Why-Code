@@ -1,6 +1,6 @@
-"""User authentication: email + password accounts with OTP email
-verification, stored in Neo4j (SQLite fallback), passwords hashed with
-Argon2id, OTP codes delivered through Gmail SMTP."""
+"""User authentication: Clerk verifies identity (email, Google,
+GitHub); this package exchanges Clerk sessions for app sessions and
+stores the account records the rest of the product hangs off."""
 
 from app.auth.service import AuthService, build_auth_service
 

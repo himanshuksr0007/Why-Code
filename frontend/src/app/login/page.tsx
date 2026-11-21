@@ -14,12 +14,15 @@ import {
 } from "@/components/auth/auth-card";
 import { SocialButtons } from "@/components/auth/social-buttons";
 import { VerifyEmailForm } from "@/components/auth/verify-email-form";
+import { ClerkLoginForm } from "@/components/auth/clerk-login-form";
+import { CLERK_ENABLED } from "@/components/clerk-shell";
 import { Button } from "@/components/ui/button";
+import { API_MODE } from "@/lib/api/config";
 import { AuthApiError, authApi } from "@/lib/auth/api";
 import { useAuth } from "@/lib/auth/store";
 import { hapticError, hapticLight, hapticSelection, hapticSuccess } from "@/lib/haptics";
 
-export default function LoginPage() {
+function LegacyLoginPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [email, setEmail] = useState("");
@@ -162,4 +165,59 @@ export default function LoginPage() {
     </AuthCard>
     </AuthLayout>
   );
+}
+
+function ClerkLoginPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) router.replace("/");
+  }, [user, router]);
+
+  return (
+    <AuthLayout>
+      <AuthCard
+        title="Welcome back"
+        subtitle="Log in to your WhyCode account."
+        footer={
+          <>
+            New to WhyCode?{" "}
+            <Link
+              href="/signup"
+              onClick={() => hapticSelection()}
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Create an account
+            </Link>
+          </>
+        }
+      >
+        <SocialButtons mode="signin" />
+        <ClerkLoginForm />
+      </AuthCard>
+    </AuthLayout>
+  );
+}
+
+export default function LoginPage() {
+  // The offline demo keeps its self-contained mock accounts. Everywhere
+  // else, sign-in is Clerk's — email, Google and GitHub alike.
+  if (API_MODE === "mock") return <LegacyLoginPage />;
+  if (!CLERK_ENABLED) {
+    return (
+      <AuthLayout>
+        <AuthCard
+          title="Welcome back"
+          subtitle="Log in to your WhyCode account."
+        >
+          <p className="text-sm text-muted-foreground">
+            Sign-in is being set up — please check back in a few minutes.
+            You can keep asking questions as a guest in the meantime.
+          </p>
+        </AuthCard>
+      </AuthLayout>
+    );
+  }
+  return <ClerkLoginPage />;
 }
