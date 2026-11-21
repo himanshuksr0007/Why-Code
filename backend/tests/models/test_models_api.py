@@ -195,3 +195,64 @@ def test_custom_model_requires_a_client_id(client: TestClient) -> None:
         "/api/v1/ask", json={"question": QUESTION, "model_id": "cm_whatever"}
     )
     assert ask.status_code == 400
+
+
+# -- /usage session enforcement -------------------------------------------
+#
+# ArgosX baseline finding (2026-11-21): /api/v1/usage answered
+# unauthenticated requests with the caller's token-consumption figures.
+# When an auth service is wired, the endpoint must refuse requests
+# without a valid app session and answer those with one.
+
+
+@pytest.fixture()
+def authed_client(tmp_path) -> tuple[TestClient, str]:
+    from app.auth.service import AuthService
+    from app.auth.store import SQLiteAuthStore
+
+    auth = AuthService(
+        SQLiteAuthStore(str(tmp_path / "auth.db")), secret="<redacted>"
+    )
+    session = auth.social_login(
+        email="usage-owner@gmail.com",
+        name="Usage Owner",
+        provider="oauth_google",
+        client_ip="127.0.0.1",
+    )
+    service = ModelService(
+        store=InMemoryModelStore(),
+        cipher=KeyCipher(Fernet(Fernet.generate_key())),
+        default=DefaultModelInfo(
+            model="nvidia/llama-3.1-nemotron-ultra-253b-v1",
+            base_url="https://integrate.api.nvidia.com/v1",
+            context_tokens=131_072,
+        ),
+    )
+    app = FastAPI()
+    app.include_router(build_models_router(service, auth))
+    return TestClient(app), session["token"]
+
+
+def test_usage_refuses_unauthenticated_requests(authed_client) -> None:
+    client, _token = authed_client
+    assert client.get("/api/v1/usage").status_code == 401
+    assert client.get("/usage").status_code == 401
+
+
+def test_usage_refuses_a_garbage_token(authed_client) -> None:
+    client, _token = authed_client
+    response = client.get(
+        "/api/v1/usage", headers={"Authorization": "Bearer not-a-token"}
+    )
+    assert response.status_code == 401
+
+
+def test_usage_answers_a_valid_session(authed_client) -> None:
+    client, token = authed_client
+    response = client.get(
+        "/api/v1/usage", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["context_tokens"] == 131_072
+    assert "used_tokens" in body

@@ -8,6 +8,7 @@
  */
 
 import { API_BASE_URL } from "@/lib/api/config";
+import { getAuthSession } from "@/lib/auth/store";
 
 export interface ModelInfo {
   id: string;
@@ -109,7 +110,16 @@ export function fetchUsage(
   clientId: string,
   modelId: string,
 ): Promise<UsageInfo> {
+  // The usage endpoint requires a signed-in session (it reports
+  // consumption against the shared provider key). Guests get a 401,
+  // which the models store already treats as "no meter to show".
+  const session = getAuthSession();
   return requestJson<UsageInfo>(
     `/api/v1/usage?client_id=${encodeURIComponent(clientId)}&model_id=${encodeURIComponent(modelId)}`,
+    {
+      headers: session
+        ? { Authorization: `Bearer ${session.token}` }
+        : {},
+    },
   );
 }

@@ -164,14 +164,10 @@ def create_app(
             retrieval_service, live_service=live_service, model_service=model_service
         )
     )
-    if model_service is not None:
-        from app.models.routes import build_models_router
-
-        app.include_router(build_models_router(model_service))
-
-    # User accounts (email + password, OTP email verification). Built
-    # from the environment like the model service; a failure here must
-    # never take the answer service down with it.
+    # User accounts: identity is verified by Clerk; this service keeps
+    # the session bridge and the account records. Built from the
+    # environment like the model service; a failure here must never
+    # take the answer service down with it.
     try:
         from app.auth import build_auth_service
         from app.auth.routes import build_auth_router
@@ -181,6 +177,20 @@ def create_app(
         app.include_router(build_auth_router(auth_service))
     except Exception as exc:  # noqa: BLE001 - degrade, never block startup
         logger.warning("Auth service unavailable: %s", exc)
+
+    # Model routes mount after auth so /usage can require a session
+    # (it reports consumption against the shared provider key). If the
+    # auth service failed to start, the router mounts without the
+    # check — the same degrade-never-block posture, and the failure is
+    # already logged above.
+    if model_service is not None:
+        from app.models.routes import build_models_router
+
+        app.include_router(
+            build_models_router(
+                model_service, getattr(app.state, "auth_service", None)
+            )
+        )
 
     # Shared chat links (public, or private with a handle whitelist).
     # Needs the auth service to resolve viewer sessions; degrades the

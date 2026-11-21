@@ -6,8 +6,9 @@ route is also served under ``/api/v1`` for symmetry with the answer API.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
 
+from app.auth.service import AuthError, AuthService
 from app.models.schemas import (
     CustomModelCreate,
     CustomModelView,
@@ -17,7 +18,9 @@ from app.models.schemas import (
 from app.models.service import ModelService
 
 
-def build_models_router(service: ModelService) -> APIRouter:
+def build_models_router(
+    service: ModelService, auth_service: AuthService | None = None
+) -> APIRouter:
     router = APIRouter(tags=["models"])
 
     @router.get("/models", response_model=ModelsResponse)
@@ -49,7 +52,23 @@ def build_models_router(service: ModelService) -> APIRouter:
     def usage(
         client_id: str = Query(default=""),
         model_id: str = Query(default="default"),
+        authorization: str | None = Header(default=None),
     ) -> UsageResponse:
+        # Usage figures are the caller's own consumption against the
+        # shared provider key — operational data, not public content.
+        # When the auth service is wired (production), a valid app
+        # session is required; without one the request is refused
+        # rather than answered for an arbitrary client_id.
+        if auth_service is not None:
+            token = ""
+            if authorization and authorization.lower().startswith("bearer "):
+                token = authorization[7:].strip()
+            try:
+                auth_service.me(token)
+            except AuthError as exc:
+                raise HTTPException(
+                    status_code=exc.status, detail=exc.detail
+                ) from exc
         return service.usage(client_id, model_id)
 
     return router
