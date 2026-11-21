@@ -11,7 +11,7 @@ function Stat({ label, value }: { label: string; value: number | null }) {
   if (value === null) return null;
   return (
     <div className="rounded-lg border border-border/70 bg-muted/20 px-2 py-1.5">
-      <dt className="text-[10px] tracking-wide text-muted-foreground uppercase">
+      <dt className="text-[10px] tracking-wide text-[#626262] uppercase dark:text-muted-foreground">
         {label}
       </dt>
       <dd className="font-heading text-sm font-semibold tabular-nums">

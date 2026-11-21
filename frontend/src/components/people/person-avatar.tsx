@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import type { CSSProperties } from "react";
 
 /**
  * Initials avatar. Deliberately not an image: sample fixtures have no avatars,
@@ -76,15 +77,15 @@ export function PersonAvatar({
     <span
       aria-hidden="true"
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-full font-heading font-semibold select-none",
+        "inline-flex shrink-0 items-center justify-center rounded-full font-heading font-semibold select-none text-[color:color-mix(in_oklab,var(--avatar-color)_42%,#25180d)] dark:text-[color:var(--avatar-color)]",
         SIZES[size],
         className,
       )}
       style={{
-        color,
+        "--avatar-color": color,
         backgroundColor: `color-mix(in oklab, ${color} 20%, transparent)`,
         boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${color} 40%, transparent)`,
-      }}
+      } as CSSProperties}
     >
       {initialsFor(login)}
     </span>

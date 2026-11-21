@@ -89,15 +89,15 @@ export const RECORD_TYPE_LABEL: Record<RecordType, string> = {
 export const CHANGE_KIND: Record<ChangeKind, Tone> = {
   added: {
     label: "Added",
-    className: "border-primary/40 bg-primary/15 text-primary",
+    className: "border-primary/40 bg-primary/15 text-[#815022] dark:text-primary",
   },
   modified: {
     label: "Modified",
-    className: "border-chart-4/40 bg-chart-4/15 text-chart-4",
+    className: "border-chart-4/40 bg-chart-4/15 text-[#735600] dark:text-chart-4",
   },
   removed: {
     label: "Removed",
-    className: "border-destructive/40 bg-destructive/10 text-destructive",
+    className: "border-destructive/40 bg-destructive/10 text-[#a91f1f] dark:text-destructive",
   },
   renamed: {
     label: "Renamed",

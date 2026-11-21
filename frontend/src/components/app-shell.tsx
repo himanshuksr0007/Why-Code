@@ -42,7 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     pathname === "/auth/bridge" ||
     pathname.startsWith("/share/")
   ) {
-    return <div className="relative min-h-svh">{children}</div>;
+    return <main className="relative min-h-svh">{children}</main>;
   }
 
   return (
@@ -86,7 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         }`}
       >
         {/* Mobile top bar: opens the drawer; theme stays one tap away. */}
-        <div className="sticky top-0 z-40 flex items-center justify-between py-3 lg:hidden">
+        <header className="sticky top-0 z-40 flex items-center justify-between py-3 lg:hidden">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
@@ -101,7 +101,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="flex size-10 items-center justify-center rounded-full border border-border/40 bg-card/90 shadow-sm backdrop-blur">
             <ThemeToggle />
           </span>
-        </div>
+        </header>
         {children}
       </main>
 

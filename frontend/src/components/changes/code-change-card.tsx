@@ -122,8 +122,8 @@ export function CodeChangeCard({
         <span className="ml-auto flex shrink-0 items-center gap-2.5">
           {hasStats ? (
             <span className="flex items-center gap-2 font-mono text-[11px]">
-              <span className="text-primary">+{change.additions}</span>
-              <span className="text-destructive">−{change.deletions}</span>
+              <span className="text-[#815022] dark:text-primary">+{change.additions}</span>
+              <span className="text-[#bf1f1f] dark:text-destructive">−{change.deletions}</span>
             </span>
           ) : change.files_changed ? (
             <span className="font-mono text-[11px] text-muted-foreground">
@@ -166,7 +166,7 @@ export function CodeChangeCard({
         ) : null}
 
         <section className="rounded-lg border border-border/70 bg-muted/20 p-3">
-          <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+          <p className="text-[10px] font-medium tracking-wide text-[#626262] uppercase dark:text-muted-foreground">
             Why
           </p>
           <p className="mt-1.5 text-sm leading-relaxed">{change.reasoning}</p>
@@ -200,7 +200,7 @@ export function CodeChangeCard({
               ) : null}
             </>
           ) : (
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="mt-2 text-xs text-[#626262] dark:text-muted-foreground">
               No decision was extracted for this change.
             </p>
           )}

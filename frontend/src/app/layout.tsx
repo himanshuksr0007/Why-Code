@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app-shell";
 import { ClerkShell } from "@/components/clerk-shell";
 import { Providers } from "@/components/providers";
 import { GridBackground } from "@/components/grid-background";
+import { SITE_URL } from "@/lib/site";
 
 import "./globals.css";
 
@@ -29,13 +30,36 @@ const newsreader = Newsreader({
   weight: ["500", "600"],
 });
 
+const description =
+  "Ask why a codebase works the way it does, and see the pull requests, reviews and commits that decided it.";
+const shareImage = {
+  url: "/og.png",
+  width: 1200,
+  height: 630,
+  alt: "WhyCode. Ask why your code works the way it does.",
+};
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "WhyCode — AI Workspace",
     template: "%s · WhyCode",
   },
-  description:
-    "Ask why a codebase works the way it does, and see the pull requests, reviews and commits that decided it.",
+  description,
+  alternates: { canonical: "./" },
+  openGraph: {
+    type: "website",
+    url: "./",
+    title: "WhyCode — AI Workspace",
+    description,
+    images: [shareImage],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "WhyCode — AI Workspace",
+    description,
+    images: [shareImage],
+  },
   icons: {
     icon: [
       { url: "/whycode-logo.png", type: "image/png" },
@@ -62,7 +86,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                   (the fallback renders the page content bare, exactly
                   like the shell's own standalone-pages branch). */}
               <Suspense
-                fallback={<div className="relative min-h-svh">{children}</div>}
+                fallback={<main className="relative min-h-svh">{children}</main>}
               >
                 <AppShell>{children}</AppShell>
               </Suspense>

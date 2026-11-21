@@ -22,7 +22,7 @@ function Stat({ label, value }: { label: string; value: number | null }) {
   if (value === null) return null;
   return (
     <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
-      <dt className="text-[10px] tracking-wide text-muted-foreground uppercase">
+      <dt className="text-[10px] tracking-wide text-[#626262] uppercase dark:text-muted-foreground">
         {label}
       </dt>
       <dd className="font-heading text-lg font-semibold tabular-nums">
@@ -147,25 +147,25 @@ export function PersonProfileView({ profile }: { profile: PersonProfile }) {
 
       <Tabs defaultValue="changes">
         <TabsList variant="line">
-          <TabsTrigger value="changes">
+          <TabsTrigger value="changes" className="text-foreground/70">
             Code changes
             <span className="ml-1 font-mono text-[11px] text-muted-foreground">
               {profile.changes.length}
             </span>
           </TabsTrigger>
-          <TabsTrigger value="authored">
+          <TabsTrigger value="authored" className="text-foreground/70">
             Authored PRs
             <span className="ml-1 font-mono text-[11px] text-muted-foreground">
               {profile.authored.length}
             </span>
           </TabsTrigger>
-          <TabsTrigger value="reviewed">
+          <TabsTrigger value="reviewed" className="text-foreground/70">
             Reviews
             <span className="ml-1 font-mono text-[11px] text-muted-foreground">
               {profile.reviewed.length}
             </span>
           </TabsTrigger>
-          <TabsTrigger value="participated">
+          <TabsTrigger value="participated" className="text-foreground/70">
             Participated
             <span className="ml-1 font-mono text-[11px] text-muted-foreground">
               {profile.participated.length}

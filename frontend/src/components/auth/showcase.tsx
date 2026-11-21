@@ -62,7 +62,7 @@ function AskScene() {
             <DatabaseIcon className="size-3" /> encode/httpx
           </span>
           <span className="inline-flex rounded-full border border-border/60 bg-background/60 p-0.5 text-[11px]">
-            <span className="rounded-full bg-primary px-2 py-0.5 font-medium text-primary-foreground">Why?</span>
+            <span className="rounded-full bg-primary px-2 py-0.5 font-medium text-[#3d210b] dark:text-primary-foreground">Why?</span>
             <span className="px-2 py-0.5 text-muted-foreground">Plan</span>
           </span>
           <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -305,7 +305,7 @@ export function Showcase() {
               className={cn(
                 "rounded-full px-3 py-1.5 text-xs font-medium transition",
                 index === phase
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary text-[#3d210b] dark:text-primary-foreground"
                   : "border border-border/60 bg-background/50 text-muted-foreground hover:text-foreground",
               )}
             >

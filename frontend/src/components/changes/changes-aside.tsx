@@ -96,11 +96,11 @@ export function ChangesAside({ changes }: { changes: CodeChange[] }) {
               />
             </div>
             <p className="mt-2 font-mono text-[11px] text-muted-foreground">
-              <span className="text-primary">
+              <span className="text-[#815022] dark:text-primary">
                 +{totalAdditions.toLocaleString()}
               </span>{" "}
               lines added ·{" "}
-              <span className="text-destructive">
+              <span className="text-[#bf1f1f] dark:text-destructive">
                 −{totalDeletions.toLocaleString()}
               </span>{" "}
               removed
@@ -116,7 +116,7 @@ export function ChangesAside({ changes }: { changes: CodeChange[] }) {
             {[...byKind.entries()].map(([kind, count]) => (
               <span
                 key={kind}
-                className="rounded-full bg-accent/60 px-2 py-0.5 text-[11px] font-medium text-muted-foreground capitalize"
+                className="rounded-full bg-accent/60 px-2 py-0.5 text-[11px] font-medium text-[#626262] capitalize dark:text-muted-foreground"
               >
                 {kind} · {count}
               </span>
@@ -146,8 +146,8 @@ export function ChangesAside({ changes }: { changes: CodeChange[] }) {
                   {entry.additions + entry.deletions > 0 ? (
                     <>
                       <br />
-                      <span className="text-primary">+{entry.additions}</span>{" "}
-                      <span className="text-destructive">
+                      <span className="text-[#815022] dark:text-primary">+{entry.additions}</span>{" "}
+                      <span className="text-[#bf1f1f] dark:text-destructive">
                         −{entry.deletions}
                       </span>
                     </>

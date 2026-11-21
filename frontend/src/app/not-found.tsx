@@ -15,7 +15,11 @@ export default function NotFound() {
         The evidence explorer only has three views: ask, decisions, and graph
         paths.
       </p>
-      <Button render={<Link href="/" />} nativeButton={false} className="mt-5">
+      <Button
+        render={<Link href="/" />}
+        nativeButton={false}
+        className="mt-5 text-[#3d210b] dark:text-primary-foreground"
+      >
         Back to Ask
       </Button>
     </div>
