@@ -136,8 +136,24 @@ def create_app(
         allow_origins=list(_DEMO_ORIGINS),
         allow_credentials=False,
         allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-        allow_headers=["*"],
+        # Only the headers the frontend actually sends (JSON bodies and
+        # Bearer auth) — a wildcard here was flagged in the security review.
+        allow_headers=["Authorization", "Content-Type"],
     )
+
+    @app.middleware("http")
+    async def _security_headers(request, call_next):
+        response = await call_next(request)
+        # Baseline hardening for a JSON API: no MIME sniffing, no framing,
+        # no referrer leakage, and HSTS (Render terminates TLS in front of
+        # the app, so the header is meaningful in production).
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+        )
+        return response
 
     @app.get("/health")
     def health() -> dict[str, str]:

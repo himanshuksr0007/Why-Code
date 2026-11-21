@@ -97,6 +97,39 @@ class LiveGitHubClient:
             return []
         return res["items"]
 
+    def search_total(self, repo: str, qualifiers: str) -> int | None:
+        """Exact total for a raw GitHub issue/PR search (qualifiers such as
+        ``type:pr author:login``), or None when GitHub does not answer.
+        Unlike search_issues_prs this does NOT clean the query — qualifiers
+        must reach the API intact."""
+        res = self._get(
+            "/search/issues",
+            params={"q": f"repo:{repo} {qualifiers}", "per_page": 1},
+        )
+        if not res or "total_count" not in res:
+            return None
+        return int(res.get("total_count", 0))
+
+    def search_items(self, repo: str, qualifiers: str, limit: int = 10) -> list[dict[str, Any]]:
+        """Raw GitHub issue/PR search items for a qualifier string."""
+        res = self._get(
+            "/search/issues",
+            params={"q": f"repo:{repo} {qualifiers}", "per_page": limit},
+        )
+        if not res or "items" not in res:
+            return []
+        return res["items"]
+
+    def search_commits_total(self, repo: str, login: str) -> int | None:
+        """Exact commit count for an author in a repo (search/commits)."""
+        res = self._get(
+            "/search/commits",
+            params={"q": f"repo:{repo} author:{login}", "per_page": 1},
+        )
+        if not res or "total_count" not in res:
+            return None
+        return int(res.get("total_count", 0))
+
     def contributors(self, repo: str, limit: int = 25) -> list[dict[str, Any]]:
         res = self._get(f"/repos/{repo}/contributors", params={"per_page": limit})
         return res if isinstance(res, list) else []
@@ -349,16 +382,25 @@ class LiveService:
             contributions = int(c.get("contributions", 0))
             is_maintainer = idx < 3
             role_tags = ["Maintainer"] if is_maintainer else ["Contributor"]
+            # Honest counts only: the PR total is an exact GitHub search
+            # total and commits is the contributors API's own count. The
+            # remaining stats are computed for real on the profile endpoint
+            # (one person at a time); the list view does not estimate them —
+            # it previously derived them from contribution ratios, which
+            # presented invented numbers as fetched data.
+            pr_total = self.gh.search_total(repo, f"type:pr author:{login}")
+            if pr_total is None:
+                pr_total = len(self.gh.pulls(repo, creator=login, limit=100))
             people.append({
                 "login": login,
                 "name": login,
                 "url": f"https://github.com/{login}",
                 "role_tags": role_tags,
-                "authored_pull_requests": max(1, contributions // 5),
-                "reviews": max(0, contributions // 8),
-                "comments": max(1, contributions // 4),
+                "authored_pull_requests": pr_total,
+                "reviews": 0,
+                "comments": 0,
                 "commits": contributions,
-                "decisions": max(1, contributions // 10) if is_maintainer else 0,
+                "decisions": 0,
                 "first_seen": None,
                 "last_seen": None,
             })
@@ -402,20 +444,40 @@ class LiveService:
             sha = c.get("sha", "")
             commit_info = c.get("commit", {})
             msg = commit_info.get("message", "").splitlines()[0] if commit_info.get("message") else "Update"
+            # Real line stats and the real first touched file come from the
+            # commit detail (same pattern as the changes feed); when GitHub
+            # does not answer, stats stay 0 (unknown), never invented.
+            detail = self._commit_detail_cached(repo, sha) if sha else None
+            stats = (detail or {}).get("stats") or {}
+            files = (detail or {}).get("files") or []
+            if files:
+                first_file = files[0]
+                path = first_file.get("filename") or f"{repo} / commit {sha[:7]}"
+                status = str(first_file.get("status", "modified"))
+                change_kind = status if status in ("added", "removed", "renamed") else "modified"
+            else:
+                path = f"{repo} / commit {sha[:7]}"
+                change_kind = "modified"
+            pr_match = re.search(r"#(\d+)", msg)
+            pr_num = int(pr_match.group(1)) if pr_match else 0
+            commit_url = f"https://github.com/{repo}/commit/{sha}"
             changes.append({
                 "change_id": f"change_{sha[:7]}",
-                "path": f"{repo}/code",
+                "path": path,
                 "symbol": None,
-                "change_kind": "modified",
-                "additions": 10,
-                "deletions": 5,
+                "change_kind": change_kind,
+                "additions": int(stats.get("additions", 0) or 0),
+                "deletions": int(stats.get("deletions", 0) or 0),
                 "reasoning": msg,
                 "decision": None,
                 "evidence_ids": [f"{repo}:commit:{sha[:7]}"],
+                "commit_sha": sha or None,
+                "commit_url": commit_url,
+                "files_changed": len(files) if detail else None,
                 "pr": {
-                    "number": 0,
+                    "number": pr_num,
                     "title": msg,
-                    "url": f"https://github.com/{repo}/commit/{sha}",
+                    "url": f"https://github.com/{repo}/pull/{pr_num}" if pr_num else commit_url,
                     "author": {"login": login, "name": u.get("name") or login, "url": f"https://github.com/{login}"},
                     "reviewers": [],
                     "participants": [],
@@ -423,21 +485,56 @@ class LiveService:
                 "author": {"login": login, "name": u.get("name") or login, "url": f"https://github.com/{login}"},
             })
 
+        # Exact totals from GitHub's own search indexes; each falls back to
+        # the size of the fetched sample only when search does not answer.
+        pr_total = self.gh.search_total(repo, f"type:pr author:{login}")
+        reviews_total = self.gh.search_total(repo, f"type:pr reviewed-by:{login}")
+        comments_total = self.gh.search_total(repo, f"commenter:{login}")
+        commits_total = self.gh.search_commits_total(repo, login)
+
+        def _ref(item: dict[str, Any]) -> dict[str, Any]:
+            number = int(item.get("number", 0) or 0)
+            return {
+                "number": number,
+                "title": item.get("title", ""),
+                "url": item.get("html_url", f"https://github.com/{repo}/pull/{number}"),
+                "author": {"login": login, "name": u.get("name") or login, "url": f"https://github.com/{login}"},
+                "merged_at": (item.get("pull_request") or {}).get("merged_at"),
+                "reviewers": [],
+                "participants": [],
+            }
+
+        reviewed = [_ref(it) for it in self.gh.search_items(repo, f"type:pr reviewed-by:{login}", limit=10)]
+        participated = [_ref(it) for it in self.gh.search_items(repo, f"commenter:{login}", limit=10)]
+
+        # Decisions linked to this person: decision records (only when the
+        # threads are already loaded — never trigger a synthesis here) whose
+        # PR number is one of this person's authored PRs.
+        decisions_count = 0
+        cached_threads = self._decision_cache.get(repo)
+        if cached_threads:
+            authored_numbers = {int(p.get("number", 0) or 0) for p in pulls}
+            for thread in cached_threads:
+                for step in thread.get("steps", []):
+                    d = step.get("decision", {})
+                    if int(d.get("pr_number", 0) or 0) in authored_numbers:
+                        decisions_count += 1
+
         return {
             "login": login,
             "name": u.get("name") or login,
             "url": f"https://github.com/{login}",
             "role_tags": ["Contributor"],
-            "authored_pull_requests": len(pulls),
-            "reviews": max(1, len(commits) // 3),
-            "comments": len(commits) * 2,
-            "commits": len(commits),
-            "decisions": max(0, len(pulls) // 2),
+            "authored_pull_requests": pr_total if pr_total is not None else len(pulls),
+            "reviews": reviews_total if reviews_total is not None else 0,
+            "comments": comments_total if comments_total is not None else 0,
+            "commits": commits_total if commits_total is not None else len(commits),
+            "decisions": decisions_count,
             "first_seen": u.get("created_at"),
             "last_seen": commits[0].get("commit", {}).get("author", {}).get("date") if commits else None,
             "authored": authored_prs,
-            "reviewed": [],
-            "participated": authored_prs,
+            "reviewed": reviewed,
+            "participated": participated,
             "changes": changes,
         }
 
@@ -564,7 +661,16 @@ class LiveService:
 
         # In production mode: synthesize architectural decisions using live LLM + GitHub context
         threads = self._synthesize_decisions(repo)
-        self._decision_cache[repo] = threads
+        # Never cache an empty result: a failed synthesis (LLM down, GitHub
+        # unreachable, bad token) must not poison this repo's decisions
+        # until restart — the next call retries instead.
+        if threads:
+            self._decision_cache[repo] = threads
+        else:
+            logger.error(
+                "Decision synthesis returned no threads for %s; not caching the empty result",
+                repo,
+            )
         return threads
 
     def _synthesize_decisions(self, repo: str) -> list[dict[str, Any]]:
@@ -750,6 +856,29 @@ class LiveService:
             if not allows_meta:
                 if any(ign in raw_path.lower() for ign in ["code_of_conduct", "contributing", "license", "tests/", "test_"]):
                     continue
+
+            # A citation that names a PR or issue ("PR #784", "PR/Issue #784",
+            # "Issue #108") is not a file path: link it to the pull/issue
+            # page itself. Treating it as a path produced blob URLs that 404
+            # (e.g. /blob/<branch>/PR/Issue #784).
+            ref_match = re.match(r"^(?:PR/Issue|PR|Issue)\s*#(\d+)$", raw_path)
+            if ref_match:
+                ref_number = int(ref_match.group(1))
+                is_issue = raw_path.startswith("Issue")
+                evidence_views.append(
+                    EvidenceView(
+                        evidence_id=f"{repo}:{'issue' if is_issue else 'pr'}:{ref_number}",
+                        kind="issue" if is_issue else "pull_request",
+                        path=None,
+                        excerpt=excerpt,
+                        alias=f"E{len(evidence_views) + 1}",
+                        url=f"https://github.com/{repo}/{'issues' if is_issue else 'pull'}/{ref_number}",
+                        author="maintainers",
+                        pr_number=None if is_issue else ref_number,
+                        issue_number=ref_number if is_issue else None,
+                    )
+                )
+                continue
 
             path = raw_path if ("/" in raw_path or "." in raw_path) else None
             evidence_views.append(

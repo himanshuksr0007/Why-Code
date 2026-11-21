@@ -230,7 +230,11 @@ class RecordProvider:
                     )
                 )
         records = _with_supersedes(records)
-        self._live_flat_cache[repo] = records
+        # Never cache an empty flattening: if the live service had a bad
+        # moment (or has no decisions yet), the next call must retry rather
+        # than serve the empty result until restart.
+        if records:
+            self._live_flat_cache[repo] = records
         return records
 
     def invalidate(self, repo: str) -> None:
