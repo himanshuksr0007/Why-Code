@@ -422,7 +422,13 @@ def mine_commits(commits: list[Commit], repo: str, tracked: set[str]) -> list[De
         scope = [f for f in commit.files if not _NON_SCOPE.search(f) and f in tracked][:10]
         if not scope:
             continue
-        body = " ".join(commit.body.split())
+        # Squash-merge bodies are bullet lists; keep the items, drop the markers.
+        items = [
+            re.sub(r"^\s*[-*+]\s+", "", line).strip()
+            for line in commit.body.splitlines()
+            if line.strip() and not line.lower().startswith(("co-authored-by:", "signed-off-by:"))
+        ]
+        body = "; ".join(dict.fromkeys(i for i in items if i))
         decisions.append(
             Decision(
                 repo=repo,

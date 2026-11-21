@@ -530,3 +530,23 @@ def test_cli_roundtrip(repo: Path, tmp_path: Path, capsys: pytest.CaptureFixture
         == 1
     )
     assert "Blocked" in capsys.readouterr().out
+
+
+def test_authority_action_refreshes_cached_currency(store: LedgerStore) -> None:
+    [marker] = by_source(store, "inline_marker")
+    assert store.cached_currency(marker.decision_id)[0] == "background"
+    store.act(
+        marker.decision_id,
+        AuthorityEvent(
+            decision_id=marker.decision_id,
+            action=Action.ACCEPT,
+            reason="confirmed",
+            signer="Dev",
+            signer_kind=SignerKind.PERSON,
+            evidence_ref=marker.evidence[0].evidence_id,
+        ),
+    )
+    # With no checkout available, the card must follow the new status,
+    # not the stale cache from index time.
+    card = WhyEngine(store).card(store.get(marker.decision_id))
+    assert card["currency"] == "active" and card["in_force"] is True

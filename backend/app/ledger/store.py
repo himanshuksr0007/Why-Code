@@ -295,6 +295,10 @@ class LedgerStore:
                     }
                 )
                 self._update(merged)
+                self._db.execute(
+                    "UPDATE decisions SET currency = NULL WHERE decision_id = ?",
+                    (existing.decision_id,),
+                )
                 for item in decision.evidence:
                     self._put_evidence(existing.decision_id, item)
             event = event.model_copy(update={"decision_id": decision.decision_id})
@@ -328,7 +332,8 @@ class LedgerStore:
                 )
             if force and event.signer_kind is not SignerKind.PERSON:
                 raise LedgerError("only a person may force an action on a pinned decision")
-            updates: dict[str, Any] = {"updated_at": utcnow()}
+            # Authority changes invalidate the currency cached at index time.
+            updates: dict[str, Any] = {"updated_at": utcnow(), "currency": None}
             if action in {Action.ACCEPT, Action.REAFFIRM, Action.MERGE}:
                 updates.update(
                     status=Status.ACCEPTED.value,

@@ -82,8 +82,11 @@ def build_ledger_router(store: LedgerStore, *, admin_token: str | None = None) -
         query: str | None = None,
         targets: list[str] = Query(default=[]),  # noqa: B008 - FastAPI idiom
         include_history: bool = False,
+        limit: int = Query(default=8, ge=1, le=50),
     ) -> dict[str, Any]:
-        return engine.get_why(repo, query=query, targets=targets, include_history=include_history)
+        return engine.get_why(
+            repo, query=query, targets=targets, include_history=include_history, limit=limit
+        )
 
     @router.get("/decisions")
     def decisions(
@@ -96,7 +99,8 @@ def build_ledger_router(store: LedgerStore, *, admin_token: str | None = None) -
             statuses=[status] if status else None,
             currencies=[currency] if currency else None,
         )
-        return {"repo": repo, "decisions": [engine.card(d) for d in rows]}
+        git, tracked = engine._git(repo)
+        return {"repo": repo, "decisions": [engine.card(d, git, tracked) for d in rows]}
 
     @router.get("/decisions/{decision_id}")
     def decision(decision_id: str) -> dict[str, Any]:

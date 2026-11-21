@@ -31,7 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const collapsed = useSidebarCollapsed();
   const pathname = usePathname();
 
-  const isChangesPage = pathname === "/changes";
+  const isChangesPage = pathname === "/changes" || pathname === "/decisions";
 
   // The auth pages and shared-chat links are standalone: no sidebar,
   // no insights rail, no mobile top bar.
