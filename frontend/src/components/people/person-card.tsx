@@ -48,10 +48,9 @@ export function PersonCard({ person }: { person: PersonSummary }) {
         </div>
       ) : null}
 
-      <dl className="grid grid-cols-3 gap-2">
+      <dl className="grid grid-cols-2 gap-2">
         <Stat label="PRs" value={person.authored_pull_requests} />
-        <Stat label="Reviews" value={person.reviews} />
-        <Stat label="Decisions" value={person.decisions} />
+        <Stat label="Commits" value={person.commits} />
       </dl>
 
       <p className="text-xs text-muted-foreground">
