@@ -163,12 +163,17 @@ class Neo4jModelStore:
         return record
 
     def list_models(self, client_id: str) -> list[CustomModelRecord]:
+        # Sorted in Python, not Cypher: ORDER BY on a property key that no
+        # node in the database carries yet makes Neo4j emit a
+        # "property key does not exist" warning on every call. The
+        # in-memory store sorts the same way.
         result = self._client.run(
-            "MATCH (m:CustomModel {client_id: $client_id}) "
-            "RETURN m ORDER BY m.created_at",
+            "MATCH (m:CustomModel {client_id: $client_id}) RETURN m",
             client_id=client_id,
         )
-        return [_record_from_node(row["m"]) for row in result.records]
+        records = [_record_from_node(row["m"]) for row in result.records]
+        records.sort(key=lambda m: m.created_at)
+        return records
 
     def get_model(self, client_id: str, model_id: str) -> CustomModelRecord | None:
         result = self._client.run(
