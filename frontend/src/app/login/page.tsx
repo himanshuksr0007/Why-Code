@@ -12,6 +12,7 @@ import {
   authFieldClass,
   authLabelClass,
 } from "@/components/auth/auth-card";
+import { SocialButtons } from "@/components/auth/social-buttons";
 import { VerifyEmailForm } from "@/components/auth/verify-email-form";
 import { Button } from "@/components/ui/button";
 import { AuthApiError, authApi } from "@/lib/auth/api";
@@ -104,6 +105,7 @@ export default function LoginPage() {
         </>
       }
     >
+      <SocialButtons mode="signin" />
       <form onSubmit={submit} className="space-y-4" noValidate>
         <div>
           <label htmlFor="login-email" className={authLabelClass}>

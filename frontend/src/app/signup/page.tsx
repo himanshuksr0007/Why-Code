@@ -11,9 +11,14 @@ import {
   authFieldClass,
   authLabelClass,
 } from "@/components/auth/auth-card";
+import { SocialButtons } from "@/components/auth/social-buttons";
 import { VerifyEmailForm } from "@/components/auth/verify-email-form";
 import { Button } from "@/components/ui/button";
 import { AuthApiError, authApi } from "@/lib/auth/api";
+import {
+  EMAIL_DOMAIN_MESSAGE,
+  emailDomainAllowed,
+} from "@/lib/auth/email-domains";
 import { useAuth } from "@/lib/auth/store";
 import { hapticError, hapticLight, hapticSelection } from "@/lib/haptics";
 
@@ -41,6 +46,11 @@ export default function SignupPage() {
     if (password !== confirm) {
       hapticError();
       setError("The two passwords do not match.");
+      return;
+    }
+    if (!emailDomainAllowed(email)) {
+      hapticError();
+      setError(EMAIL_DOMAIN_MESSAGE);
       return;
     }
     setBusy(true);
@@ -95,6 +105,7 @@ export default function SignupPage() {
         </>
       }
     >
+      <SocialButtons mode="signup" />
       <form onSubmit={submit} className="space-y-4" noValidate>
         <div>
           <label htmlFor="signup-name" className={authLabelClass}>
@@ -125,6 +136,10 @@ export default function SignupPage() {
             onChange={(event) => setEmail(event.target.value)}
             required
           />
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Use a common provider (Gmail, Outlook, Yahoo, iCloud…) —
+            disposable addresses can&apos;t sign up directly.
+          </p>
         </div>
         <div>
           <label htmlFor="signup-password" className={authLabelClass}>

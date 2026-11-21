@@ -235,6 +235,26 @@ export const authApi = {
     return session;
   },
 
+  /**
+   * Exchange a Clerk session token (Google/GitHub sign-in) for a WhyCode
+   * session. The backend verifies the token and links by email, so the
+   * returned session is the same account a direct login would produce.
+   */
+  async socialLogin(clerkToken: string): Promise<AuthSession> {
+    if (API_MODE === "mock") {
+      throw new AuthApiError(
+        503,
+        "Social sign-in isn't available in the offline demo.",
+      );
+    }
+    const session = await request<AuthSession>("/api/v1/auth/social", {
+      method: "POST",
+      body: JSON.stringify({ token: clerkToken }),
+    });
+    setAuthSession(session);
+    return session;
+  },
+
   async logout(): Promise<void> {
     if (API_MODE === "http") {
       await request<void>("/api/v1/auth/logout", { method: "POST", auth: true }).catch(

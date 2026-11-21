@@ -45,6 +45,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (
     pathname === "/login" ||
     pathname === "/signup" ||
+    pathname === "/sso-callback" ||
+    pathname === "/auth/bridge" ||
     pathname.startsWith("/share/")
   ) {
     return <div className="relative min-h-svh">{children}</div>;
