@@ -29,24 +29,22 @@ from app.retrieval.models import (
     QuestionUnderstanding,
 )
 
-DefaultOffReview = "httpx:review_comment:300"
-DefaultOffCommit = "httpx:commit:cccccccccccccccccccccccccccccccccccccccc"
-DefaultOffFile = "httpx:pr:1525:file:httpx/_config.py"
-DefaultOffIssue = "httpx:issue_comment:9100"
-DefaultOffDoc = "httpx:doc:retries-default"
+TransportFile = "httpx:pr:2311:file:docs/advanced.md"
+TransportCode = "httpx:code:transports-default"
+TransportReview = "httpx:review_comment:482022169"
+TransportDoc = "httpx:doc:transports-retries"
 
-ConnectionReview = "httpx:review_comment:123"
-ConnectionCommit = "httpx:commit:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-ConnectionFile = "httpx:pr:1419:file:httpx/_client.py"
-ConnectionIssue = "httpx:issue_comment:9001"
+ClientFile = "httpx:pr:1196:file:httpx/_client.py"
+ClientPR = "httpx:pr:1196"
+ClientTransportComment = "httpx:issue_comment:690148589"
+ClientCloseComment = "httpx:issue_comment:706500230"
 
-HistoricalReview = "httpx:review_comment:120"
-HistoricalCommit = "httpx:commit:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-HistoricalFile = "httpx:pr:1200:file:httpx/_config.py"
-
-TimeoutReview = "httpx:review_comment:500"
-TimeoutFile = "httpx:pr:1215:file:httpx/_config.py"
-TimeoutIssue = "httpx:issue_comment:8000"
+TimeoutPool = "httpx:pr:7:file:httpcore/pool.py"
+TimeoutSplit = "httpx:pr:104:file:http3/concurrency.py"
+TimeoutDocsPR = "httpx:pr:476:file:docs/advanced.md"
+TimeoutReview = "httpx:review_comment:334299780"
+TimeoutCode = "httpx:code:timeout-config"
+TimeoutDoc = "httpx:doc:timeouts"
 
 _INSUFFICIENT = (
     "I cannot find a defensible decision trail for this in the ingested "
@@ -94,17 +92,25 @@ def _q1(pack: EvidencePack) -> AnswerDraft | None:
         pack,
         [
             (
-                "Retries are disabled by default because automatic retries "
-                "can duplicate non-idempotent requests.",
-                (DefaultOffReview, DefaultOffIssue),
+                "Retries are opt-in and disabled by default on the transport.",
+                (TransportFile, TransportCode),
             ),
             (
-                "The default retry count was reset to zero in PR #1525.",
-                (DefaultOffFile, DefaultOffCommit),
+                "The current source snapshot in "
+                "`httpx/_transports/default.py` shows that HTTPTransport "
+                "passes its retries value to the connection pool, with a "
+                "default of zero.",
+                (TransportCode, TransportFile),
             ),
             (
-                "Callers must enable retries explicitly on the transport.",
-                (DefaultOffDoc, DefaultOffReview),
+                "The documentation describes connection retries as an "
+                "advanced transport option, not as automatic client behavior.",
+                (TransportDoc, TransportFile),
+            ),
+            (
+                "Only connect errors are retried; read and write failures are "
+                "left to general-purpose retry tools.",
+                (TransportDoc, TransportReview),
             ),
         ],
     )
@@ -115,20 +121,30 @@ def _q2(pack: EvidencePack) -> AnswerDraft | None:
         pack,
         [
             (
-                "Simple retries are limited to connection failures because "
-                "only a connection error is guaranteed not to have reached "
-                "the server.",
-                (ConnectionReview,),
+                "A connect failure is safe to retry because the request never "
+                "reached the server.",
+                (TransportReview,),
             ),
             (
-                "Retrying after a read or write failure could duplicate a "
-                "non-idempotent request.",
-                (ConnectionIssue, ConnectionCommit),
+                "The original review on `httpx/_client.py` records that "
+                "reasoning.",
+                (TransportReview,),
             ),
             (
-                "The check lives in httpx/_client.py, where the retry "
-                "decision tests for a connection error before resending.",
-                (ConnectionFile,),
+                "A read or write failure may already have produced side "
+                "effects, so HTTPX does not retry a potentially "
+                "non-idempotent request automatically.",
+                (TransportDoc, TransportReview),
+            ),
+            (
+                "The current code exposes retries on HTTPTransport and "
+                "defaults the count to zero.",
+                (TransportCode, TransportFile),
+            ),
+            (
+                "Callers who need read or write retries are pointed at "
+                "general-purpose tools.",
+                (TransportDoc,),
             ),
         ],
     )
@@ -139,23 +155,38 @@ def _q3(pack: EvidencePack) -> AnswerDraft | None:
         pack,
         [
             (
-                "Yes — the retry approach was revised and then reversed.",
-                (HistoricalFile, HistoricalReview),
+                "The retry approach was revised: client-level connect retries "
+                "were proposed, then moved to the transport layer.",
+                (ClientPR, ClientTransportComment),
             ),
             (
-                "PR #1200 first enabled retries for transient failures by "
-                "default.",
-                (HistoricalFile, HistoricalCommit),
+                "PR #1196 added an opt-in retries argument to Client.",
+                (ClientFile, ClientPR),
             ),
             (
-                "PR #1525 later reset the default retry count to zero, so "
-                "retries are now opt-in.",
-                (DefaultOffFile, DefaultOffCommit),
+                "A review concluded that retries belong on the transport "
+                "layer, closer to the connection.",
+                (ClientTransportComment,),
             ),
             (
-                "The connection-failure limit remains a separate current "
-                "constraint.",
-                (ConnectionFile,),
+                "The client-level proposal was closed in favor of an httpcore "
+                "change.",
+                (ClientCloseComment,),
+            ),
+            (
+                "The current implementation keeps retries on HTTPTransport, "
+                "where the default is zero.",
+                (TransportCode, TransportFile),
+            ),
+            (
+                "The current documentation limits transport retries to connect "
+                "errors.",
+                (TransportDoc, TransportFile),
+            ),
+            (
+                "That makes the transport-level decision current and the "
+                "client-level decision historical.",
+                (ClientTransportComment, TransportFile),
             ),
         ],
     )
@@ -166,20 +197,34 @@ def _q4(pack: EvidencePack) -> AnswerDraft | None:
         pack,
         [
             (
-                "The client splits timeouts into connect, read, write, and "
-                "pool limits in httpx/_config.py.",
-                (TimeoutFile,),
+                "The timeout split lives in `httpx/_config.py`, where the "
+                "current Timeout class has one field per phase.",
+                (TimeoutCode,),
             ),
             (
-                "Each phase can fail independently: a pool timeout means "
-                "waiting for a free connection, while a read timeout means "
-                "waiting for the server.",
-                (TimeoutReview, TimeoutIssue),
+                "The client uses separate connect, read, write, and pool "
+                "timeouts because each phase can fail independently.",
+                (TimeoutCode, TimeoutDocsPR),
             ),
             (
-                "Separating them lets callers distinguish connection "
-                "starvation from a slow server.",
-                (TimeoutIssue, TimeoutReview),
+                "A connect timeout means the connection to the host was never "
+                "established.",
+                (TimeoutReview,),
+            ),
+            (
+                "A write timeout means sending request data stalled, and a "
+                "read timeout means receiving response data stalled.",
+                (TimeoutDocsPR, TimeoutDoc),
+            ),
+            (
+                "A pool timeout means the client waited too long for a free "
+                "connection.",
+                (TimeoutPool, TimeoutDoc),
+            ),
+            (
+                "The documentation lists connect, read, write, and pool "
+                "timeouts as distinct failure modes.",
+                (TimeoutDoc, TimeoutDocsPR),
             ),
         ],
     )

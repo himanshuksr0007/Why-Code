@@ -85,7 +85,7 @@ curl -X POST http://localhost:8000/demo/rehearse \
 ```
 
 `create_demo_app()` exposes the same fixed `/demo/script`, `/demo/ask` and
-`/demo/rehearse` flow used by the frontend `/demo` page, and also mounts the
+`/demo/rehearse` flow used by the frontend `/ask` screen, and also mounts the
 normal `/ask` routes against the fixture service. `/demo/ask` accepts only the
 five script questions (`400` otherwise). The response includes named checks and
 a measured latency against an 8,000 ms budget / 5,000 ms target. That latency is

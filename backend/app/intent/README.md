@@ -131,8 +131,10 @@ Nothing is silently dropped: rejected, low-signal, ambiguous, duplicate, conflic
 The extractor is measured against a small, manually curated golden set, not
 against extraction volume (D-0048). The bundled suite has **20 cases**:
 
-- **5 fixture cases** over the checked-in retry/timeout evidence, scored
-  end-to-end in `tests/intent/test_intent_pipeline.py`;
+- **5 synthetic fixture cases** over the checked-in retry/timeout test
+  fixtures, scored end-to-end in `tests/intent/test_intent_pipeline.py`; these
+  fixtures are not real `encode/httpx` records and are never used by the
+  judge-facing demo;
 - **15 public `encode/httpx` cases** (12 decisions, 3 refusals) waiting for a
   real ingestion/structural run.
 

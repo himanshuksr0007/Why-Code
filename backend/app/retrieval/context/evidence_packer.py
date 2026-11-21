@@ -33,6 +33,7 @@ from app.retrieval.models import (
 _KIND_PRIORITY = {
     "changed_file": 0,
     "diff": 0,
+    "code_file": 1,
     "review_comment": 1,
     "commit": 2,
     "issue_comment": 3,
@@ -47,6 +48,7 @@ _KIND_PRIORITY = {
 _KIND_LABELS = {
     "changed_file": "Changed diff hunk",
     "diff": "Changed diff hunk",
+    "code_file": "Source file",
     "review_comment": "Review comment",
     "review": "Review",
     "commit": "Commit message",

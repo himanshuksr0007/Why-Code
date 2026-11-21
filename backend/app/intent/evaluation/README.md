@@ -24,10 +24,12 @@ app/intent/evaluation/
 └── README.md
 ```
 
-`golden/decisions.jsonl` has **20 cases**: five executable fixture cases
-(`corpus: "fixture"`) and fifteen public `encode/httpx` cases
+`golden/decisions.jsonl` has **20 cases**: five executable synthetic fixture
+cases (`corpus: "fixture"`) and fifteen public `encode/httpx` cases
 (`corpus: "httpx-public"`). Seventeen are decisions; three are refusal cases
-where the PR is a pure refactor or documentation change.
+where the PR is a pure refactor or documentation change. The fixture cases are
+test-harness inputs, not real repository history; the public cases are the
+only corpus intended to describe real `encode/httpx` decisions.
 
 The fixture corpus is scored end-to-end in
 `tests/intent/test_intent_pipeline.py`. The public corpus is manual ground

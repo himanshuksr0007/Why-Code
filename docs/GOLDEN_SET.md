@@ -14,14 +14,15 @@ caveats live in
 
 | Corpus | Cases | Purpose |
 | --- | ---: | --- |
-| `fixture` | 5 | Runs end-to-end against the checked-in retry fixtures; proves the harness and the extractor agree on a small, exact corpus. |
+| `fixture` | 5 | Synthetic harness cases that run end-to-end against the checked-in retry fixtures; they prove the harness and extractor agree on a small exact corpus. They are not real `encode/httpx` history and are never used by the judge demo. |
 | `httpx-public` | 15 | Manually curated from merged `encode/httpx` PRs and linked issues; waits for the real ingestion/structural artifacts. |
 
 ## Fixture cases
 
 These cases are backed by `tests/intent/fixtures/retry_pr_evidence.json` and
 `timeout_pr_evidence.json`. Every evidence ID in the cases exists in those
-files.
+files. **The fixtures are synthetic:** the PR numbers, commits and dates are
+test-harness values, not real `encode/httpx` records. Do not cite them.
 
 | Case | PR | Decision | Expected status |
 | --- | ---: | --- | --- |

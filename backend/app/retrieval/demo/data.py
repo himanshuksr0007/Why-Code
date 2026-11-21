@@ -1,9 +1,19 @@
-"""The prepared demo corpus.
+"""The prepared demo corpus, grounded in real ``encode/httpx`` records.
 
-This is fixture data, not a second source of truth. It mirrors the shape the
-intent and structural writers put in Neo4j so the retrieval pipeline can run
-offline and rerun byte-identically. Every fact in a demo answer is backed by
-one of these evidence records.
+This is still fixture data: the pipeline must run offline and byte-identically.
+The difference from a synthetic fixture is that every evidence URL, author,
+date and excerpt here points at a real GitHub record that actually supports the
+claim it is attached to. The demo never calls GitHub at runtime.
+
+The retry story is deliberately not the old invented "PR #1525 reverted
+retries" story. The real history is stronger:
+
+* connect retries were proposed on the client (PR #1196);
+* maintainers moved the behavior to the transport layer;
+* the current transport retries are opt-in and only cover connect failures;
+* the timeout phases were introduced by separate merged PRs in 2019.
+
+Nothing in this module performs I/O or reads the clock.
 """
 
 from __future__ import annotations
@@ -24,11 +34,10 @@ from app.retrieval.question.models import EntityType
 
 DEMO_REPO = "encode/httpx"
 
-# Decisions are deliberately ordered current-first. The in-memory backend uses
-# this order as the tie-break for identifiers that govern more than one node.
-DEFAULT_OFF = "dec_httpx_retry_default_off"
-CONNECTION_ONLY = "dec_httpx_retry_connection_only"
-DEFAULT_ON = "dec_httpx_retry_default_on"
+# Decisions are ordered current-first. The in-memory backend uses this order as
+# the tie-break for identifiers that govern more than one node.
+TRANSPORT_RETRIES = "dec_httpx_retry_transport"
+CLIENT_RETRIES = "dec_httpx_retry_client"
 TIMEOUT_PHASES = "dec_httpx_timeout_phases"
 
 QUESTION_1 = "Why are retries disabled by default in httpx?"
@@ -54,35 +63,37 @@ DEMO_SCRIPT: tuple[DemoQuestionSpec, ...] = (
     DemoQuestionSpec(
         question_id="q1",
         question=QUESTION_1,
-        focus="Decision, evidence, people and graph path",
+        focus="Active decision, source evidence, people and graph path",
         expectation=(
-            "A cited answer explains why retries are opt-in and shows the "
-            "config key, the decision, the people and the supporting evidence."
+            "A cited answer explains that retries are opt-in, live on the "
+            "transport, and default to zero; it shows the source snapshot, "
+            "the supporting PR and the people behind it."
         ),
         expected_status=AnswerStatus.ANSWERED,
-        expected_decision_id=DEFAULT_OFF,
+        expected_decision_id=TRANSPORT_RETRIES,
     ),
     DemoQuestionSpec(
         question_id="q2",
         question=QUESTION_2,
-        focus="HTTP idempotency constraint and code-level rationale",
+        focus="Why connect failures are safe to retry and read/write failures are not",
         expectation=(
-            "The answer ties the connection-only rule to idempotency and "
-            "points at the retry guard in the client code."
+            "The answer explains that a connect failure means the request "
+            "never reached the server, while read and write failures may "
+            "already have produced side effects."
         ),
         expected_status=AnswerStatus.ANSWERED,
-        expected_decision_id=CONNECTION_ONLY,
+        expected_decision_id=TRANSPORT_RETRIES,
     ),
     DemoQuestionSpec(
         question_id="q3",
         question=QUESTION_3,
-        focus="Supersession detection",
+        focus="Supersession: client-level proposal moved to the transport",
         expectation=(
-            "The historical default is labelled historical, and the current "
-            "decision is presented as current truth."
+            "The client-level retry proposal is labelled historical, and the "
+            "current transport-level decision is presented as current truth."
         ),
         expected_status=AnswerStatus.ANSWERED,
-        expected_decision_id=DEFAULT_OFF,
+        expected_decision_id=TRANSPORT_RETRIES,
         expects_historical=True,
     ),
     DemoQuestionSpec(
@@ -91,7 +102,8 @@ DEMO_SCRIPT: tuple[DemoQuestionSpec, ...] = (
         focus="A different subsystem and config-key path",
         expectation=(
             "The answer explains why the timeout phases are separate and "
-            "follows a different config key through the graph."
+            "follows the timeout config key through a different set of "
+            "merged pull requests."
         ),
         expected_status=AnswerStatus.ANSWERED,
         expected_decision_id=TIMEOUT_PHASES,
@@ -116,38 +128,50 @@ def build_entity_index() -> EntityIndex:
     """The allowlist the deterministic entity extractor may resolve.
 
     Aliases are chosen so the prepared questions resolve without a model:
-    Q1 matches the full phrase "retries disabled by default", Q4 matches
-    "timeouts", and Q5 matches nothing at all.
+    Q1 matches "retries disabled by default", Q2 matches "connection
+    failures", Q3 matches "retry approach", Q4 matches "timeouts", and Q5
+    matches nothing at all.
     """
 
     entities = [
         KnownEntity(
             type=EntityType.CONFIG_KEY,
-            identifier="retry.max_attempts",
+            identifier="retries",
             aliases=(
                 "retries disabled by default",
                 "retry defaults",
+                "connection failures",
+                "connect failures",
+                "connect errors",
                 "retry",
+                "retries",
             ),
-            display_name="retry.max_attempts",
-            path="httpx/_config.py",
+            display_name="retries",
+            path="httpx/_transports/default.py",
         ),
         KnownEntity(
             type=EntityType.CONFIG_KEY,
             identifier="timeout",
-            aliases=("timeouts", "pool timeout"),
+            aliases=(
+                "timeouts",
+                "pool timeout",
+                "connect timeout",
+                "read timeout",
+                "write timeout",
+            ),
             display_name="timeout",
             path="httpx/_config.py",
         ),
         KnownEntity(
             type=EntityType.SYMBOL,
-            identifier="httpx._client.Client._send_handling_redirects",
+            identifier="httpx._transports.default.HTTPTransport",
             aliases=(
-                "Client._send_handling_redirects",
-                "send_handling_redirects",
+                "HTTPTransport",
+                "transport retries",
+                "transport layer",
             ),
-            display_name="_send_handling_redirects",
-            path="httpx/_client.py",
+            display_name="HTTPTransport",
+            path="httpx/_transports/default.py",
         ),
         KnownEntity(
             type=EntityType.SYMBOL,
@@ -157,10 +181,17 @@ def build_entity_index() -> EntityIndex:
             path="httpx/_config.py",
         ),
         KnownEntity(
-            type=EntityType.FILE,
-            identifier="httpx/_client.py",
-            aliases=("_client.py",),
+            type=EntityType.SYMBOL,
+            identifier="httpx._client.Client",
+            aliases=("client-level retries", "client retry proposal"),
+            display_name="Client",
             path="httpx/_client.py",
+        ),
+        KnownEntity(
+            type=EntityType.FILE,
+            identifier="httpx/_transports/default.py",
+            aliases=("_transports/default.py",),
+            path="httpx/_transports/default.py",
         ),
         KnownEntity(
             type=EntityType.FILE,
@@ -169,41 +200,40 @@ def build_entity_index() -> EntityIndex:
             path="httpx/_config.py",
         ),
         KnownEntity(
-            type=EntityType.DECISION,
-            identifier=DEFAULT_OFF,
-            claim="Retries are disabled by default; callers must opt in explicitly.",
-            status="active",
-            pr_number=1525,
+            type=EntityType.FILE,
+            identifier="httpx/_client.py",
+            aliases=("_client.py",),
+            path="httpx/_client.py",
         ),
         KnownEntity(
             type=EntityType.DECISION,
-            identifier=CONNECTION_ONLY,
+            identifier=TRANSPORT_RETRIES,
             claim=(
-                "Simple retries are limited to connection failures because "
-                "only connection errors are safe to retry."
+                "Retries are opt-in, disabled by default, and limited to "
+                "connection failures on the transport."
             ),
             status="active",
-            pr_number=1419,
+            pr_number=2311,
         ),
         KnownEntity(
             type=EntityType.DECISION,
-            identifier=DEFAULT_ON,
+            identifier=CLIENT_RETRIES,
             claim=(
-                "The client originally enabled automatic retries for "
-                "transient network errors."
+                "The retry approach was revised: the client proposal moved "
+                "to the transport layer."
             ),
-            status="reversed",
-            pr_number=1200,
+            status="superseded",
+            pr_number=1196,
         ),
         KnownEntity(
             type=EntityType.DECISION,
             identifier=TIMEOUT_PHASES,
             claim=(
-                "The client uses separate connect, read, write, and pool "
-                "timeouts because each phase can fail independently."
+                "Timeouts are split into connect, read, write, and pool "
+                "phases because each phase can fail independently."
             ),
             status="active",
-            pr_number=1215,
+            pr_number=104,
         ),
     ]
     return EntityIndex(entities=entities)
@@ -211,288 +241,245 @@ def build_entity_index() -> EntityIndex:
 
 def build_contexts() -> dict[str, GraphContext]:
     return {
-        DEFAULT_OFF: _default_off_context(),
-        CONNECTION_ONLY: _connection_only_context(),
+        TRANSPORT_RETRIES: _transport_retries_context(),
+        CLIENT_RETRIES: _client_retries_context(),
         TIMEOUT_PHASES: _timeout_context(),
-        DEFAULT_ON: _default_on_context(),
     }
 
 
-def _default_off_context() -> GraphContext:
+def _transport_retries_context() -> GraphContext:
     evidence = [
         _evidence(
-            "httpx:review_comment:300",
-            kind="review_comment",
-            excerpt=(
-                "Retries should be opt-in. Turning them on by default changed "
-                "behaviour for every client without warning."
-            ),
-            author="tomchristie",
-            created_at="2024-06-03T10:12:00Z",
-            pr_number=1525,
-            path="httpx/_config.py",
-            start_line=255,
-            end_line=270,
-        ),
-        _evidence(
-            "httpx:commit:cccccccccccccccccccccccccccccccccccccccc",
-            kind="commit",
-            excerpt=(
-                "Revert automatic retries and default the retry count to zero."
-            ),
-            author="tomchristie",
-            created_at="2024-06-04T08:30:00Z",
-            pr_number=1525,
-            commit_sha="cccccccccccccccccccccccccccccccccccccccc",
-        ),
-        _evidence(
-            "httpx:pr:1525:file:httpx/_config.py",
+            "httpx:pr:2311:file:docs/advanced.md",
+            decision_id=TRANSPORT_RETRIES,
             kind="changed_file",
             excerpt=(
-                "@@ -258,6 +258,6 @@ class Limits:\n"
-                "-    retries: int = 3\n"
-                "+    retries: int = 0"
+                "@@ -1093,7 +1093,7 @@ class directly, and pass it to the client instance.\n"
+                " >>> client = httpx.Client(transport=transport)\n"
+                " ```\n"
+                " \n"
+                "-Connection retries are also available via this interface.\n"
+                "+Connection retries are also available via this interface. "
+                "Requests will be retried the given number of times in case "
+                "an `httpx.ConnectError` or an `httpx.ConnectTimeout` occurs, "
+                "allowing smoother operation under flaky networks. If you need "
+                "other forms of retry behaviors, such as handling read/write "
+                "errors or reacting to `503 Service Unavailable`, consider "
+                "general-purpose tools such as tenacity."
             ),
-            author="tomchristie",
-            created_at="2024-06-04T08:35:00Z",
-            pr_number=1525,
-            path="httpx/_config.py",
-            start_line=255,
-            end_line=270,
+            author="florimondmanca",
+            created_at="2022-07-29T12:21:59Z",
+            url="https://github.com/encode/httpx/pull/2311/files",
+            pr_number=2311,
+            path="docs/advanced.md",
+            start_line=1093,
+            end_line=1095,
         ),
         _evidence(
-            "httpx:issue_comment:9100",
-            kind="issue_comment",
+            "httpx:code:transports-default",
+            decision_id=TRANSPORT_RETRIES,
+            kind="code_file",
             excerpt=(
-                "Turning retries on by default broke clients that send "
-                "non-idempotent requests."
+                "class HTTPTransport(BaseTransport):\n"
+                "    def __init__(\n"
+                "        ...\n"
+                "        retries: int = 0,\n"
+                "    ) -> None:\n"
+                "        ...\n"
+                "        self._pool = httpcore.ConnectionPool(\n"
+                "            ...\n"
+                "            retries=retries,\n"
+                "        )"
             ),
-            author="lukasa",
-            created_at="2024-05-30T16:20:00Z",
-            issue_number=9100,
-            path=None,
+            author=None,
+            created_at=None,
+            url=(
+                "https://github.com/encode/httpx/blob/master/"
+                "httpx/_transports/default.py#L135-L166"
+            ),
+            path="httpx/_transports/default.py",
+            start_line=135,
+            end_line=166,
         ),
         _evidence(
-            "httpx:doc:retries-default",
+            "httpx:review_comment:482022169",
+            decision_id=TRANSPORT_RETRIES,
+            kind="review_comment",
+            excerpt=(
+                "I don't think we need to care about idempotency for connect "
+                "retries. If we've not established a connection to the server, "
+                "then we're okay to re-issue the request whatever the method."
+            ),
+            author="lovelydinosaur",
+            created_at="2020-09-02T12:16:13Z",
+            url=(
+                "https://github.com/encode/httpx/pull/1196"
+                "#discussion_r482022169"
+            ),
+            pr_number=1196,
+            path="httpx/_client.py",
+            start_line=818,
+            end_line=818,
+        ),
+        _evidence(
+            "httpx:doc:transports-retries",
+            decision_id=TRANSPORT_RETRIES,
             kind="doc_file",
             excerpt=(
-                "Retries are disabled by default; enable them explicitly on "
-                "the transport."
+                "Connection retries are also available via this interface. "
+                "Requests will be retried the given number of times in case "
+                "an `httpx.ConnectError` or an `httpx.ConnectTimeout` occurs, "
+                "allowing smoother operation under flaky networks. If you need "
+                "other forms of retry behaviors, such as handling read/write "
+                "errors or reacting to `503 Service Unavailable`, consider "
+                "general-purpose tools such as tenacity."
             ),
-            author="tomchristie",
-            created_at="2024-06-05T09:00:00Z",
-            path="docs/advanced/clients.md",
+            author="florimondmanca",
+            created_at="2022-07-29T12:21:59Z",
+            url=(
+                "https://github.com/encode/httpx/blob/master/"
+                "docs/advanced/transports.md#L17"
+            ),
+            path="docs/advanced/transports.md",
+            start_line=17,
+            end_line=17,
         ),
     ]
     decision = DecisionCandidate(
-        decision_id=DEFAULT_OFF,
+        decision_id=TRANSPORT_RETRIES,
         claim=(
-            "Retries are disabled by default; callers must opt in explicitly."
+            "Retries are opt-in and disabled by default; only connection "
+            "failures are retried on the transport."
         ),
         rationale=(
-            "This approach revised the earlier retry default: automatic "
-            "retries can duplicate non-idempotent requests and amplify an "
-            "outage, so retrying is not safe by default. PR #1525 reset the "
-            "retry.max_attempts default to zero after the earlier behaviour "
-            "caused regressions."
+            "The default retry count is zero. Automatic retries are not safe "
+            "for every request, so callers must enable connection retries "
+            "explicitly on HTTPTransport. Read and write failures are left to "
+            "general-purpose retry tools because the request may already have "
+            "produced side effects."
         ),
         status=DecisionState.ACTIVE,
         confidence=AnswerConfidence.HIGH,
         target_ids=[
-            "ConfigKey:retry.max_attempts",
-            "Symbol:httpx._client.Client._send_handling_redirects",
-            "CodeRegion:httpx/_config.py:255-270",
-            "File:httpx/_config.py",
-            "Commit:cccccccccccccccccccccccccccccccccccccccc",
+            "ConfigKey:retries",
+            "Symbol:httpx._transports.default.HTTPTransport",
+            "CodeRegion:httpx/_transports/default.py:135-166",
+            "File:httpx/_transports/default.py",
         ],
         evidence_ids=[item.evidence_id for item in evidence],
-        created_at="2024-06-03T10:12:00Z",
+        created_at="2022-07-29T12:21:59Z",
     )
     return GraphContext(
         decision=decision,
         evidence=evidence,
         targets=list(decision.target_ids),
-        pull_requests=["PullRequest:#1525"],
+        pull_requests=["PullRequest:#2311"],
         later_decisions=[],
         conflicts=[],
     )
 
 
-def _connection_only_context() -> GraphContext:
+def _client_retries_context() -> GraphContext:
     evidence = [
         _evidence(
-            "httpx:review_comment:123",
-            kind="review_comment",
-            excerpt=(
-                "We cannot retry every failure: only connection errors are "
-                "safe, because the request may already have reached the server."
-            ),
-            author="tomchristie",
-            created_at="2024-03-14T11:05:00Z",
-            pr_number=1419,
-            path="httpx/_client.py",
-            start_line=1394,
-            end_line=1412,
-        ),
-        _evidence(
-            "httpx:commit:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            kind="commit",
-            excerpt=(
-                "Only retry connection failures; do not retry read, write, "
-                "or pool timeouts."
-            ),
-            author="tomchristie",
-            created_at="2024-03-15T07:45:00Z",
-            pr_number=1419,
-            commit_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        ),
-        _evidence(
-            "httpx:pr:1419:file:httpx/_client.py",
+            "httpx:pr:1196:file:httpx/_client.py",
+            decision_id=CLIENT_RETRIES,
             kind="changed_file",
             excerpt=(
-                "@@ -1398,7 +1398,9 @@ def _send_handling_redirects(\n"
-                "-        if self._transport.retries:\n"
-                "+        if isinstance(exc, ConnectError) and self._transport.retries:"
+                "@@ -73,6 +80,7 @@ def __init__(\n"
+                "         cookies: CookieTypes = None,\n"
+                "         timeout: TimeoutTypes = DEFAULT_TIMEOUT_CONFIG,\n"
+                "         max_redirects: int = DEFAULT_MAX_REDIRECTS,\n"
+                "+        retries: int = DEFAULT_RETRIES,\n"
+                "         base_url: URLTypes = \"\",\n"
+                "         trust_env: bool = True,\n"
+                "     ):"
             ),
-            author="tomchristie",
-            created_at="2024-03-15T07:50:00Z",
-            pr_number=1419,
+            author="florimondmanca",
+            created_at="2020-08-19",
+            url="https://github.com/encode/httpx/pull/1196/files",
+            pr_number=1196,
             path="httpx/_client.py",
-            start_line=1394,
-            end_line=1412,
+            start_line=73,
+            end_line=86,
         ),
         _evidence(
-            "httpx:issue_comment:9001",
+            "httpx:issue_comment:690148589",
+            decision_id=CLIENT_RETRIES,
             kind="issue_comment",
             excerpt=(
-                "A retry after a write failure can duplicate a POST that the "
-                "server already accepted."
+                "I think we really do want this on the transport layer, "
+                "wrapping as close to the connection as possible."
             ),
-            author="lukasa",
-            created_at="2024-03-10T18:40:00Z",
-            issue_number=9001,
+            author="lovelydinosaur",
+            created_at="2020-09-10T10:45:13Z",
+            url=(
+                "https://github.com/encode/httpx/pull/1196"
+                "#issuecomment-690148589"
+            ),
+            pr_number=1196,
         ),
         _evidence(
-            "httpx:doc:retries-connection",
-            kind="doc_file",
-            excerpt="Only connection failures are retried automatically.",
-            author="tomchristie",
-            created_at="2024-03-16T10:00:00Z",
-            path="docs/advanced/clients.md",
+            "httpx:issue_comment:706500230",
+            decision_id=CLIENT_RETRIES,
+            kind="issue_comment",
+            excerpt=(
+                "Opened https://github.com/encode/httpcore/pull/221 against "
+                "HTTPCore, closing this one for now!"
+            ),
+            author="florimondmanca",
+            created_at="2020-10-10T06:56:10Z",
+            url=(
+                "https://github.com/encode/httpx/pull/1196"
+                "#issuecomment-706500230"
+            ),
+            pr_number=1196,
+        ),
+        _evidence(
+            "httpx:pr:1196",
+            decision_id=CLIENT_RETRIES,
+            kind="pull_request",
+            excerpt=(
+                "Adds off-by-default \"retry for connect errors\" behavior, "
+                "used as `httpx.Client(..., retries=<int>)`. Makes sure that "
+                "only `ConnectError`/`ConnectTimeout` are retried."
+            ),
+            author="florimondmanca",
+            created_at="2020-08-19",
+            url="https://github.com/encode/httpx/pull/1196",
+            pr_number=1196,
         ),
     ]
     decision = DecisionCandidate(
-        decision_id=CONNECTION_ONLY,
+        decision_id=CLIENT_RETRIES,
         claim=(
-            "Simple retries are limited to connection failures because only "
-            "connection errors are safe to retry."
+            "The retry approach was revised: the client proposal moved to "
+            "the transport layer."
         ),
         rationale=(
-            "HTTP methods are not guaranteed to be idempotent. A retry after "
-            "a read or write failure could duplicate an operation, so the "
-            "retry guard only resends when the connection itself failed. This "
-            "revised the retry approach without changing the opt-in default."
+            "The original proposal added an opt-in argument to the client. A "
+            "review concluded that wrapping belongs on the transport layer, "
+            "so the proposal was closed in favor of httpcore. The current "
+            "decision keeps the behavior on HTTPTransport instead."
         ),
-        status=DecisionState.ACTIVE,
-        confidence=AnswerConfidence.HIGH,
-        target_ids=[
-            "Symbol:httpx._client.Client._send_handling_redirects",
-            "CodeRegion:httpx/_client.py:1394-1412",
-            "File:httpx/_client.py",
-            "Commit:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        ],
-        evidence_ids=[item.evidence_id for item in evidence],
-        created_at="2024-03-14T11:05:00Z",
-    )
-    return GraphContext(
-        decision=decision,
-        evidence=evidence,
-        targets=list(decision.target_ids),
-        pull_requests=["PullRequest:#1419"],
-        later_decisions=[],
-        conflicts=[],
-    )
-
-
-def _default_on_context() -> GraphContext:
-    evidence = [
-        _evidence(
-            "httpx:review_comment:120",
-            kind="review_comment",
-            excerpt=(
-                "Let's retry transient failures by default so callers do not "
-                "have to wrap every request."
-            ),
-            author="tomchristie",
-            created_at="2023-10-02T09:20:00Z",
-            pr_number=1200,
-            path="httpx/_config.py",
-            start_line=250,
-            end_line=262,
-        ),
-        _evidence(
-            "httpx:commit:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-            kind="commit",
-            excerpt="Enable retries for transient failures by default.",
-            author="tomchristie",
-            created_at="2023-10-03T12:10:00Z",
-            pr_number=1200,
-            commit_sha="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        ),
-        _evidence(
-            "httpx:pr:1200:file:httpx/_config.py",
-            kind="changed_file",
-            excerpt=(
-                "@@ -254,5 +254,5 @@ class Limits:\n"
-                "-    retries: int = 0\n"
-                "+    retries: int = 3"
-            ),
-            author="tomchristie",
-            created_at="2023-10-03T12:15:00Z",
-            pr_number=1200,
-            path="httpx/_config.py",
-            start_line=250,
-            end_line=262,
-        ),
-        _evidence(
-            "httpx:issue_comment:7000",
-            kind="issue_comment",
-            excerpt=(
-                "Should the client retry transient failures by default?"
-            ),
-            author="lukasa",
-            created_at="2023-09-28T15:00:00Z",
-            issue_number=7000,
-        ),
-    ]
-    decision = DecisionCandidate(
-        decision_id=DEFAULT_ON,
-        claim=(
-            "The client originally enabled automatic retries for transient "
-            "network errors."
-        ),
-        rationale=(
-            "This retry approach was later revised and then reversed: the "
-            "default was convenient for transient failures but unsafe for "
-            "non-idempotent calls. The current default is to opt in."
-        ),
-        status=DecisionState.REVERSED,
+        status=DecisionState.SUPERSEDED,
         confidence=AnswerConfidence.MEDIUM,
         target_ids=[
-            "ConfigKey:retry.enabled",
-            "File:httpx/_config.py",
-            "Commit:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "ConfigKey:client.retries",
+            "Symbol:httpx._client.Client",
+            "CodeRegion:httpx/_client.py:80-95",
+            "File:httpx/_client.py",
         ],
         evidence_ids=[item.evidence_id for item in evidence],
-        superseded_by=DEFAULT_OFF,
-        created_at="2023-10-02T09:20:00Z",
+        superseded_by=TRANSPORT_RETRIES,
+        created_at="2020-08-19",
     )
     return GraphContext(
         decision=decision,
         evidence=evidence,
         targets=list(decision.target_ids),
-        pull_requests=["PullRequest:#1200"],
-        later_decisions=[DEFAULT_OFF],
+        pull_requests=["PullRequest:#1196"],
+        later_decisions=[TRANSPORT_RETRIES],
         conflicts=[],
     )
 
@@ -500,98 +487,177 @@ def _default_on_context() -> GraphContext:
 def _timeout_context() -> GraphContext:
     evidence = [
         _evidence(
-            "httpx:review_comment:500",
-            kind="review_comment",
-            excerpt=(
-                "A pool timeout is not the same failure as a read timeout; "
-                "callers need to distinguish them."
-            ),
-            author="tomchristie",
-            created_at="2023-11-10T13:30:00Z",
-            pr_number=1215,
-            path="httpx/_config.py",
-            start_line=120,
-            end_line=150,
-        ),
-        _evidence(
-            "httpx:commit:dddddddddddddddddddddddddddddddddddddddd",
-            kind="commit",
-            excerpt=(
-                "Split Timeout into connect, read, write, and pool phases."
-            ),
-            author="tomchristie",
-            created_at="2023-11-11T08:15:00Z",
-            pr_number=1215,
-            commit_sha="dddddddddddddddddddddddddddddddddddddddd",
-        ),
-        _evidence(
-            "httpx:pr:1215:file:httpx/_config.py",
+            "httpx:pr:7:file:httpcore/pool.py",
+            decision_id=TIMEOUT_PHASES,
             kind="changed_file",
             excerpt=(
-                "@@ -118,7 +118,13 @@ class Timeout:\n"
-                "+    connect: float | None\n"
-                "+    read: float | None\n"
-                "+    write: float | None\n"
-                "+    pool: float | None"
+                "@@ -16,18 +16,23 @@\n"
+                " from .datastructures import URL, Request, Response\n"
+                "+from .exceptions import PoolTimeout\n"
+                " \n"
+                " class ConnectionSemaphore:\n"
+                "-    def __init__(self, max_connections: int = None):\n"
+                "+    def __init__(self, max_connections: int = None, timeout: float = None):\n"
+                "+        self.timeout = timeout\n"
+                " \n"
+                "     async def acquire(self) -> None:\n"
+                "         if hasattr(self, \"semaphore\"):\n"
+                "-            await self.semaphore.acquire()\n"
+                "+            try:\n"
+                "+                await asyncio.wait_for(self.semaphore.acquire(), self.timeout)\n"
+                "+            except asyncio.TimeoutError:\n"
+                "+                raise PoolTimeout()"
             ),
-            author="tomchristie",
-            created_at="2023-11-11T08:20:00Z",
-            pr_number=1215,
-            path="httpx/_config.py",
-            start_line=120,
-            end_line=160,
+            author="lovelydinosaur",
+            created_at="2019-04-17T16:38:35Z",
+            url="https://github.com/encode/httpx/pull/7/files",
+            pr_number=7,
+            path="httpcore/pool.py",
+            start_line=16,
+            end_line=40,
         ),
         _evidence(
-            "httpx:issue_comment:8000",
-            kind="issue_comment",
+            "httpx:pr:104:file:http3/concurrency.py",
+            decision_id=TIMEOUT_PHASES,
+            kind="changed_file",
             excerpt=(
-                "A single timeout makes it impossible to tell connection "
-                "starvation from a slow server."
+                "@@ -49,6 +49,38 @@ def _fixed_write(self, data: bytes) -> None:\n"
+                "+class TimeoutFlag:\n"
+                "+    \"\"\"\n"
+                "+    A timeout flag holds a state of either read-timeout or write-timeout mode.\n"
+                "+    We use this so that we can attempt both reads and writes "
+                "concurrently, while\n"
+                "+    only enforcing timeouts in one direction.\n"
+                "+    During a request/response cycle we start in write-timeout mode.\n"
+                "+    Once we've sent a request fully, or once we start seeing a response,\n"
+                "+    then we switch to read-timeout mode instead.\n"
+                "+    \"\"\""
             ),
-            author="lukasa",
-            created_at="2023-11-08T17:05:00Z",
-            issue_number=8000,
+            author="lovelydinosaur",
+            created_at="2019-06-25T11:54:14Z",
+            url="https://github.com/encode/httpx/pull/104/files",
+            pr_number=104,
+            path="http3/concurrency.py",
+            start_line=49,
+            end_line=86,
+        ),
+        _evidence(
+            "httpx:pr:476:file:docs/advanced.md",
+            decision_id=TIMEOUT_PHASES,
+            kind="changed_file",
+            excerpt=(
+                "@@ -162,3 +162,76 @@ client = httpx.Client(proxies=proxy)\n"
+                "+## Timeout fine-tuning\n"
+                "+HTTPX offers various request timeout management options. Three "
+                "types of timeouts are available: **connect** timeouts,\n"
+                "+**write** timeouts and **read** timeouts.\n"
+                "+* The **connect timeout** specifies the maximum amount of time to "
+                "wait until a connection to the requested host is established.\n"
+                "+* The **write timeout** specifies the maximum duration to wait for "
+                "a chunk of data to be sent (for example, a chunk of the request body).\n"
+                "+* The **read timeout** specifies the maximum duration to wait for "
+                "a chunk of data to be received (for example, a chunk of the response body)."
+            ),
+            author="mwoss",
+            created_at="2019-10-16T16:27:46Z",
+            url="https://github.com/encode/httpx/pull/476/files",
+            pr_number=476,
+            path="docs/advanced.md",
+            start_line=162,
+            end_line=238,
+        ),
+        _evidence(
+            "httpx:review_comment:334299780",
+            decision_id=TIMEOUT_PHASES,
+            kind="review_comment",
+            excerpt=(
+                "The connect timeout specifies the maximum amount of time to "
+                "wait until a connection to the requested host is established. "
+                "If HTTPX is unable to connect within this time frame, a "
+                "`ConnectTimeout` exception is raised."
+            ),
+            author="florimondmanca",
+            created_at="2019-10-13T22:18:12Z",
+            url=(
+                "https://github.com/encode/httpx/pull/476"
+                "#discussion_r334299780"
+            ),
+            pr_number=476,
+            path="docs/advanced.md",
+            start_line=171,
+            end_line=171,
+        ),
+        _evidence(
+            "httpx:code:timeout-config",
+            decision_id=TIMEOUT_PHASES,
+            kind="code_file",
+            excerpt=(
+                "class Timeout:\n"
+                "    def __init__(\n"
+                "        ...\n"
+                "        connect: None | float | UnsetType = UNSET,\n"
+                "        read: None | float | UnsetType = UNSET,\n"
+                "        write: None | float | UnsetType = UNSET,\n"
+                "        pool: None | float | UnsetType = UNSET,\n"
+                "    ) -> None:"
+            ),
+            author=None,
+            created_at=None,
+            url=(
+                "https://github.com/encode/httpx/blob/master/"
+                "httpx/_config.py#L72-L110"
+            ),
+            path="httpx/_config.py",
+            start_line=72,
+            end_line=110,
         ),
         _evidence(
             "httpx:doc:timeouts",
+            decision_id=TIMEOUT_PHASES,
             kind="doc_file",
             excerpt=(
-                "Timeouts can be set separately for connect, read, write, "
-                "and pool."
+                "There are four different types of timeouts that may occur. "
+                "These are connect, read, write, and pool timeouts."
             ),
-            author="tomchristie",
-            created_at="2023-11-12T09:40:00Z",
+            author="florimondmanca",
+            created_at="2019-10-16T16:27:46Z",
+            url=(
+                "https://github.com/encode/httpx/blob/master/"
+                "docs/advanced/timeouts.md#L45"
+            ),
             path="docs/advanced/timeouts.md",
+            start_line=45,
+            end_line=45,
         ),
     ]
     decision = DecisionCandidate(
         decision_id=TIMEOUT_PHASES,
         claim=(
-            "The client uses separate connect, read, write, and pool "
-            "timeouts because each phase can fail independently."
+            "Timeouts are split into connect, read, write, and pool phases "
+            "because each phase can fail independently."
         ),
         rationale=(
-            "The client uses one timeout per phase so callers can tell a "
-            "connection delay from a slow server or an exhausted pool without "
-            "guessing which subsystem stalled."
+            "A single timeout hides whether the client failed to connect, "
+            "could not send the request, waited for the response, or waited "
+            "for a pooled connection. Separate fields let callers distinguish "
+            "those failures."
         ),
         status=DecisionState.ACTIVE,
         confidence=AnswerConfidence.HIGH,
         target_ids=[
             "ConfigKey:timeout",
             "Symbol:httpx._config.Timeout",
-            "CodeRegion:httpx/_config.py:120-160",
+            "CodeRegion:httpx/_config.py:72-110",
             "File:httpx/_config.py",
-            "Commit:dddddddddddddddddddddddddddddddddddddddd",
         ],
         evidence_ids=[item.evidence_id for item in evidence],
-        created_at="2023-11-10T13:30:00Z",
+        created_at="2019-10-16T16:27:46Z",
     )
     return GraphContext(
         decision=decision,
         evidence=evidence,
         targets=list(decision.target_ids),
-        pull_requests=["PullRequest:#1215"],
+        pull_requests=["PullRequest:#104"],
         later_decisions=[],
         conflicts=[],
     )
@@ -600,10 +666,12 @@ def _timeout_context() -> GraphContext:
 def _evidence(
     evidence_id: str,
     *,
+    decision_id: str,
     kind: str,
     excerpt: str,
-    author: str,
-    created_at: str,
+    author: str | None,
+    created_at: str | None,
+    url: str | None,
     pr_number: int | None = None,
     issue_number: int | None = None,
     commit_sha: str | None = None,
@@ -615,12 +683,8 @@ def _evidence(
         evidence_id=evidence_id,
         kind=kind,
         excerpt=excerpt,
-        url=_url(
-            pr_number=pr_number,
-            issue_number=issue_number,
-            commit_sha=commit_sha,
-        ),
-        decision_id=_decision_for(evidence_id),
+        url=url,
+        decision_id=decision_id,
         pr_number=pr_number,
         issue_number=issue_number,
         commit_sha=commit_sha,
@@ -632,49 +696,8 @@ def _evidence(
     )
 
 
-def _decision_for(evidence_id: str) -> str:
-    if (
-        ":1525:" in evidence_id
-        or evidence_id.endswith((":300", ":9100"))
-        or "commit:cccc" in evidence_id
-        or "retries-default" in evidence_id
-    ):
-        return DEFAULT_OFF
-    if (
-        ":1419:" in evidence_id
-        or evidence_id.endswith((":123", ":9001"))
-        or "commit:aaaa" in evidence_id
-        or "retries-connection" in evidence_id
-    ):
-        return CONNECTION_ONLY
-    if (
-        ":1200:" in evidence_id
-        or evidence_id.endswith((":120", ":7000"))
-        or "commit:bbbb" in evidence_id
-    ):
-        return DEFAULT_ON
-    return TIMEOUT_PHASES
-
-
-def _url(
-    *,
-    pr_number: int | None,
-    issue_number: int | None,
-    commit_sha: str | None,
-) -> str | None:
-    if pr_number is not None:
-        return f"https://github.com/encode/httpx/pull/{pr_number}"
-    if issue_number is not None:
-        return f"https://github.com/encode/httpx/issues/{issue_number}"
-    if commit_sha is not None:
-        return f"https://github.com/encode/httpx/commit/{commit_sha}"
-    return None
-
-
 __all__ = [
-    "CONNECTION_ONLY",
-    "DEFAULT_OFF",
-    "DEFAULT_ON",
+    "CLIENT_RETRIES",
     "DEMO_REPO",
     "DEMO_SCRIPT",
     "QUESTION_1",
@@ -684,6 +707,7 @@ __all__ = [
     "QUESTION_5",
     "SCRIPT_BY_QUESTION",
     "TIMEOUT_PHASES",
+    "TRANSPORT_RETRIES",
     "DemoQuestionSpec",
     "build_contexts",
     "build_entity_index",

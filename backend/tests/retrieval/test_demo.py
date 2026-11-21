@@ -18,9 +18,7 @@ from app.main import create_demo_app
 from app.retrieval.answer.refusal_handler import NO_ENTITY_MESSAGE
 from app.retrieval.demo import create_demo_service
 from app.retrieval.demo.data import (
-    CONNECTION_ONLY,
-    DEFAULT_OFF,
-    DEFAULT_ON,
+    CLIENT_RETRIES,
     DEMO_REPO,
     QUESTION_1,
     QUESTION_2,
@@ -28,6 +26,7 @@ from app.retrieval.demo.data import (
     QUESTION_4,
     QUESTION_5,
     TIMEOUT_PHASES,
+    TRANSPORT_RETRIES,
 )
 from app.retrieval.models import (
     AnswerStatus,
@@ -91,9 +90,9 @@ def test_q1_is_cited_config_decision_with_people_and_path(
     assert response.citation_valid is True
     assert response.evidence_strength is EvidenceStrength.STRONG
     assert response.decisions
-    assert response.decisions[0].decision_id == DEFAULT_OFF
+    assert response.decisions[0].decision_id == TRANSPORT_RETRIES
     assert response.decisions[0].is_historical is False
-    assert response.decision_ids == [DEFAULT_OFF]
+    assert response.decision_ids == [TRANSPORT_RETRIES]
     assert response.evidence
     evidence_ids = {item.evidence_id for item in response.evidence}
     assert set(response.citations) <= evidence_ids
@@ -107,14 +106,15 @@ def test_q1_is_cited_config_decision_with_people_and_path(
         for alias in cited_aliases
     )
     assert {person.login for person in response.people} >= {
-        "tomchristie",
-        "lukasa",
+        "florimondmanca",
+        "lovelydinosaur",
     }
     assert any(node.startswith("ConfigKey:") for node in response.graph_path)
     assert any(node.startswith("Decision:") for node in response.graph_path)
     assert any(node.startswith("Evidence:") for node in response.graph_path)
     _assert_cited(response.answer)
-    assert "PR #1525" in response.answer
+    assert "disabled by default" in response.answer.casefold()
+    assert "httpx/_transports/default.py" in response.answer
 
 
 def test_q2_is_connection_only_with_code_rationale(
@@ -123,13 +123,13 @@ def test_q2_is_connection_only_with_code_rationale(
     response = ask(service, QUESTION_2)
     assert response.answer_status is AnswerStatus.ANSWERED
     assert response.citation_valid is True
-    assert CONNECTION_ONLY in response.decision_ids
-    assert response.decisions[0].decision_id == CONNECTION_ONLY
+    assert response.decision_ids == [TRANSPORT_RETRIES]
+    assert response.decisions[0].decision_id == TRANSPORT_RETRIES
     assert any(
         item.path == "httpx/_client.py" for item in response.evidence
     )
     assert "httpx/_client.py" in response.answer
-    assert "connection" in response.answer.casefold()
+    assert "connect" in response.answer.casefold()
     assert "idempotent" in response.answer.casefold()
     _assert_cited(response.answer)
 
@@ -140,26 +140,26 @@ def test_q3_labels_the_reversal_historical(
     response = ask(service, QUESTION_3)
     assert response.answer_status is AnswerStatus.ANSWERED
     assert response.citation_valid is True
-    assert DEFAULT_ON in response.decision_ids
-    assert DEFAULT_OFF in response.decision_ids
+    assert CLIENT_RETRIES in response.decision_ids
+    assert TRANSPORT_RETRIES in response.decision_ids
     historical = [
         decision for decision in response.decisions if decision.is_historical
     ]
-    assert [decision.decision_id for decision in historical] == [DEFAULT_ON]
-    assert historical[0].status is DecisionState.REVERSED
-    assert historical[0].superseded_by == DEFAULT_OFF
+    assert [decision.decision_id for decision in historical] == [CLIENT_RETRIES]
+    assert historical[0].status is DecisionState.SUPERSEDED
+    assert historical[0].superseded_by == TRANSPORT_RETRIES
     assert any(
-        record.decision_id == DEFAULT_ON
-        and record.superseded_by == DEFAULT_OFF
+        record.decision_id == CLIENT_RETRIES
+        and record.superseded_by == TRANSPORT_RETRIES
         for record in response.supersession
     )
     current = [
         decision for decision in response.decisions if not decision.is_historical
     ]
-    assert any(decision.decision_id == DEFAULT_OFF for decision in current)
-    assert "PR #1200" in response.answer
-    assert "PR #1525" in response.answer
-    assert "reversed" in response.answer.casefold()
+    assert any(decision.decision_id == TRANSPORT_RETRIES for decision in current)
+    assert "PR #1196" in response.answer
+    assert "revised" in response.answer.casefold()
+    assert "historical" in response.answer.casefold()
     _assert_cited(response.answer)
 
 

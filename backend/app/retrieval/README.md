@@ -238,15 +238,18 @@ the same order decides what survives a tight token budget:
 | 1 | Decision claim and status | The question's answer boundary |
 | 2 | Directly supporting evidence | What the decision cites |
 | 3 | `changed_file` | The hunk is the strongest code-local support |
-| 4 | `review_comment` | Human rationale anchored to the changed lines |
-| 5 | `commit` | The implementation action and its message |
-| 6 | `issue_comment`, `issue` | Linked incident and discussion context |
-| 7 | `pull_request`, `review` | Broader provenance |
-| 8 | Superseding decision | Currentness, rendered in its own section |
-| 9 | Author/reviewer names and dates | Attribution on every evidence row |
+| 4 | `code_file` | A current source snapshot shows the shipped state |
+| 5 | `review_comment` | Human rationale anchored to the changed lines |
+| 6 | `commit` | The implementation action and its message |
+| 7 | `issue_comment`, `issue` | Linked incident and discussion context |
+| 8 | `pull_request`, `review` | Broader provenance |
+| 9 | Superseding decision | Currentness, rendered in its own section |
+| 10 | Author/reviewer names and dates | Attribution on every evidence row |
 
 A changed file is stored with its patch as the excerpt, so the pack shows a
-real diff hunk rather than a filename. Review comments keep their PR, path and
+real diff hunk rather than a filename. A `code_file` row is a current source
+snapshot with a line range, used when the shipped default matters more than
+the historical diff. Review comments keep their PR, path and
 line span; commits keep their SHA, author and date; issue evidence keeps its
 issue number. The intent writer copies this metadata onto the `Evidence`
 wrapper, and the retrieval adapter also infers a commit SHA or issue number
@@ -554,8 +557,8 @@ three primary routes. CORS allows the local frontend at
 | --- | --- | --- |
 | 1 | Why are retries disabled by default in httpx? | Evidence-backed config decision, people, citations and a code→decision→evidence path |
 | 2 | Why are simple retries limited to connection failures? | Idempotency constraint and the code-level rationale |
-| 3 | Was the retry approach ever revised or reversed? | Supersession: the old default-on decision is retained but labelled historical |
-| 4 | Why does the client use separate connect, read, write, and pool timeouts? | A different subsystem and config-key path |
+| 3 | Was the retry approach ever revised or reversed? | Supersession: the client-level proposal (PR #1196) is retained as historical and the transport-level decision (PR #2311) is current |
+| 4 | Why does the client use separate connect, read, write, and pool timeouts? | A different subsystem and config-key path, grounded in the timeout-phase history from PRs #7, #104 and #476 |
 | 5 | Why does httpx use a purple logo? | `insufficient_evidence` / `NO_ENTITY`, with no evidence, citations or invented path |
 
 Each `/demo/ask` response wraps the real `AskResponse` with:
@@ -568,7 +571,7 @@ Each `/demo/ask` response wraps the real `AskResponse` with:
   latency.
 
 `/demo/rehearse` returns the same checks for every question plus an aggregate
-pass count. The frontend `/demo` page calls these routes directly, renders the
+pass count. The frontend `/ask` screen calls these routes directly, renders the
 answer with evidence cards, decision timeline, people, supersession records and
 the interactive graph path, and exposes the checks as a trust panel.
 

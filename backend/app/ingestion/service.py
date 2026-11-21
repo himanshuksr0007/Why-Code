@@ -13,7 +13,7 @@ PR is exactly what makes the failure diagnosable.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -80,6 +80,8 @@ class IngestionService:
         since: str,
         limit: int = 100,
         scorer: RelevanceScorer | None = None,
+        until: str | None = None,
+        focus: Sequence[str] | None = None,
     ) -> None:
         self.github = github
         self.store = store
@@ -87,10 +89,13 @@ class IngestionService:
         self.since = since
         self.limit = limit
         self.scorer = scorer or RelevanceScorer()
+        self.until = until
+        self.focus = tuple(term.strip().casefold() for term in (focus or ()) if term.strip())
 
     def run(self, *, force: bool = False) -> RunResult:
         result = self._new_result()
         since = _parse_timestamp(self.since)
+        until = _parse_timestamp(self.until) if self.until else None
 
         ingested = 0
         for pr in self.github.merged_pull_requests(self.repo, since=self.since):
@@ -106,10 +111,38 @@ class IngestionService:
                 continue
             if since is not None and merged_at < since:
                 continue
+            if until is not None and merged_at > until:
+                continue
+            if self.focus and not _matches_focus(pr, self.focus):
+                continue
             if not force and self.store.get_pr_state(self.repo, number) == "complete":
                 continue
 
             ingested += 1
+            self._process(number, result)
+        return self._finish(result)
+
+    def ingest_numbers(
+        self, numbers: Sequence[int], *, force: bool = False
+    ) -> RunResult:
+        """Fetch an explicit PR list.
+
+        This is the escape hatch for building a focused real-history slice:
+        old PRs can be selected without paging the entire repository, and a
+        closed-but-unmerged proposal can still be retained as evidence. The
+        normalizer records the actual merge state, so nothing is presented as
+        merged when it was not.
+        """
+
+        result = self._new_result()
+        for number in dict.fromkeys(int(value) for value in numbers):
+            if number < 1:
+                continue
+            if (
+                not force
+                and self.store.get_pr_state(self.repo, number) == "complete"
+            ):
+                continue
             self._process(number, result)
         return self._finish(result)
 
@@ -362,6 +395,27 @@ def _assert_unique(records: list[EvidenceRecord]) -> None:
 
 def _is_merged(pr: dict[str, Any]) -> bool:
     return pr.get("merged") is True and bool(pr.get("merged_at"))
+
+
+def _matches_focus(pr: dict[str, Any], focus: Sequence[str]) -> bool:
+    """Cheap, transparent focus filter over the PR list payload.
+
+    Focus areas are a user-facing convenience, not a graph schema. We only
+    use the title, body and labels GitHub already returned in the listing;
+    no extra request is made and no PR is silently reclassified.
+    """
+
+    labels = pr.get("labels") or []
+    label_text = " ".join(
+        str(label.get("name") or "")
+        for label in labels
+        if isinstance(label, dict)
+    )
+    haystack = " ".join(
+        str(pr.get(key) or "") for key in ("title", "body")
+    ) + " " + label_text
+    lowered = haystack.casefold()
+    return any(term in lowered for term in focus)
 
 
 def _failure_endpoint(error: Exception) -> str:

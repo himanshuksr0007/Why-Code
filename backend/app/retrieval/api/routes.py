@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import threading
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.retrieval.api.schemas import (
     AskRequest,
@@ -14,12 +14,20 @@ from app.retrieval.api.schemas import (
     EvidenceDetail,
     FeedbackRequest,
     FeedbackResponse,
+    RepoInfo,
+    RepoListResponse,
+    Suggestion,
+    SuggestionResponse,
 )
 from app.retrieval.models import NearestCandidate
 from app.retrieval.service import RetrievalService
+from app.workspace.ratelimit import SlidingWindowRateLimiter
 
 
-def build_router(service: RetrievalService | None) -> APIRouter:
+def build_router(
+    service: RetrievalService | None,
+    rate_limiter: SlidingWindowRateLimiter | None = None,
+) -> APIRouter:
     router = APIRouter(tags=["retrieval"])
     feedback: list[FeedbackRequest] = []
     lock = threading.Lock()
@@ -38,14 +46,57 @@ def build_router(service: RetrievalService | None) -> APIRouter:
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
+    @router.get("/repos", response_model=RepoListResponse)
+    @router.get(
+        "/api/v1/repos",
+        response_model=RepoListResponse,
+        include_in_schema=False,
+    )
+    def repos() -> RepoListResponse:
+        current = require()
+        items = [
+            RepoInfo(**item)
+            for item in current.list_repos()
+            if isinstance(item, dict) and item.get("repo")
+        ]
+        return RepoListResponse(repos=items)
+
+    @router.get("/suggestions", response_model=SuggestionResponse)
+    @router.get(
+        "/api/v1/suggestions",
+        response_model=SuggestionResponse,
+        include_in_schema=False,
+    )
+    def suggestions(repo: str | None = Query(default=None)) -> SuggestionResponse:
+        current = require()
+        resolved = repo_or_400(current, repo)
+        items = [
+            Suggestion(**item)
+            for item in current.suggestions(resolved)
+            if isinstance(item, dict) and item.get("question")
+        ]
+        return SuggestionResponse(repo=resolved, suggestions=items)
+
     @router.post("/ask", response_model=AskResponse)
     @router.post(
         "/api/v1/ask", response_model=AskResponse, include_in_schema=False
     )
-    def ask(request: AskRequest) -> AskResponse:
+    def ask(body: AskRequest, request: Request) -> AskResponse:
         current = require()
-        repo_or_400(current, request.repo)
-        return current.ask(request.parameters())
+        if rate_limiter is not None:
+            client = request.client.host if request.client else "unknown"
+            allowed, retry_after = rate_limiter.check(client)
+            if not allowed:
+                raise HTTPException(
+                    status_code=429,
+                    detail=(
+                        "Too many questions. Wait a moment before asking again; "
+                        "this limit protects the operator's model quota."
+                    ),
+                    headers={"Retry-After": str(retry_after)},
+                )
+        repo_or_400(current, body.repo)
+        return current.ask(body.parameters())
 
     @router.get("/decisions/{decision_id}", response_model=DecisionDetail)
     @router.get(

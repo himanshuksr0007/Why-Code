@@ -7,6 +7,7 @@ corpus is byte-identical; the CLI idempotency contract depends on it.
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -26,15 +27,38 @@ def export_normalized(store: EvidenceStore, path: str | Path) -> Path:
 
 
 def export_high_signal(
-    store: EvidenceStore, path: str | Path, scores: dict[int, dict[str, Any]]
+    store: EvidenceStore,
+    path: str | Path,
+    scores: dict[int, dict[str, Any]],
+    *,
+    include_pr_numbers: Sequence[int] | None = None,
 ) -> Path:
+    """Write the PR selection used by structural enrichment and extraction.
+
+    ``include_pr_numbers`` is the explicit-selection escape hatch: a curated
+    run can keep a docs-only PR whose relevance band is below ``high``. The
+    row still reports its real score and band; ``selected_by`` records why it
+    was retained, so the export never pretends the scorer ranked it higher.
+    """
+
+    del store  # kept in the signature for callers that already have it
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    rows = [
-        {"pr_number": number, **scores[number]}
-        for number in sorted(scores)
-        if str(scores[number].get("band")) == "high"
-    ]
+    forced = {int(number) for number in include_pr_numbers or ()}
+    rows = []
+    for number in sorted(scores):
+        score = scores[number]
+        selected = str(score.get("band")) == "high" or number in forced
+        if not selected:
+            continue
+        row = {"pr_number": number, **score}
+        if number in forced and str(score.get("band")) != "high":
+            row["selected_by"] = "explicit"
+            row["reasons"] = [
+                *list(score.get("reasons") or []),
+                "explicitly selected for the focused corpus",
+            ]
+        rows.append(row)
     out.write_text(
         "\n".join(json.dumps(row, sort_keys=True) for row in rows)
         + ("\n" if rows else ""),

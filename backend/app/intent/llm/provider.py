@@ -104,7 +104,13 @@ class OpenAICompatibleProvider:
                 "type": "json_schema",
                 "json_schema": {
                     "name": schema_name,
-                    "strict": True,
+                    # The extraction and answer schemas deliberately allow
+                    # optional fields. Strict structured-output mode requires
+                    # every property to be listed in `required`, which would
+                    # turn "optional" into "must be present". The structured
+                    # client still validates and retries the returned JSON,
+                    # so transport strictness is not the safety boundary.
+                    "strict": False,
                     "schema": schema,
                 },
             },

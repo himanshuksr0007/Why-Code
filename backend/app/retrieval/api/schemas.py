@@ -45,6 +45,12 @@ class AskRequest(BaseModel):
         )
 
 
+def _excerpt(text: str) -> str:
+    """Keep diff and source line breaks while trimming dead whitespace."""
+
+    return "\n".join(line.rstrip() for line in text.strip().splitlines())
+
+
 class DecisionDetail(BaseModel):
     decision_id: str
     claim: str
@@ -70,7 +76,15 @@ class DecisionDetail(BaseModel):
                     evidence_id=item.evidence_id,
                     kind=item.kind,
                     url=item.url,
-                    excerpt=" ".join(item.excerpt.split()),
+                    excerpt=_excerpt(item.excerpt),
+                    author=item.author,
+                    created_at=item.created_at,
+                    pr_number=item.pr_number,
+                    issue_number=item.issue_number,
+                    commit_sha=item.commit_sha,
+                    path=item.path,
+                    start_line=item.start_line,
+                    end_line=item.end_line,
                 )
                 for item in context.evidence
             ],
@@ -105,6 +119,28 @@ class EntityHistoryResponse(BaseModel):
     decisions: list[NearestCandidate] = Field(default_factory=list)
 
 
+class RepoInfo(BaseModel):
+    repo: str
+    decisions: int = 0
+    evidence: int = 0
+
+
+class RepoListResponse(BaseModel):
+    repos: list[RepoInfo] = Field(default_factory=list)
+
+
+class Suggestion(BaseModel):
+    question_id: str
+    question: str
+    focus: str
+    decision_id: str | None = None
+
+
+class SuggestionResponse(BaseModel):
+    repo: str
+    suggestions: list[Suggestion] = Field(default_factory=list)
+
+
 class FeedbackVerdict(StrEnum):
     HELPFUL = "helpful"
     WRONG = "wrong"
@@ -135,4 +171,8 @@ __all__ = [
     "FeedbackRequest",
     "FeedbackResponse",
     "FeedbackVerdict",
+    "RepoInfo",
+    "RepoListResponse",
+    "Suggestion",
+    "SuggestionResponse",
 ]
