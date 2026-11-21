@@ -108,6 +108,8 @@ export interface Citation {
   url: string | null;
   excerpt: string;
   author?: string | null;
+  /** The author's GitHub avatar URL, when the source data carries one. */
+  author_avatar_url?: string | null;
   /** ISO-8601 timestamp of the source artifact. */
   created_at?: string | null;
   title?: string | null;

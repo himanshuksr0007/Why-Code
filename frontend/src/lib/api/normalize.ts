@@ -240,6 +240,9 @@ export function coerceCitations(payload: unknown): Citation[] {
       url: item.url ? String(item.url) : null,
       excerpt,
       author: item.author ? String(item.author) : null,
+      author_avatar_url: item.author_avatar_url
+        ? String(item.author_avatar_url)
+        : null,
       created_at: item.created_at ? String(item.created_at) : null,
       title,
     };

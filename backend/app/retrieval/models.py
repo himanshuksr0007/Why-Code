@@ -282,6 +282,11 @@ class EvidenceView(_StrictModel):
     excerpt: str = ""
     alias: str | None = None
     author: str | None = None
+    # The author's GitHub avatar and the artifact's own title, when the
+    # source data carries them (live PR/issue evidence does). The UI's
+    # contributor card is built from these — never from model output.
+    author_avatar_url: str | None = None
+    title: str | None = None
     created_at: str | None = None
     pr_number: int | None = None
     issue_number: int | None = None

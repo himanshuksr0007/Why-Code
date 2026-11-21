@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import {
+  ArrowUpRightIcon,
+  CircleDotIcon,
   DatabaseIcon,
+  GitCommitHorizontalIcon,
+  GitPullRequestIcon,
   Maximize2Icon,
   MessageSquareIcon,
   NetworkIcon,
@@ -10,6 +14,11 @@ import {
 
 import { GraphCanvas, trimGraph } from "@/components/graph/graph-canvas";
 import { API_MODE, findRepo, isRepoSlug } from "@/lib/api";
+import {
+  useLatestContributor,
+  type TurnContributor,
+} from "@/lib/contributor";
+import { formatRelativeTime } from "@/lib/format";
 import { openGraphViewer, useLatestGraph, type TurnGraph } from "@/lib/graph";
 import { hapticSelection } from "@/lib/haptics";
 import { useLocalProfile } from "@/lib/local/profile";
@@ -46,6 +55,7 @@ function useRepoAbout(slug: string, demo: boolean): string {
 export function InsightsRail() {
   const { profile } = useLocalProfile();
   const latestGraph = useLatestGraph();
+  const contributor = useLatestContributor();
 
   const repo = findRepo(profile.default_repo);
   const repoSlug = repo?.slug ?? profile.default_repo;
@@ -58,6 +68,25 @@ export function InsightsRail() {
       className="fixed right-4 top-1/2 z-40 hidden w-72 -translate-y-1/2 flex-col gap-4 min-[1400px]:flex"
       aria-label="Session insights"
     >
+      <div
+        aria-hidden={!contributor}
+        className={cn(
+          "grid transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          contributor
+            ? "my-0 grid-rows-[1fr] opacity-100"
+            : "-my-2 grid-rows-[0fr] opacity-0",
+        )}
+      >
+        <div className="min-h-0 overflow-hidden">
+          {contributor && (
+            <ContributorCard
+              key={contributor.turnId}
+              contributor={contributor}
+            />
+          )}
+        </div>
+      </div>
+
       <div
         aria-hidden={!latestGraph}
         className={cn(
@@ -189,6 +218,86 @@ function GraphBubble({ graph }: { graph: TurnGraph }) {
         {graph.graph.nodes.length} nodes · {graph.graph.edges.length} connections
         {hiddenCount > 0 ? ` · ${hiddenCount} more in fullscreen` : ""}
       </p>
+    </section>
+  );
+}
+
+const CONTRIBUTOR_KIND = {
+  pull_request: { label: "Latest PR", Icon: GitPullRequestIcon },
+  commit: { label: "Latest commit", Icon: GitCommitHorizontalIcon },
+  issue: { label: "Latest issue", Icon: CircleDotIcon },
+} as const;
+
+/**
+ * The person behind the newest artifact in the latest answer's
+ * evidence. Avatar and name link straight to their GitHub profile;
+ * the artifact line below links to the PR / commit / issue itself.
+ * Rendered only when the evidence carried a real author — see
+ * lib/contributor.
+ */
+function ContributorCard({ contributor }: { contributor: TurnContributor }) {
+  const { label, Icon } = CONTRIBUTOR_KIND[contributor.kind];
+  return (
+    <section
+      className="rounded-2xl border border-border/40 bg-card/95 p-4 shadow-none backdrop-blur-sm"
+      style={{ animation: "why-fade-in 450ms ease 120ms both" }}
+    >
+      <header className="mb-3 flex items-center gap-2">
+        <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10">
+          <Icon className="size-4 text-primary" aria-hidden="true" />
+        </span>
+        <h2 className="font-mono text-[10px] font-medium tracking-widest text-muted-foreground uppercase">
+          {label}
+        </h2>
+        {contributor.createdAt ? (
+          <span className="ml-auto text-[11px] text-muted-foreground">
+            {formatRelativeTime(contributor.createdAt)}
+          </span>
+        ) : null}
+      </header>
+
+      <a
+        href={contributor.profileUrl}
+        target="_blank"
+        rel="noreferrer"
+        onClick={() => hapticSelection()}
+        className="group flex items-center gap-3 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <img
+          src={contributor.avatarUrl}
+          alt=""
+          className="size-11 shrink-0 rounded-full border border-border/60 object-cover"
+          loading="lazy"
+        />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-foreground group-hover:underline">
+            {contributor.login}
+          </span>
+          <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+            GitHub profile
+            <ArrowUpRightIcon className="size-3" aria-hidden="true" />
+          </span>
+        </span>
+      </a>
+
+      {contributor.url && contributor.title ? (
+        <a
+          href={contributor.url}
+          target="_blank"
+          rel="noreferrer"
+          onClick={() => hapticSelection()}
+          className="group mt-3 block rounded-xl border border-border/40 bg-background/40 px-3 py-2.5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {contributor.refLabel ? (
+            <span className="mb-1 inline-flex rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-medium text-primary">
+              {contributor.refLabel}
+            </span>
+          ) : null}
+          <span className="line-clamp-2 text-xs leading-relaxed font-medium text-foreground group-hover:underline">
+            {contributor.title}
+          </span>
+        </a>
+      ) : null}
     </section>
   );
 }

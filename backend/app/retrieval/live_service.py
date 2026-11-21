@@ -802,6 +802,13 @@ class LiveService:
 
         # Construct EvidenceView objects for citations with filtering of irrelevant files
         evidence_views: list[EvidenceView] = []
+        # The PRs/issues this answer was grounded on, by number — used to
+        # attach the real author, avatar and title to PR citations below.
+        fetched_by_number = {
+            p["number"]: p
+            for p in matching_prs
+            if isinstance(p.get("number"), int)
+        }
         q_lower = question.lower()
         allows_meta = any(w in q_lower for w in ["conduct", "contributing", "license", "test"])
 
@@ -826,6 +833,15 @@ class LiveService:
             if ref_match:
                 ref_number = int(ref_match.group(1))
                 is_issue = raw_path.startswith("Issue")
+                # Attach the real author from the data this answer was
+                # grounded on: the search results fetched for the question,
+                # or one direct fetch when the model cited a number the
+                # search did not surface. When GitHub does not answer, the
+                # fields stay empty — an author is never invented.
+                fetched = fetched_by_number.get(ref_number)
+                if fetched is None and not is_issue and self.gh is not None:
+                    fetched = self.gh.pr_detail(repo, ref_number)
+                fetched_user = (fetched or {}).get("user") or {}
                 evidence_views.append(
                     EvidenceView(
                         evidence_id=f"{repo}:{'issue' if is_issue else 'pr'}:{ref_number}",
@@ -833,8 +849,12 @@ class LiveService:
                         path=None,
                         excerpt=excerpt,
                         alias=f"E{len(evidence_views) + 1}",
-                        url=f"https://github.com/{repo}/{'issues' if is_issue else 'pull'}/{ref_number}",
-                        author="maintainers",
+                        url=(fetched or {}).get("html_url")
+                        or f"https://github.com/{repo}/{'issues' if is_issue else 'pull'}/{ref_number}",
+                        author=fetched_user.get("login") or "maintainers",
+                        author_avatar_url=fetched_user.get("avatar_url"),
+                        title=(fetched or {}).get("title"),
+                        created_at=(fetched or {}).get("created_at"),
                         pr_number=None if is_issue else ref_number,
                         issue_number=ref_number if is_issue else None,
                     )
