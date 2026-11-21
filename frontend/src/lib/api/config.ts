@@ -2,9 +2,8 @@
  * Runtime API configuration.
  *
  * `NEXT_PUBLIC_API_MODE` selects the transport:
- *   - `mock` (default) — in-memory fixtures, so the UI runs before the
- *     retrieval service (Component 5) exists.
- *   - `http` — talk to the FastAPI answer service.
+ *   - `http` (default) — talk to the FastAPI answer service.
+ *   - `mock` — opt in to in-memory fixtures for local development.
  *
  * Only `NEXT_PUBLIC_*` variables are readable in the browser; they are
  * inlined at build time.
@@ -13,7 +12,7 @@
 export type ApiMode = "mock" | "http";
 
 export const API_MODE: ApiMode =
-  process.env.NEXT_PUBLIC_API_MODE === "http" ? "http" : "mock";
+  process.env.NEXT_PUBLIC_API_MODE === "mock" ? "mock" : "http";
 
 export const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"

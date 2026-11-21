@@ -31,14 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const collapsed = useSidebarCollapsed();
   const pathname = usePathname();
 
-  // The explorer pages run wide two-column layouts (content + their
-  // own right rail). They keep the sidebar's space reserved at every
-  // desktop width and get a wider center column; the chat-style
-  // pages keep the approved narrow, viewport-centered composition.
-  const isExplorerPage =
-    pathname === "/decisions" ||
-    pathname === "/graph" ||
-    pathname === "/changes";
+  const isChangesPage = pathname === "/changes";
 
   // The auth pages and shared-chat links are standalone: no sidebar,
   // no insights rail, no mobile top bar.
@@ -55,7 +48,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div
       className={`flex min-h-svh relative justify-center ${
-        isExplorerPage
+        isChangesPage
           ? collapsed
             ? "lg:pl-24"
             : "lg:pl-[21rem]"
@@ -89,7 +82,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Center Column - Constrained width and centered */}
       <main
         className={`flex-1 w-full mx-auto flex flex-col px-4 transition-all duration-300 ease-in-out ${
-          isExplorerPage ? "max-w-[84rem]" : "max-w-4xl"
+          isChangesPage ? "max-w-[84rem]" : "max-w-4xl"
         }`}
       >
         {/* Mobile top bar: opens the drawer; theme stays one tap away. */}
@@ -112,10 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {children}
       </main>
 
-      {/* Right rail — chat-page insights, on very wide screens. Its
-          bubbles (ask suggestions, the session graph, the repository
-          being explored) belong to the chat page only; on Settings
-          and the other pages they are just noise. */}
+      {/* Answer graph and repository details. */}
       {pathname === "/" && <InsightsRail />}
 
       {/* Fullscreen graph viewer (rail bubble / mobile View Graph). */}

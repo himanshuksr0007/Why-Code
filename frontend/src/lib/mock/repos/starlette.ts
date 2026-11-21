@@ -19,13 +19,9 @@ import {
   directory,
   file,
   makeCiter,
-  origin,
   prRef,
   pullRequest,
-  reversal,
-  revision,
   sortChanges,
-  thread,
 } from "@/lib/mock/build";
 import type { MockAnswer, RepoFixtures } from "@/lib/mock/build";
 
@@ -421,20 +417,6 @@ const decisions: Record<string, Decision> = {
     supersedes: "dec_starlette_url_for_host_origin",
   },
 };
-
-const threads = [
-  thread("thread_middleware_order", "Middleware ordering", [
-    origin(decisions.dec_starlette_middleware_order),
-  ]),
-  thread("thread_lifespan", "Application startup and shutdown", [
-    origin(decisions.dec_starlette_lifespan_origin),
-    reversal(decisions.dec_starlette_lifespan),
-  ]),
-  thread("thread_url_for", "Absolute URLs behind a proxy", [
-    origin(decisions.dec_starlette_url_for_host_origin),
-    revision(decisions.dec_starlette_url_for_forwarded),
-  ]),
-];
 
 /* ------------------------------------------------------------------ */
 /* Graph paths                                                         */
@@ -1002,8 +984,6 @@ export const starletteFixtures: RepoFixtures = {
   refusalKeywords: ["http/3", "http3", "quic", "grpc", "graphql"],
   evidence,
   decisions,
-  threads,
-  graphPaths,
   changes,
   pullRequests,
   people: derivePeople(pullRequests, changes, dir),

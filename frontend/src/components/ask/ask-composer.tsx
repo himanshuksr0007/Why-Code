@@ -7,7 +7,6 @@ import { RepoSelect } from "@/components/ask/repo-select";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { findRepo } from "@/lib/api";
-import { exampleQuestionsFor } from "@/lib/mock";
 import { cn } from "@/lib/utils";
 
 /**
@@ -65,7 +64,7 @@ export function AskComposer({
             }
           }}
           rows={2}
-          placeholder={`e.g. ${exampleQuestionsFor(repo)[0] ?? "Why does this code work this way?"}`}
+          placeholder="Ask about this repository"
           disabled={busy}
           className="min-h-14 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent"
         />

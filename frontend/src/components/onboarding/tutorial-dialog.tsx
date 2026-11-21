@@ -269,53 +269,6 @@ function GraphScene() {
   );
 }
 
-function DecisionsScene() {
-  return (
-    <div className="flex h-full flex-col justify-center gap-2.5 p-5">
-      <div className="flex gap-2" style={rise(100)}>
-        {[
-          { top: "6", bottom: "decisions on record" },
-          { top: "100%", bottom: "carry a rationale" },
-          { top: "2", bottom: "superseded, kept" },
-        ].map((stat) => (
-          <div
-            key={stat.bottom}
-            className="flex-1 rounded-xl border border-border/60 bg-card px-3 py-2 shadow-neumorph"
-          >
-            <p className="text-base leading-none font-semibold text-foreground">{stat.top}</p>
-            <p className="mt-1 truncate text-[10px] text-muted-foreground">{stat.bottom}</p>
-          </div>
-        ))}
-      </div>
-      <div className="rounded-2xl border border-border/60 bg-card p-3.5 shadow-neumorph" style={rise(320)}>
-        <div className="flex items-center gap-2">
-          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-500">
-            Active
-          </span>
-          <span className="text-[10px] tracking-wider text-muted-foreground uppercase">
-            High confidence
-          </span>
-          <span className="ml-auto text-[10px] text-muted-foreground">ADR export</span>
-        </div>
-        <p className="mt-1.5 text-[13px] font-medium text-foreground">
-          Retries are disabled by default; callers must opt in explicitly.
-        </p>
-      </div>
-      <div className="rounded-2xl border border-border/60 bg-card p-3.5 opacity-80 shadow-neumorph" style={rise(540)}>
-        <div className="flex items-center gap-2">
-          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-500">
-            Superseded
-          </span>
-          <span className="text-[10px] text-muted-foreground">kept on record, never overwritten</span>
-        </div>
-        <p className="mt-1.5 text-[13px] font-medium text-foreground">
-          Retry automatically up to 3 times on any failure.
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function YoursScene() {
   return (
     <div className="flex h-full flex-col justify-center gap-2.5 p-5">
@@ -393,7 +346,7 @@ const STEPS: TourStep[] = [
     title: "Ask why, in plain words",
     details:
       "Pick or paste any public GitHub repository and ask the question nobody documented. No account and no API keys — everything runs on the server, you just ask.",
-    tip: "Try one of the example questions on the home page.",
+    tip: "Name a file, symbol, or setting you want to understand.",
     Scene: AskScene,
   },
   {
@@ -419,14 +372,6 @@ const STEPS: TourStep[] = [
       "Every answer carries its graph path: goal, config, files, commits, the PR and the decision it led to. Open it fullscreen from the right rail to pan, zoom and drag nodes.",
     tip: "Ask how a repo is structured to get a directory-tree graph.",
     Scene: GraphScene,
-  },
-  {
-    kicker: "Decision center",
-    title: "Every decision, on record",
-    details:
-      "The Decisions page collects what the repo has decided — searchable, filterable, with an audit summary. Later reversals are recorded as supersessions, never silently overwritten, and any record exports as an ADR.",
-    tip: "Search across every indexed repo with “All indexed repos”.",
-    Scene: DecisionsScene,
   },
   {
     kicker: "Your space",

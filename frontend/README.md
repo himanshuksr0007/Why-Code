@@ -18,12 +18,9 @@ cp .env.example .env.local   # defaults are fine
 npm run dev                  # http://localhost:3000
 ```
 
-The app runs **without a backend**: by default it uses the bundled fixtures in `src/lib/mock/`
-(`NEXT_PUBLIC_API_MODE=mock`). The mock transport simulates the full product surface offline —
-asks, plans, auth (with a demo OTP code shown on screen), share links (stored in `localStorage`),
-decision records and refresh.
+The app uses the FastAPI backend by default. Set `NEXT_PUBLIC_API_MODE=mock` to opt into offline fixtures.
 
-### Pointing at the live backend
+### Backend configuration
 
 ```bash
 # .env.local
@@ -32,11 +29,11 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ```
 
 No component changes are needed: the UI talks to a typed client interface, and the transport is
-chosen once in `src/lib/api/index.ts`. Production builds force `http` mode.
+chosen once in `src/lib/api/index.ts`.
 
 | Environment variable | Default | Meaning |
 | --- | --- | --- |
-| `NEXT_PUBLIC_API_MODE` | `mock` | `mock` fixtures or `http` live service |
+| `NEXT_PUBLIC_API_MODE` | `http` | `mock` fixtures or `http` live service |
 | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8000` | Backend base URL (`http` mode) |
 | `NEXT_PUBLIC_REPO` | — | Repository the UI asks about by default |
 
@@ -54,9 +51,7 @@ npm run typecheck  # tsc --noEmit
 
 | Route | Screen |
 | --- | --- |
-| `/` | **Chat.** Landing hero (repo selector, example questions, Why?/Plan mode switch, model picker) that turns into a conversation: answers with Evidence / Graph path / Decisions tabs — plus Plan and Connections tabs in Plan mode. The right rail (wide screens) carries rotating "Ask a why" prompts, the active answer's graph bubble and the Repository card with its real GitHub *About* text and a **Refresh data** button. |
-| `/decisions` | **Decision center.** Audit summary, live-updates feed, and the decision explorer: search (optionally across all indexed repos), status filters, Records/Supersessions views, evidence drill-down and ADR export. A right rail adds the status breakdown, needs-attention flags and live updates; the repository can be switched on the page. |
-| `/graph` | **Graph explorer.** The shared graph canvas over the repository's decisions, with a tracer rail that retells the traced path step by step. |
+| `/` | **Chat.** Landing hero (repo selector, Why?/Plan mode switch, model picker) that turns into a conversation: answers with Evidence / Graph path / Decisions tabs — plus Plan and Connections tabs in Plan mode. The right rail (wide screens) shows the active answer's graph and the selected repository's GitHub *About* text. |
 | `/changes` | **Code changes.** What changed, the reasoning behind it and the PR that carried it — real commit stats, a view-on-GitHub button per commit, and a change-activity rail (volume, contributors, most-touched files). |
 | `/people`, `/people/[login]` | **People.** Contributors and their changes, PRs and reviews. |
 | `/settings` | **Settings.** Identity (account name/handle when signed in, editable guest profile otherwise), appearance/theme, haptics toggle, default repository, session and data controls. |
@@ -88,7 +83,7 @@ npm run typecheck  # tsc --noEmit
 
 ```text
 src/
-├── app/                  routes: /, /decisions, /graph, /changes, /people, /settings,
+├── app/                  routes: /, /changes, /people, /settings,
 │                         /login, /signup, /share/[id]
 ├── components/
 │   ├── answer/           answer panel, markdown, evidence + decision cards, refusal state

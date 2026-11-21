@@ -367,7 +367,6 @@ class LiveService:
         self.gh = LiveGitHubClient(token) if token else None
         self.generator = generator
         self.neo4j_client = neo4j_client
-        self._decision_cache: dict[str, list[dict[str, Any]]] = {}
 
     def get_people(self, repo: str) -> list[dict[str, Any]]:
         if not self.gh:
@@ -400,7 +399,6 @@ class LiveService:
                 "reviews": 0,
                 "comments": 0,
                 "commits": contributions,
-                "decisions": 0,
                 "first_seen": None,
                 "last_seen": None,
             })
@@ -417,7 +415,6 @@ class LiveService:
                 "reviews": 0,
                 "comments": 0,
                 "commits": 0,
-                "decisions": 0,
                 "authored": [],
                 "reviewed": [],
                 "participated": [],
@@ -507,19 +504,6 @@ class LiveService:
         reviewed = [_ref(it) for it in self.gh.search_items(repo, f"type:pr reviewed-by:{login}", limit=10)]
         participated = [_ref(it) for it in self.gh.search_items(repo, f"commenter:{login}", limit=10)]
 
-        # Decisions linked to this person: decision records (only when the
-        # threads are already loaded — never trigger a synthesis here) whose
-        # PR number is one of this person's authored PRs.
-        decisions_count = 0
-        cached_threads = self._decision_cache.get(repo)
-        if cached_threads:
-            authored_numbers = {int(p.get("number", 0) or 0) for p in pulls}
-            for thread in cached_threads:
-                for step in thread.get("steps", []):
-                    d = step.get("decision", {})
-                    if int(d.get("pr_number", 0) or 0) in authored_numbers:
-                        decisions_count += 1
-
         return {
             "login": login,
             "name": u.get("name") or login,
@@ -529,7 +513,6 @@ class LiveService:
             "reviews": reviews_total if reviews_total is not None else 0,
             "comments": comments_total if comments_total is not None else 0,
             "commits": commits_total if commits_total is not None else len(commits),
-            "decisions": decisions_count,
             "first_seen": u.get("created_at"),
             "last_seen": commits[0].get("commit", {}).get("author", {}).get("date") if commits else None,
             "authored": authored_prs,
@@ -653,75 +636,6 @@ class LiveService:
             "commits": [],
             "decision_ids": [],
         }
-
-    def list_decisions(self, repo: str) -> list[dict[str, Any]]:
-        # Check cache
-        if repo in self._decision_cache:
-            return self._decision_cache[repo]
-
-        # In production mode: synthesize architectural decisions using live LLM + GitHub context
-        threads = self._synthesize_decisions(repo)
-        # Never cache an empty result: a failed synthesis (LLM down, GitHub
-        # unreachable, bad token) must not poison this repo's decisions
-        # until restart — the next call retries instead.
-        if threads:
-            self._decision_cache[repo] = threads
-        else:
-            logger.error(
-                "Decision synthesis returned no threads for %s; not caching the empty result",
-                repo,
-            )
-        return threads
-
-    def _synthesize_decisions(self, repo: str) -> list[dict[str, Any]]:
-        if not self.generator or type(self.generator).__name__.endswith("UnusedGenerator"):
-            return []
-
-        # Gather context
-        recent_prs_summary = ""
-        tree_summary = ""
-        if self.gh:
-            prs = self.gh.pulls(repo, limit=8)
-            recent_prs_summary = "\n".join([f"- PR #{p.get('number')}: {p.get('title')}" for p in prs])
-            files = self.gh.tree_files(repo)
-            key_files = [f for f in files if any(f.endswith(ext) for ext in [".py", ".ts", ".js", ".go", ".rs", ".md"])][:25]
-            tree_summary = ", ".join(key_files)
-
-        prompt = (
-            f"You are WhyCode, an AI architecture decision engine. Analyze the repository '{repo}'.\n"
-            f"Recent pull requests:\n{recent_prs_summary}\n"
-            f"Key files:\n{tree_summary}\n\n"
-            "Extract 3 prominent architectural decision threads for this repository (e.g. protocol handling, configuration defaults, concurrency design, API ergonomics).\n"
-            "Return a JSON object with a single 'threads' key containing an array of DecisionThread objects.\n"
-            "Each thread must have:\n"
-            "- thread_id (e.g. thread_1, thread_2)\n"
-            "- topic (e.g. 'Transport retry policy', 'Dependency injection caching')\n"
-            "- current_status ('active' or 'superseded')\n"
-            "- steps: array of timeline steps, each with kind ('origin' or 'revision' or 'reversal') and decision object.\n"
-            "Each decision must have: decision_id, title, claim, status ('active', 'superseded', 'reversed'), confidence ('high', 'medium'), pr_number (int or null), created_at (ISO date), targets (array of {type: 'Symbol'|'ConfigKey'|'File', identifier: string}), evidence_ids (array of strings).\n"
-        )
-        schema = {
-            "type": "object",
-            "properties": {
-                "threads": {
-                    "type": "array",
-                    "items": {"type": "object"},
-                }
-            },
-            "required": ["threads"],
-        }
-        try:
-            raw = self.generator.complete(
-                system="You are WhyCode codebase decision engine. Output strictly valid JSON.",
-                user=prompt,
-                schema=schema,
-                schema_name="DecisionThreadsResponse",
-            )
-            data = json.loads(raw)
-            return data.get("threads", [])
-        except Exception as exc:
-            logger.error("Failed to synthesize decisions: %s", exc)
-            return []
 
     def answer_question(
         self,

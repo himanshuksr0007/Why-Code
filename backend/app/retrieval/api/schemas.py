@@ -10,10 +10,7 @@ from app.retrieval.models import (
     AskMode,
     AskParameters,
     AskResponse,
-    EvidenceView,
-    GraphContext,
     NearestCandidate,
-    SupersessionRecord,
 )
 
 
@@ -51,46 +48,6 @@ class AskRequest(BaseModel):
             include_graph_path=self.include_graph_path,
             include_evidence=self.include_evidence,
             mode=self.mode,
-        )
-
-
-class DecisionDetail(BaseModel):
-    decision_id: str
-    claim: str
-    rationale: str
-    status: str
-    confidence: str
-    targets: list[str] = Field(default_factory=list)
-    evidence: list[EvidenceView] = Field(default_factory=list)
-    graph_path: list[str] = Field(default_factory=list)
-    supersession: list[SupersessionRecord] = Field(default_factory=list)
-
-    @classmethod
-    def from_context(cls, context: GraphContext) -> DecisionDetail:
-        return cls(
-            decision_id=context.decision.decision_id,
-            claim=context.decision.claim,
-            rationale=context.decision.rationale,
-            status=context.decision.status.value,
-            confidence=context.decision.confidence.value,
-            targets=context.targets or context.decision.target_ids,
-            evidence=[
-                EvidenceView(
-                    evidence_id=item.evidence_id,
-                    kind=item.kind,
-                    url=item.url,
-                    excerpt=" ".join(item.excerpt.split()),
-                )
-                for item in context.evidence
-            ],
-            graph_path=context.path(),
-            supersession=[
-                SupersessionRecord(
-                    decision_id=context.decision.decision_id,
-                    superseded_by=later,
-                )
-                for later in context.later_decisions
-            ],
         )
 
 
@@ -140,7 +97,6 @@ class FeedbackResponse(BaseModel):
 __all__ = [
     "AskRequest",
     "AskResponse",
-    "DecisionDetail",
     "EntityHistoryResponse",
     "EvidenceDetail",
     "FeedbackRequest",

@@ -19,12 +19,9 @@ import {
   directory,
   file,
   makeCiter,
-  origin,
   prRef,
   pullRequest,
-  reversal,
   sortChanges,
-  thread,
 } from "@/lib/mock/build";
 import type { MockAnswer, RepoFixtures } from "@/lib/mock/build";
 
@@ -488,19 +485,6 @@ const decisions: Record<string, Decision> = {
     ],
   },
 };
-
-const threads = [
-  thread("thread_depends_cache", "Dependency caching", [
-    origin(decisions.dec_fastapi_depends_cache),
-  ]),
-  thread("thread_lifespan", "Application lifecycle hooks", [
-    origin(decisions.dec_fastapi_startup_events),
-    reversal(decisions.dec_fastapi_lifespan),
-  ]),
-  thread("thread_background_tasks", "Background task semantics", [
-    origin(decisions.dec_fastapi_background_tasks),
-  ]),
-];
 
 /* ------------------------------------------------------------------ */
 /* Graph paths                                                         */
@@ -1090,8 +1074,6 @@ export const fastapiFixtures: RepoFixtures = {
   refusalKeywords: ["graphql", "grpc", "websocket compression", "http/3", "protobuf"],
   evidence,
   decisions,
-  threads,
-  graphPaths,
   changes,
   pullRequests,
   people: derivePeople(pullRequests, changes, dir),

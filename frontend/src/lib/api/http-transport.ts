@@ -4,14 +4,8 @@
  * Endpoints follow the plan (§"API Integration"):
  *   POST /api/v1/ask
  *   GET  /api/v1/evidence/{evidence_id}
- *   GET  /api/v1/decisions/{decision_id}   (detail incl. graph_path)
  *
- * The following are UI-driven extensions: the decision timeline needs more than
- * a single answer returns, and the people / changes screens need attribution
- * data. Until the backend documents them they target the paths below. Treat
- * them as provisional — only this file changes if the real routes differ.
  *
- *   GET /api/v1/decisions?repo=
  *   GET /api/v1/people?repo=
  *   GET /api/v1/people/{login}?repo=
  *   GET /api/v1/changes?repo=[&limit=]
@@ -20,25 +14,18 @@
 
 import { API_BASE_URL } from "./config";
 import {
-  coerceAudit,
   coerceCitations,
   coerceDecisions,
   coerceEvidenceDetail,
   coerceGraphPath,
   coerceGraph,
   coercePlan,
-  coerceRecordsPage,
-  coerceSearchResult,
-  coerceSupersessions,
-  coerceWebhookEvents,
 } from "./normalize";
 import type {
   AskRequest,
   AskResponse,
   CodeChange,
-  DecisionThread,
   EvidenceDetail,
-  GraphPath,
   PersonProfile,
   PersonSummary,
   PullRequestDetail,
@@ -101,25 +88,6 @@ export function createHttpClient(): WhyCodeClient {
       return coerceEvidenceDetail(payload, evidenceId);
     },
 
-    async getGraphPath(decisionId: string): Promise<GraphPath> {
-      // The backend has no /graph/path route; the decision detail carries
-      // the same path as a list of labels, which coerceGraphPath expands.
-      const payload = await requestJson<{ graph_path?: unknown }>(
-        `/api/v1/decisions/${encodeURIComponent(decisionId)}`,
-      );
-      const path = coerceGraphPath(payload?.graph_path);
-      if (!path) {
-        throw new Error(`No graph path found for decision ${decisionId}`);
-      }
-      return path;
-    },
-
-    listDecisions(repo: string): Promise<DecisionThread[]> {
-      return requestJson<DecisionThread[]>(
-        `/api/v1/decisions?repo=${encodeURIComponent(repo)}`,
-      );
-    },
-
     listPeople(repo: string): Promise<PersonSummary[]> {
       return requestJson<PersonSummary[]>(
         `/api/v1/people?repo=${encodeURIComponent(repo)}`,
@@ -142,62 +110,6 @@ export function createHttpClient(): WhyCodeClient {
       return requestJson<PullRequestDetail>(
         `/api/v1/pull-requests/${number}?repo=${encodeURIComponent(repo)}`,
       );
-    },
-
-    async listRecords(query) {
-      const params = new URLSearchParams({ repo: query.repo });
-      if (query.q) params.set("q", query.q);
-      if (query.status) params.set("status", query.status);
-      if (query.kind) params.set("kind", query.kind);
-      if (query.target) params.set("target", query.target);
-      if (query.limit !== undefined) params.set("limit", String(query.limit));
-      if (query.offset !== undefined) params.set("offset", String(query.offset));
-      const payload = await requestJson<unknown>(
-        `/api/v1/records?${params.toString()}`,
-      );
-      return coerceRecordsPage(payload);
-    },
-
-    async searchRecords(q, repo) {
-      const params = new URLSearchParams({ q });
-      if (repo) params.set("repo", repo);
-      const payload = await requestJson<unknown>(
-        `/api/v1/search?${params.toString()}`,
-      );
-      return coerceSearchResult(payload);
-    },
-
-    async listSupersessions(repo) {
-      const payload = await requestJson<unknown>(
-        `/api/v1/supersessions?repo=${encodeURIComponent(repo)}`,
-      );
-      return coerceSupersessions(payload);
-    },
-
-    async getAudit(repo) {
-      const payload = await requestJson<unknown>(
-        `/api/v1/audit?repo=${encodeURIComponent(repo)}`,
-      );
-      const audit = coerceAudit(payload);
-      if (!audit) throw new Error("Audit report was empty");
-      return audit;
-    },
-
-    async listWebhookEvents() {
-      const payload = await requestJson<unknown>("/api/v1/webhooks/events");
-      return coerceWebhookEvents(payload);
-    },
-
-    recordExportUrl(decisionId, repo) {
-      return `${API_BASE_URL}/api/v1/records/${encodeURIComponent(decisionId)}/export?repo=${encodeURIComponent(repo)}`;
-    },
-
-    async refreshRepo(repo) {
-      const payload = await requestJson<{ repo: string; refreshed: boolean }>(
-        `/api/v1/repos/refresh?repo=${encodeURIComponent(repo)}`,
-        { method: "POST" },
-      );
-      return payload;
     },
   };
 }

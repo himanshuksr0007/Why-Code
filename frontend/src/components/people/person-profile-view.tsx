@@ -124,7 +124,9 @@ export function PersonProfileView({ profile }: { profile: PersonProfile }) {
             <Stat label="Reviews" value={profile.reviews} />
             <Stat label="Comments" value={profile.comments} />
             <Stat label="Commits" value={profile.commits} />
-            <Stat label="Decisions" value={profile.decisions} />
+            {profile.decisions !== undefined && (
+              <Stat label="Decisions" value={profile.decisions} />
+            )}
           </dl>
         </div>
 

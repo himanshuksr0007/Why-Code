@@ -2,7 +2,7 @@
 
 FastAPI + SQLite + Neo4j backend for **Why-Code**. It ingests a repository's GitHub history, builds an evidence graph, enriches it with structural data and extracts evidence-linked decisions.
 
-The retrieval/answer service is a fixed pipeline over an injectable Neo4j backend with a read-only `Neo4jGraphBackend` adapter. The production app factory wires it to a live Neo4j + an OpenAI-compatible LLM from environment variables (the production deployment runs on Render). The same app also serves the product services: **auth** (accounts, email OTP, sessions), **shares** (public/private chat links), **models** (visitor custom models + token usage) and **features** (decision records, search, audit, webhooks). Each service stores to Neo4j when configured and degrades to a local SQLite file otherwise.
+The retrieval/answer service is a fixed pipeline over an injectable Neo4j backend with a read-only `Neo4jGraphBackend` adapter. The production app factory wires it to a live Neo4j + an OpenAI-compatible LLM from environment variables (the production deployment runs on Render). The same app also serves the product services: **auth** (accounts, email OTP, sessions), **shares** (public/private chat links), **models** (visitor custom models + token usage) and **features** (signed GitHub webhook intake). Accounts and shares use Neo4j when configured and fall back to local SQLite.
 
 For the project overview, screenshots and feature list, see the [root README](../README.md).
 
@@ -16,7 +16,7 @@ For the project overview, screenshots and feature list, see the [root README](..
 | 3 · Structural enricher | [`app/structural/README.md`](app/structural/README.md) |
 | 4 · Decision extractor | [`app/intent/README.md`](app/intent/README.md) |
 | 5 · Retrieval | [`app/retrieval/README.md`](app/retrieval/README.md) |
-| Decision platform (records, search, audit, webhooks) | [`docs/FEATURES.md`](../docs/FEATURES.md) |
+| GitHub webhooks and decision policy tools | [`docs/FEATURES.md`](../docs/FEATURES.md) |
 | Auth, shares, custom models | root [README](../README.md#configuration) (env) + package docstrings |
 
 ## Layout
@@ -35,7 +35,7 @@ backend/
 │   ├── models/       # visitor custom models (encrypted keys) + token usage
 │   ├── auth/         # accounts, email OTP, JWT sessions (Neo4j or SQLite)
 │   ├── shares/       # public/private chat share links (Neo4j or SQLite)
-│   ├── features/     # decision records, cross-repo search, audit, GitHub webhooks
+│   ├── features/     # GitHub webhooks and decision policy
 │   └── main.py       # FastAPI factories: create_app (live) + create_demo_app (fixtures)
 ├── tools/            # policy gate, PR decision assistant, golden-set runner
 ├── tests/            # contract tests grouped by area

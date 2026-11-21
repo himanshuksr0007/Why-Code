@@ -19,13 +19,9 @@ import {
   directory,
   file,
   makeCiter,
-  origin,
   prRef,
   pullRequest,
-  reversal,
-  revision,
   sortChanges,
-  thread,
 } from "@/lib/mock/build";
 import type { MockAnswer, RepoFixtures } from "@/lib/mock/build";
 
@@ -287,20 +283,6 @@ const decisions: Record<string, Decision> = {
     superseded_by: "dec_httpx_timeout_explicit",
   },
 };
-
-const threads = [
-  thread("thread_retries", "Retry defaults", [
-    origin(decisions.dec_httpx_retry_default),
-  ]),
-  thread("thread_trust_env", "Proxy environment variable handling", [
-    origin(decisions.dec_httpx_trust_env_origin),
-    reversal(decisions.dec_httpx_trust_env_scoped),
-  ]),
-  thread("thread_timeout", "Timeout defaults", [
-    origin(decisions.dec_httpx_timeout_five_seconds),
-    revision(decisions.dec_httpx_timeout_explicit),
-  ]),
-];
 
 /* ------------------------------------------------------------------ */
 /* Graph paths                                                         */
@@ -824,8 +806,6 @@ export const httpxFixtures: RepoFixtures = {
   refusalKeywords: ["http/3", "http3", "quic", "websocket", "graphql"],
   evidence,
   decisions,
-  threads,
-  graphPaths,
   changes,
   pullRequests,
   people: derivePeople(pullRequests, changes, dir),

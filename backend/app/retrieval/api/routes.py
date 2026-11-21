@@ -10,7 +10,6 @@ from fastapi import APIRouter, HTTPException, Query
 from app.retrieval.api.schemas import (
     AskRequest,
     AskResponse,
-    DecisionDetail,
     EntityHistoryResponse,
     EvidenceDetail,
     FeedbackRequest,
@@ -189,51 +188,6 @@ def build_router(
                 record_usage(request, recorder.totals())
             return finish(request, response)
         raise HTTPException(status_code=503, detail="retrieval service is not configured")
-
-    @router.get("/decisions")
-    @router.get("/api/v1/decisions", include_in_schema=False)
-    def list_decisions(repo: str | None = Query(default=None)):
-        resolved = resolve_repo_name(repo)
-        if live_service is not None:
-            return live_service.list_decisions(resolved)
-        return []
-
-    @router.get("/decisions/{decision_id}", response_model=DecisionDetail)
-    @router.get(
-        "/api/v1/decisions/{decision_id}",
-        response_model=DecisionDetail,
-        include_in_schema=False,
-    )
-    def decision(
-        decision_id: str, repo: str | None = Query(default=None)
-    ) -> DecisionDetail:
-        resolved = resolve_repo_name(repo)
-        if service is not None:
-            context = service.get_decision(decision_id, repo=resolved)
-            if context is not None:
-                return DecisionDetail.from_context(context)
-        if live_service is not None:
-            threads = live_service.list_decisions(resolved)
-            for thread in threads:
-                for step in thread.get("steps", []):
-                    d = step.get("decision", {})
-                    if d.get("decision_id") == decision_id:
-                        targets = [
-                            f"{t.get('type')}:{t.get('identifier')}"
-                            for t in d.get("targets", [])
-                        ]
-                        return DecisionDetail(
-                            decision_id=decision_id,
-                            claim=d.get("claim", ""),
-                            rationale=d.get("rationale") or d.get("claim", ""),
-                            status=d.get("status", "active"),
-                            confidence=d.get("confidence", "high"),
-                            targets=targets,
-                            evidence=[],
-                            graph_path=targets,
-                            supersession=[],
-                        )
-        raise HTTPException(status_code=404, detail="decision not found")
 
     @router.get("/evidence/{evidence_id}", response_model=EvidenceDetail)
     @router.get(

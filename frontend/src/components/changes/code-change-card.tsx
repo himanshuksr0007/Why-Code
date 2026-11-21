@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import {
   GitCommitHorizontalIcon,
   GitPullRequestIcon,
-  RouteIcon,
 } from "lucide-react";
 
 import {
@@ -181,16 +179,6 @@ export function CodeChangeCard({
                 <span className="font-mono text-[11px] text-muted-foreground">
                   {decision.decision_id}
                 </span>
-                <Button
-                  render={<Link href={`/graph?decision=${decision.decision_id}`} />}
-                  nativeButton={false}
-                  variant="ghost"
-                  size="xs"
-                  className="ml-auto"
-                >
-                  <RouteIcon aria-hidden="true" />
-                  Graph path
-                </Button>
               </div>
 
               {evidenceIds.length > 0 ? (

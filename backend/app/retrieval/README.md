@@ -495,12 +495,11 @@ the model.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `POST` | `/ask` | Primary answer endpoint (also `POST /api/v1/ask`) |
-| `GET` | `/decisions/{decision_id}` | One decision with targets, evidence, path and supersession |
 | `GET` | `/evidence/{evidence_id}` | One evidence record |
 | `GET` | `/entities/{entity_id}/history` | Every decision that ever governed an entity |
 | `POST` | `/feedback` | Record a judge/user verdict |
 
-The versioned aliases (`/api/v1/ask`, `/api/v1/decisions/{decision_id}`,
+The versioned aliases (`/api/v1/ask`,
 `/api/v1/evidence/{evidence_id}`, `/api/v1/entities/{entity_id}/history`,
 `/api/v1/feedback`) mirror the primary routes.
 

@@ -10,7 +10,6 @@ import { AnswerPanel } from "@/components/answer/answer-panel";
 import { RefusalState } from "@/components/answer/refusal-state";
 import { AuroraBackdrop } from "@/components/ask/aurora-backdrop";
 import { AskComposer } from "@/components/ask/ask-composer";
-import { ExampleQuestions } from "@/components/ask/example-questions";
 import { InputToolbar } from "@/components/chat/input-toolbar";
 import { ShareDialog } from "@/components/chat/share-dialog";
 import { ThinkingIndicator } from "@/components/chat/thinking-indicator";
@@ -56,7 +55,6 @@ import {
   composeQuestionWithAttachments,
   type ComposerAttachment,
 } from "@/lib/attachments";
-import { exampleQuestionsFor } from "@/lib/mock";
 import { useIdentity } from "@/lib/identity";
 import { useLocalProfile } from "@/lib/local/profile";
 import { ModeSwitch } from "@/components/chat/mode-switch";
@@ -170,10 +168,6 @@ function AssistantTurn({
         <RefusalState
           question={turn.question}
           refusal={turn.response.refusal}
-          suggestions={exampleQuestionsFor(turn.repo)
-            .filter((question) => question !== turn.question)
-            .slice(0, 3)}
-          onTryExample={onRetry}
         />
       );
     }
@@ -624,11 +618,6 @@ function AskSession({
             <h1 className="mt-3 font-heading text-2xl font-semibold text-balance text-foreground sm:text-3xl">
               Ask why the code works this way
             </h1>
-            <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Every answer is grounded in the pull requests, reviews and commits
-              that decided it — and refused when the evidence does not support a
-              claim.
-            </p>
           </div>
 
           <AskComposer
@@ -658,20 +647,7 @@ function AskSession({
             ) : null}
           </div>
 
-          {indexed ? (
-            <ExampleQuestions
-              className="mt-7"
-              label="Try an example"
-              labelClassName="text-foreground/80"
-              align="center"
-              tone="onAurora"
-              questions={exampleQuestionsFor(repo)}
-              onSelect={(question) => void send(question)}
-              disabled={pending}
-            />
-          ) : (
-            <RepoNotIndexed repo={repo} className="mt-7" />
-          )}
+          {!indexed && <RepoNotIndexed repo={repo} className="mt-7" />}
         </div>
       </div>
     );

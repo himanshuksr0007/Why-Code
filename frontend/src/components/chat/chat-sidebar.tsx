@@ -4,11 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   GitCommitHorizontalIcon,
-  NetworkIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   PlusIcon,
-  ScaleIcon,
   SearchIcon,
   SquarePenIcon,
   XIcon,
@@ -30,8 +28,6 @@ import { cn } from "@/lib/utils";
 
 /** The explorer pages, linked from the rail under the brand bubble. */
 const NAV_ITEMS = [
-  { href: "/decisions", label: "Decisions", icon: ScaleIcon },
-  { href: "/graph", label: "Graph explorer", icon: NetworkIcon },
   { href: "/changes", label: "Code changes", icon: GitCommitHorizontalIcon },
 ] as const;
 
@@ -213,7 +209,7 @@ export function ChatSidebar({
         )}
       </div>
 
-      {/* Explore — decision center, graph explorer, code changes */}
+      {/* Code changes */}
       <nav
         aria-label="Explore"
         className="rounded-2xl bg-card shadow-neumorph p-2 animate-scale"

@@ -59,19 +59,8 @@ in the real modules and config the answer touched — never invented.
 <img src="assets/readme/graph-dark.png" alt="Fullscreen connection graph: File to Commit to Pull request to Decision to Evidence, with typed edges" width="100%" />
 
 One graph engine renders every view: the answer's Connections tab, its Graph path tab, the rail
-thumbnail, the fullscreen explorer (pan, zoom, drag nodes) and the `/graph` page. Edges are typed —
+thumbnail and the fullscreen viewer (pan, zoom, drag nodes). Edges are typed —
 *changed in*, *decided in*, *supported by* — so the chain from a question to its evidence is auditable.
-The explorer page pairs the canvas with a decision tracer that retells the traced path step by step,
-one hop at a time.
-
-### Decision center — every decision on record, kept honest
-
-<img src="assets/readme/decisions-dark.png" alt="Decisions page: audit summary cards, search, status filters and decision record cards with ADR export" width="100%" />
-
-Extracted decisions are browsable, searchable and auditable. A later revision or reversal is recorded
-as a supersession — the original is never silently overwritten. The page pairs the explorer with a
-live audit rail — a status breakdown, the records that need attention, and recent webhook activity —
-and the repository can be switched right on the page.
 
 ### Sharing and settings
 
@@ -83,7 +72,7 @@ and the repository can be switched right on the page.
 
 | Standalone login with a live product showcase | The full experience on a phone |
 | :---: | :---: |
-| <img src="assets/readme/login-dark.png" alt="Login page: animated showcase cycling Ask, Answer, Graph and Plan beside the sign-in card" width="100%" /> | <img src="assets/readme/mobile-dark.png" alt="Why-Code on a phone: hero, composer with Why and Plan modes and the model picker, example questions" width="390" /> |
+| <img src="assets/readme/login-dark.png" alt="Login page: animated showcase cycling Ask, Answer, Graph and Plan beside the sign-in card" width="100%" /> | <img src="assets/readme/mobile-dark.png" alt="Why-Code on a phone: hero, composer with Why and Plan modes and the model picker" width="390" /> |
 
 ## Features
 
@@ -98,13 +87,11 @@ and the repository can be switched right on the page.
   built from the real evidence paths.
 - **Evidence everywhere** — every answer carries its evidence cards (diffs, PR and commit links),
   the decisions it relies on, and the graph path that connects them.
-- **Suggested questions** — a rotating set of "Ask a why" prompts per repository in the side rail,
-  plus one-click example questions on the landing page.
 
 ### Models
 
-- The composer shows the **server's active model** and a **live token meter**: real, provider-reported
-  usage against that model's context window.
+- The composer shows the **server's active model** and a **live token meter** derived from
+  provider-reported usage.
 - **Bring your own model** — visitors can add any OpenAI-compatible model (name, model id, endpoint,
   API key) and ask through it. Keys are Fernet-encrypted at rest, scoped to the visitor's browser,
   and never shown again after saving.
@@ -144,28 +131,13 @@ and the repository can be switched right on the page.
 - **Guests can do everything except share** — no account required to ask. Guests get a friendly
   `userNNN` identity; signing in replaces it with your real name and handle everywhere at once.
 
-### Decision platform
+### Repository activity and tooling
 
-- **Decision records API + explorer** — normalized records with search and filters for status, kind,
-  target and date; an evidence drill-down on every record.
-- **Cross-repo search** — search decisions across every indexed repository at once.
-- **Supersessions dashboard** — claim-vs-claim pairs showing what replaced what, and why.
-- **Audit & compliance report** — rationale/evidence coverage, plus the flags that matter:
-  security- or incident-relevant decisions missing a rationale, and decisions with no evidence.
-- **ADR export** — download any record as an Architecture Decision Record (Markdown) or JSON.
-- **Explorer pages** — the decision center, the graph explorer and code changes are one click away in
-  the sidebar. Each page carries its own repository switcher and a dedicated right rail: decision
-  health (status breakdown, needs-attention flags, live updates), a step-by-step path tracer, and
-  change activity (line volume, top contributors, most-touched files).
 - **Code changes feed** — every change card shows the reasoning behind the change, who wrote,
   reviewed and took part, and a button that opens the carrying commit on GitHub. Line stats and
   touched files come from the real commit data; a commit that references a pull request links to
   that pull request, and one that landed directly is labelled "Direct commit" — nothing is
   synthesized to fill a gap.
-- **Fresh data without setup** — the Repository card's **Refresh data** button re-derives a repo's
-  decisions from current GitHub data (rate-limited per repo). Repository *owners* can additionally
-  register a GitHub webhook for automatic refresh on merged PRs (HMAC-verified, deduplicated);
-  end users never configure anything.
 - **Decision tooling for repos** — a policy-as-code gate (incidents need a postmortem, reversals need
   evidence), a PR comment assistant that drafts decision records, and a golden-set regression runner.
   See [`docs/FEATURES.md`](docs/FEATURES.md).
@@ -212,10 +184,8 @@ flowchart LR
 and the final graph writes are all computed by deterministic code, and every claim in the UI can be
 traced back to a PR, a diff or a commit.
 
-Alongside the answer service, the backend runs three product services on the same FastAPI app:
-**auth** (accounts, OTP, sessions), **shares** (public/private chat links) and **features** (decision
-records, search, audit, webhooks). Each stores to Neo4j when configured and degrades to a local
-SQLite file otherwise, so a fresh clone always boots.
+The same FastAPI app serves accounts, share links, custom models and signed GitHub webhook intake.
+Accounts and shares use Neo4j when configured and fall back to local SQLite.
 
 ## Quick start
 
@@ -271,12 +241,12 @@ Frontend:
 ```bash
 cd frontend
 npm install
-cp .env.example .env.local   # defaults run the UI against bundled mock fixtures
+cp .env.example .env.local   # defaults use the local FastAPI backend
 npm run dev                  # http://localhost:3000
 ```
 
-To point the UI at the backend, set `NEXT_PUBLIC_API_MODE=http` and
-`NEXT_PUBLIC_API_BASE_URL=http://localhost:8000` in `.env.local`.
+Set `NEXT_PUBLIC_API_BASE_URL` in `.env.local` if the backend runs at a different address.
+Set `NEXT_PUBLIC_API_MODE=mock` to use offline frontend fixtures.
 
 ### Run the pipeline
 
@@ -354,7 +324,7 @@ npm run build && npm run typecheck && npm run lint
 
 | Variable | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_API_MODE` | `http` for the live backend, `mock` for bundled fixtures (default) |
+| `NEXT_PUBLIC_API_MODE` | `http` for the live backend (default), `mock` for offline fixtures |
 | `NEXT_PUBLIC_API_BASE_URL` | Backend base URL when in `http` mode |
 | `NEXT_PUBLIC_REPO` | Repository the UI asks about by default (e.g. `encode/httpx`) |
 
@@ -387,7 +357,7 @@ Any equivalent split (static/Node host + a Python host) works the same way.
 │   │   ├── models/        # visitor custom models + token usage
 │   │   ├── auth/          # accounts, email OTP, sessions
 │   │   ├── shares/        # public/private chat share links
-│   │   ├── features/      # decision records, search, audit, webhooks
+│   │   ├── features/      # webhooks and decision policy
 │   │   └── main.py        # FastAPI factories (live + demo)
 │   ├── tools/             # policy gate, PR decision assistant, golden runner
 │   └── tests/             # contract tests, grouped by area

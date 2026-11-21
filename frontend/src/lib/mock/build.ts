@@ -19,8 +19,6 @@ import type {
   CodeChange,
   CommitSummary,
   Decision,
-  DecisionStatus,
-  DecisionThread,
   EvidenceDetail,
   GraphPath,
   Participant,
@@ -30,7 +28,6 @@ import type {
   PersonSummary,
   PullRequestDetail,
   PullRequestRef,
-  TimelineStep,
 } from "@/lib/api/types";
 
 export interface MockAnswer {
@@ -43,14 +40,12 @@ export interface MockAnswer {
 /** Everything the mock transport needs for one repository. */
 export interface RepoFixtures {
   slug: string;
-  /** Example questions shown on the Ask entrance. */
+  /** Questions used by the offline fixture export. */
   questions: string[];
   /** Questions that intentionally produce a refusal, exercising that state. */
   refusalKeywords: string[];
   evidence: Record<string, EvidenceDetail>;
   decisions: Record<string, Decision>;
-  threads: DecisionThread[];
-  graphPaths: Record<string, GraphPath>;
   changes: CodeChange[];
   pullRequests: Record<number, PullRequestDetail>;
   people: PersonSummary[];
@@ -129,29 +124,8 @@ export function chain(
   return { nodes, edges };
 }
 
-export function origin(decision: Decision): TimelineStep {
-  return { kind: "origin", decision };
-}
-
-export function revision(decision: Decision): TimelineStep {
-  return { kind: "revision", decision };
-}
-
-export function reversal(decision: Decision): TimelineStep {
-  return { kind: "reversal", decision };
-}
 
 /** A thread's current status is always the status of its latest step. */
-export function thread(
-  thread_id: string,
-  topic: string,
-  steps: TimelineStep[],
-): DecisionThread {
-  const last = steps.at(-1);
-  const current_status: DecisionStatus = last ? last.decision.status : "active";
-  return { thread_id, topic, current_status, steps };
-}
-
 export function file(
   path: string,
   change_kind: ChangedFileSummary["change_kind"],
@@ -303,7 +277,8 @@ export function derivePeople(
     const key = `${change.author.login}:${change.decision.decision_id}`;
     if (seenDecisions.has(key)) continue;
     seenDecisions.add(key);
-    ensure(change.author).decisions += 1;
+    const summary = ensure(change.author);
+    summary.decisions = (summary.decisions ?? 0) + 1;
   }
 
   return [...summaries.values()].sort(

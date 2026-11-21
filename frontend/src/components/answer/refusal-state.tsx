@@ -3,25 +3,19 @@
 import { CircleSlashIcon } from "lucide-react";
 
 import { CitationCard } from "@/components/answer/citation-card";
-import { Button } from "@/components/ui/button";
 import TextAnimation from "@/components/ui/staggerText";
 import type { RefusalInfo } from "@/lib/api/types";
 
 /**
  * The refusal state. A refusal is a real answer, not an error: it says the
- * evidence does not support a claim. Never a dead end — it always offers the
- * nearest candidates and a way forward.
+ * evidence does not support a claim. It shows any related evidence the backend returned.
  */
 export function RefusalState({
   question,
   refusal,
-  suggestions = [],
-  onTryExample,
 }: {
   question: string;
   refusal: RefusalInfo;
-  suggestions?: string[];
-  onTryExample?: (question: string) => void;
 }) {
   return (
     <section
@@ -47,27 +41,6 @@ export function RefusalState({
           </p>
         </div>
       </div>
-
-      {suggestions.length > 0 && onTryExample ? (
-        <div className="mt-4">
-          <p className="text-xs font-medium text-muted-foreground">
-            Try one of these instead
-          </p>
-          <ul className="mt-2 flex flex-wrap gap-2">
-            {suggestions.map((suggestion, index) => (
-              <li key={`${suggestion}-${index}`}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onTryExample(suggestion)}
-                >
-                  {suggestion}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
 
       {refusal.nearest_candidates.length > 0 ? (
         <div className="mt-5">

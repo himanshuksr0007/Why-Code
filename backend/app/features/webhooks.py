@@ -2,10 +2,7 @@
 
 Signature verification is HMAC-SHA256 with a constant-time compare;
 deliveries are deduplicated by their ``X-GitHub-Delivery`` id in a
-small SQLite store. A merged pull request records an
-``incremental_refresh`` job and invalidates the repo's cached decision
-threads, so the next read re-derives decisions from fresh data instead
-of re-ingesting the world.
+small SQLite store.
 """
 
 from __future__ import annotations
@@ -17,7 +14,7 @@ import sqlite3
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 
 def verify_signature(secret: str, body: bytes, header: str | None) -> bool:
@@ -46,18 +43,6 @@ class WebhookStore:
                     pr_number INTEGER,
                     title TEXT,
                     received_at TEXT NOT NULL
-                )
-                """
-            )
-            self._db.execute(
-                """
-                CREATE TABLE IF NOT EXISTS jobs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    kind TEXT NOT NULL,
-                    repo TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    detail TEXT
                 )
                 """
             )
@@ -90,15 +75,6 @@ class WebhookStore:
             )
             return cursor.rowcount > 0
 
-    def record_job(self, *, kind: str, repo: str, detail: str) -> int:
-        with self._lock, self._db:
-            cursor = self._db.execute(
-                "INSERT INTO jobs (kind, repo, created_at, status, detail)"
-                " VALUES (?, ?, ?, 'done', ?)",
-                (kind, repo, datetime.now(timezone.utc).isoformat(), detail),
-            )
-            return int(cursor.lastrowid)
-
     def recent(self, *, limit: int = 20) -> dict[str, list[dict[str, Any]]]:
         with self._lock:
             events = self._db.execute(
@@ -106,11 +82,18 @@ class WebhookStore:
                 " received_at FROM events ORDER BY received_at DESC LIMIT ?",
                 (limit,),
             ).fetchall()
-            jobs = self._db.execute(
-                "SELECT id, kind, repo, created_at, status, detail FROM jobs"
-                " ORDER BY id DESC LIMIT ?",
-                (limit,),
-            ).fetchall()
+            has_legacy_jobs = self._db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'jobs'"
+            ).fetchone()
+            jobs = (
+                self._db.execute(
+                    "SELECT id, kind, repo, created_at, status, detail FROM jobs"
+                    " ORDER BY id DESC LIMIT ?",
+                    (limit,),
+                ).fetchall()
+                if has_legacy_jobs
+                else []
+            )
         return {
             "events": [dict(row) for row in events],
             "jobs": [dict(row) for row in jobs],
@@ -123,9 +106,8 @@ def handle_github_event(
     delivery_id: str,
     event: str,
     payload: dict[str, Any],
-    invalidate: Callable[[str], None],
 ) -> dict[str, Any]:
-    """Record a verified event; merged PRs schedule an incremental refresh."""
+    """Record a verified event."""
     repo = (payload.get("repository") or {}).get("full_name")
     action = payload.get("action")
     pr = payload.get("pull_request") or {}
@@ -139,22 +121,4 @@ def handle_github_event(
         pr_number=pr_number,
         title=title,
     )
-    job_id: int | None = None
-    if (
-        recorded
-        and repo
-        and event == "pull_request"
-        and action == "closed"
-        and isinstance(pr, dict)
-        and pr.get("merged")
-    ):
-        invalidate(repo)
-        job_id = store.record_job(
-            kind="incremental_refresh",
-            repo=repo,
-            detail=(
-                f"PR #{pr_number} merged; cached decision threads invalidated,"
-                " decisions re-derive on next read."
-            ),
-        )
-    return {"recorded": recorded, "job_id": job_id, "repo": repo}
+    return {"recorded": recorded, "job_id": None, "repo": repo}

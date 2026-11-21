@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { GitPullRequestIcon, RouteIcon } from "lucide-react";
+import { GitPullRequestIcon } from "lucide-react";
 
 import { ConfidenceBadge, DecisionStatusBadge } from "@/components/badges";
 import { usePullRequestPanel } from "@/components/pull-request/pull-request-provider";
@@ -10,8 +9,7 @@ import type { Decision } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
 
 /**
- * A single extracted decision. Shared by the answer panel and the decision
- * timeline so the same claim renders identically in both places.
+ * A single decision extracted for an answer.
  */
 export function DecisionCard({ decision }: { decision: Decision }) {
   const { openPullRequest } = usePullRequestPanel();
@@ -86,16 +84,6 @@ export function DecisionCard({ decision }: { decision: Decision }) {
           {evidenceIds.length} evidence
           {evidenceIds.length === 1 ? "" : " items"}
         </span>
-        <Button
-          render={<Link href={`/graph?decision=${decision.decision_id}`} />}
-          nativeButton={false}
-          variant="ghost"
-          size="xs"
-          className="ml-auto"
-        >
-          <RouteIcon aria-hidden="true" />
-          Graph path
-        </Button>
       </div>
     </article>
   );

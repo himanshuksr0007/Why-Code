@@ -3,8 +3,7 @@
  *
  * `api` is a `WhyCodeClient` whose implementation is chosen by
  * `NEXT_PUBLIC_API_MODE` (see `config.ts`). Components depend on the
- * interface, never on a transport, so switching to the live backend later
- * requires no component changes.
+ * interface and share it across live and offline modes.
  */
 
 import { API_MODE } from "./config";
@@ -12,14 +11,14 @@ import { createHttpClient } from "./http-transport";
 import { createMockClient } from "./mock-transport";
 import type { WhyCodeClient } from "./types";
 
-function createResilientClient(): WhyCodeClient {
+function createClient(): WhyCodeClient {
   if (API_MODE !== "http") {
     return createMockClient();
   }
   return createHttpClient();
 }
 
-export const api: WhyCodeClient = createResilientClient();
+export const api: WhyCodeClient = createClient();
 
 export {
   ACTIVE_REPO_COOKIE,

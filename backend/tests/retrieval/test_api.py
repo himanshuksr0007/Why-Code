@@ -196,21 +196,6 @@ def test_include_flags_are_transported() -> None:
     assert body["graph_path"] == []
 
 
-def test_decision_endpoint_returns_graph_context() -> None:
-    body = _client(with_lookup=True).get("/decisions/dec_001").json()
-    assert body["decision_id"] == "dec_001"
-    assert body["claim"] == "HTTPX does not retry requests by default."
-    assert body["status"] == "active"
-    assert body["targets"]
-    assert body["evidence"][0]["evidence_id"] == "ev_101"
-    assert body["graph_path"][-2:] == ["Evidence:ev_101", "Evidence:ev_102"]
-
-
-def test_decision_endpoint_404() -> None:
-    response = _client(with_lookup=True).get("/decisions/nope")
-    assert response.status_code == 404
-
-
 def test_evidence_endpoint_returns_the_record() -> None:
     body = _client(with_lookup=True).get("/evidence/ev_101").json()
     assert body["evidence_id"] == "ev_101"

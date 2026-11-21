@@ -206,13 +206,11 @@ def create_app(
     except Exception as exc:  # noqa: BLE001 - degrade, never block startup
         logger.warning("Share service unavailable: %s", exc)
 
-    from app.features.routes import build_feature_router
+    from app.features.routes import build_webhook_router
     from app.features.webhooks import WebhookStore
 
     app.include_router(
-        build_feature_router(
-            retrieval_service,
-            live_service=live_service,
+        build_webhook_router(
             webhook_store=WebhookStore(
                 os.environ.get("WHYCODE_WEBHOOK_DB", "artifacts/webhooks.db")
             ),
