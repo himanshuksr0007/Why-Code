@@ -49,6 +49,25 @@ class GraphExpander:
                     }
                 )
             contexts.append(context)
+            # Follow SUPERSEDED_BY edges immediately. A question about the
+            # old approach must still see the decision that replaced it; the
+            # old context explains the history, the new context supplies the
+            # current truth.
+            for later_id in context.later_decisions:
+                if len(contexts) >= self.limit:
+                    break
+                if later_id in seen:
+                    continue
+                later_context = self.backend.expand(
+                    repo=repo, decision_id=later_id
+                )
+                if (
+                    later_context is None
+                    or later_context.decision.decision_id != later_id
+                ):
+                    continue
+                seen.add(later_id)
+                contexts.append(later_context)
         return contexts
 
 

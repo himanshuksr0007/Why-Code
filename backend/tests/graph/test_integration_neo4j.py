@@ -89,7 +89,8 @@ class TestAcceptanceOnRealNeo4j:
             "RETURN length(path) AS hops",
             rid=f"{SHORT}:pr:{DEEP}",
         ).single()
-        assert result is not None and result["hops"] == 4
+        # HAS_REVIEW -> HAS_COMMENT -> COMMENTS_ON is three relationships.
+        assert result is not None and result["hops"] == 3
 
     def test_constraints_actually_enforce_uniqueness(self, neo4j_session) -> None:
         from neo4j.exceptions import Neo4jError

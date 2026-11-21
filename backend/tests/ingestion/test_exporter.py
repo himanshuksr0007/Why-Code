@@ -70,6 +70,26 @@ class TestHighSignalExport:
         assert [r["pr_number"] for r in rows] == [DEEP]
         assert "band" in rows[0] and "score" in rows[0]
 
+    def test_explicit_selection_keeps_a_low_band_pr_without_faking_it(
+        self, tmp_path
+    ) -> None:
+        from app.ingestion.exporter import export_high_signal
+
+        store = records_for(tmp_path / "evidence.db")
+        store.set_pr_state(REPO, TRIVIAL, "complete")
+        scores = {
+            DEEP: {"score": 0.8, "band": "high", "reasons": ["x"]},
+            TRIVIAL: {"score": 0.1, "band": "low", "reasons": ["docs only"]},
+        }
+        out = tmp_path / "high_signal_prs.jsonl"
+        export_high_signal(store, out, scores, include_pr_numbers=[TRIVIAL])
+        rows = {r["pr_number"]: r for r in map(json.loads, out.read_text().splitlines())}
+        assert set(rows) == {DEEP, TRIVIAL}
+        assert rows[TRIVIAL]["band"] == "low"
+        assert rows[TRIVIAL]["selected_by"] == "explicit"
+        assert "explicitly selected" in rows[TRIVIAL]["reasons"][-1]
+        assert "selected_by" not in rows[DEEP]
+
 
 class TestIngestionReport:
     def test_report_captures_good_runs(self, tmp_path) -> None:

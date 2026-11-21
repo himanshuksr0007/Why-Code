@@ -7,7 +7,7 @@ import os
 import threading
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.retrieval.api.schemas import (
     AskRequest,
@@ -16,6 +16,10 @@ from app.retrieval.api.schemas import (
     EvidenceDetail,
     FeedbackRequest,
     FeedbackResponse,
+    RepoInfo,
+    RepoListResponse,
+    Suggestion,
+    SuggestionResponse,
 )
 from app.retrieval.models import (
     AnswerConfidence,
@@ -31,16 +35,32 @@ from app.retrieval.structure import (
     paths_from_contexts,
     summarize_structure,
 )
+from app.workspace.ratelimit import SlidingWindowRateLimiter
 
 
 def build_router(
     service: RetrievalService | None,
     live_service: Any = None,
     model_service: Any = None,
+    rate_limiter: SlidingWindowRateLimiter | None = None,
 ) -> APIRouter:
     router = APIRouter(tags=["retrieval"])
     feedback: list[FeedbackRequest] = []
     lock = threading.Lock()
+
+    def require() -> RetrievalService:
+        if service is None:
+            raise HTTPException(
+                status_code=503,
+                detail="retrieval service is not configured",
+            )
+        return service
+
+    def repo_or_400(current: RetrievalService, repo: str | None) -> str:
+        try:
+            return current.resolve_repo(repo)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
 
     def resolve_custom_provider(request: AskRequest) -> Any:
         """The provider for the request's selected custom model, or None
@@ -155,14 +175,57 @@ def build_router(
             return "encode/httpx"
         raise HTTPException(status_code=400, detail="repo is required")
 
+    @router.get("/repos", response_model=RepoListResponse)
+    @router.get(
+        "/api/v1/repos",
+        response_model=RepoListResponse,
+        include_in_schema=False,
+    )
+    def repos() -> RepoListResponse:
+        current = require()
+        items = [
+            RepoInfo(**item)
+            for item in current.list_repos()
+            if isinstance(item, dict) and item.get("repo")
+        ]
+        return RepoListResponse(repos=items)
+
+    @router.get("/suggestions", response_model=SuggestionResponse)
+    @router.get(
+        "/api/v1/suggestions",
+        response_model=SuggestionResponse,
+        include_in_schema=False,
+    )
+    def suggestions(repo: str | None = Query(default=None)) -> SuggestionResponse:
+        current = require()
+        resolved = repo_or_400(current, repo)
+        items = [
+            Suggestion(**item)
+            for item in current.suggestions(resolved)
+            if isinstance(item, dict) and item.get("question")
+        ]
+        return SuggestionResponse(repo=resolved, suggestions=items)
+
     @router.post("/ask", response_model=AskResponse)
     @router.post(
         "/api/v1/ask", response_model=AskResponse, include_in_schema=False
     )
-    def ask(request: AskRequest) -> AskResponse:
-        repo = resolve_repo_name(request.repo)
-        custom_provider = resolve_custom_provider(request)
-        params = request.parameters()
+    def ask(body: AskRequest, request: Request) -> AskResponse:
+        if rate_limiter is not None:
+            client = request.client.host if request.client else "unknown"
+            allowed, retry_after = rate_limiter.check(client)
+            if not allowed:
+                raise HTTPException(
+                    status_code=429,
+                    detail=(
+                        "Too many questions. Wait a moment before asking again; "
+                        "this limit protects the operator's model quota."
+                    ),
+                    headers={"Retry-After": str(retry_after)},
+                )
+        repo = resolve_repo_name(body.repo)
+        custom_provider = resolve_custom_provider(body)
+        params = body.parameters()
         if not params.repo:
             params = params.model_copy(update={"repo": repo})
         if live_service is not None and (
@@ -178,23 +241,22 @@ def build_router(
                 import logging
                 logging.getLogger("whycode").error("LiveService answer error: %s", exc, exc_info=True)
             else:
-                return finish(request, response)
+                return finish(body, response)
             finally:
                 # Recorded once, here: on success it holds the call's full
                 # usage; on failure, whatever was billed before the error.
                 if usage_sink:
-                    record_usage(request, usage_sink)
+                    record_usage(body, usage_sink)
         if service is not None:
             response = service.ask(params)
             if custom_provider is not None and model_service is not None:
                 from app.intent.llm.provider import RecordingProvider
-
                 recorder = RecordingProvider(custom_provider)
                 response = model_service.generate_custom_answer(
-                    response, request.question, recorder
+                    response, body.question, recorder
                 )
-                record_usage(request, recorder.totals())
-            return finish(request, response)
+                record_usage(body, recorder.totals())
+            return finish(body, response)
         raise HTTPException(status_code=503, detail="retrieval service is not configured")
 
     @router.get("/evidence/{evidence_id}", response_model=EvidenceDetail)

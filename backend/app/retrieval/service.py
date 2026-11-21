@@ -305,6 +305,27 @@ class RetrievalService:
             results[RetrievalSource.VECTOR],
         )
 
+    def list_repos(self) -> list[dict[str, object]]:
+        """Repository discovery for the API.
+
+        A single-repo service (the offline demo and unit fixtures) reports
+        only its configured repo. The live registry overrides this with a
+        graph query.
+        """
+
+        repo = (self.config.repo or "").strip()
+        if not repo:
+            return []
+        return [{"repo": repo, "decisions": 0, "evidence": 0}]
+
+    def suggestions(
+        self, repo: str | None = None, *, limit: int = 5
+    ) -> list[dict[str, object]]:
+        """The offline demo has a fixed script, not generated suggestions."""
+
+        del repo, limit
+        return []
+
     def resolve_repo(self, repo: str | None) -> str:
         resolved = (repo or self.config.repo or "").strip()
         if not resolved:
@@ -384,12 +405,18 @@ def _from_refusal(
     )
 
 
+def _excerpt(text: str) -> str:
+    """Keep diff and source line breaks while trimming dead whitespace."""
+
+    return "\n".join(line.rstrip() for line in text.strip().splitlines())
+
+
 def _evidence_view(item: EvidenceItem, pack: EvidencePack) -> EvidenceView:
     return EvidenceView(
         evidence_id=item.evidence_id,
         kind=item.kind,
         url=item.url,
-        excerpt=" ".join(item.excerpt.split()),
+        excerpt=_excerpt(item.excerpt),
         alias=pack.alias_for(item.evidence_id),
         author=item.author,
         created_at=item.created_at,
@@ -455,6 +482,7 @@ _ROLE_BY_KIND = {
     "issue_comment": "commenter",
     "pull_request": "author",
     "changed_file": "author",
+    "code_file": "author",
     "doc_file": "author",
 }
 

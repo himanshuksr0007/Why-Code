@@ -46,7 +46,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command not in {"ingest", "retry"}:
         parser.print_help()
         return 2
-    if args.command == "ingest" and not _valid_date(args.since):
+    try:
+        prs = _parse_prs(getattr(args, "prs", None))
+    except ValueError as error:
+        print(str(error))
+        return 2
+    if (
+        args.command == "ingest"
+        and prs is None
+        and not _valid_date(args.since)
+    ):
         print(f"invalid --since date: {args.since!r} (expected YYYY-MM-DD)")
         return 2
 
@@ -63,13 +72,22 @@ def main(argv: Sequence[str] | None = None) -> int:
             repo=args.repo,
             since=getattr(args, "since", "1970-01-01"),
             limit=getattr(args, "limit", 100),
+            until=getattr(args, "until", None),
+            focus=_parse_focus(getattr(args, "focus", None)),
         )
         if args.command == "retry":
             result = service.retry_errored()
+        elif prs is not None:
+            result = service.ingest_numbers(prs, force=args.force)
         else:
             result = service.run(force=args.force)
         export_normalized(store, artifacts / "normalized.jsonl")
-        export_high_signal(store, artifacts / "high_signal_prs.jsonl", result.scored_payload())
+        export_high_signal(
+            store,
+            artifacts / "high_signal_prs.jsonl",
+            result.scored_payload(),
+            include_pr_numbers=prs,
+        )
         report = build_report(
             store,
             repo=args.repo,
@@ -177,6 +195,32 @@ def _show(args: argparse.Namespace) -> int:
         store.close()
 
 
+def _parse_prs(raw: str | None) -> list[int] | None:
+    if raw is None:
+        return None
+    values: list[int] = []
+    for part in raw.split(","):
+        stripped = part.strip()
+        if not stripped:
+            continue
+        try:
+            values.append(int(stripped))
+        except ValueError:
+            raise ValueError(
+                f"invalid PR number {stripped!r} in --prs (expected comma-separated integers)"
+            ) from None
+    return values
+
+
+def _parse_focus(raw: str | None) -> list[str] | None:
+    """Split a comma-separated ``--focus`` value into search terms."""
+
+    if raw is None:
+        return None
+    terms = [part.strip() for part in raw.split(",") if part.strip()]
+    return terms or None
+
+
 def _record_row(record: Any) -> dict[str, Any]:
     return {
         "record_id": record.record_id,
@@ -201,8 +245,22 @@ def _parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command")
     ingest = sub.add_parser("ingest", help="ingest merged PRs into the evidence store")
     ingest.add_argument("--repo", required=True)
-    ingest.add_argument("--since", required=True, help="ISO date, e.g. 2024-01-01")
+    ingest.add_argument(
+        "--since",
+        default="1970-01-01",
+        help="ISO date, e.g. 2024-01-01 (ignored when --prs is set)",
+    )
     ingest.add_argument("--limit", type=int, default=100)
+    ingest.add_argument(
+        "--prs",
+        default=None,
+        help="comma-separated PR numbers to ingest explicitly, including closed PRs",
+    )
+    ingest.add_argument(
+        "--focus",
+        default=None,
+        help="comma-separated terms; only PRs whose title/body/labels match are ingested",
+    )
     ingest.add_argument("--force", action="store_true")
     ingest.add_argument("--artifacts-dir", default=None)
 

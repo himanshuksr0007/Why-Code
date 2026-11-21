@@ -75,10 +75,13 @@ class Neo4jClient:
         driver = GraphDatabase.driver(uri, auth=(user, password))
         return cls(driver, database=database)
 
-    def run(self, query: str, **parameters: Any) -> QueryResult:
+    def run(self, statement: str, **parameters: Any) -> QueryResult:
+        # ``statement`` is intentionally not named ``query``: retrieval
+        # passes the full-text search string as a Cypher parameter named
+        # ``query``, and a matching Python parameter would collide with it.
         try:
             result = self._driver.execute_query(
-                query,
+                statement,
                 parameters_=parameters,
                 database_=self.database,
                 result_transformer_=_collect,

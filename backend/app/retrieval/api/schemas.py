@@ -73,6 +73,28 @@ class EntityHistoryResponse(BaseModel):
     decisions: list[NearestCandidate] = Field(default_factory=list)
 
 
+class RepoInfo(BaseModel):
+    repo: str
+    decisions: int = 0
+    evidence: int = 0
+
+
+class RepoListResponse(BaseModel):
+    repos: list[RepoInfo] = Field(default_factory=list)
+
+
+class Suggestion(BaseModel):
+    question_id: str
+    question: str
+    focus: str
+    decision_id: str | None = None
+
+
+class SuggestionResponse(BaseModel):
+    repo: str
+    suggestions: list[Suggestion] = Field(default_factory=list)
+
+
 class FeedbackVerdict(StrEnum):
     HELPFUL = "helpful"
     WRONG = "wrong"
@@ -102,4 +124,8 @@ __all__ = [
     "FeedbackRequest",
     "FeedbackResponse",
     "FeedbackVerdict",
+    "RepoInfo",
+    "RepoListResponse",
+    "Suggestion",
+    "SuggestionResponse",
 ]
