@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
+  <title id="title">Why-Code</title>
+  <desc id="desc">Why-Code: ask why your code is the way it is. Every claim in an answer cites a real pull request, review or commit, or Why-Code refuses to answer. Illustration: the question "Why are certifi and httpcore imported lazily?" about encode/httpx, answered with two verified citations — the changelog line from pull request 3377 and the diff that moved "import certifi" into SSLContext.</desc>
+
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#2a201a" stroke-width="1"/>
+    </pattern>
+    <clipPath id="frame"><rect width="1200" height="500" rx="24"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <rect width="1200" height="500" fill="#120e0c"/>
+    <rect width="1200" height="500" fill="url(#grid)" opacity="0.7"/>
+  </g>
+
+  <!-- Title block -->
+  <g id="title-block" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text x="64" y="150" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" letter-spacing="3" fill="#e09a52">DECISIONS · EVIDENCE · CITATIONS</text>
+    <text x="62" y="234" font-size="84" font-weight="700" fill="#f5eee6" letter-spacing="-2">Why-Code</text>
+    <text x="64" y="292" font-size="30" font-weight="600" fill="#f5eee6">Ask why your code is the way it is.</text>
+    <text x="64" y="336" font-size="22" fill="#b8a999">Every claim cites a real PR, review or commit —</text>
+    <text x="64" y="366" font-size="22" fill="#b8a999">or Why-Code refuses to answer.</text>
+    <text x="64" y="430" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#8f8172">web app  ·  MCP for coding agents  ·  GitHub Action</text>
+  </g>
+
+  <!-- Project proof: an answer whose citations resolve to evidence -->
+  <g id="answer-card" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <rect x="600" y="32" width="552" height="436" rx="20" fill="#1c1613" stroke="#3a2d23" stroke-width="1.5"/>
+
+    <text x="628" y="70" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" letter-spacing="1.5" fill="#8f8172">ENCODE/HTTPX</text>
+    <text x="628" y="102" font-size="21" font-weight="600" fill="#f5eee6">Why are certifi and httpcore imported lazily?</text>
+
+    <rect x="628" y="118" width="104" height="30" rx="15" fill="none" stroke="#c9772a" stroke-width="1.5"/>
+    <text x="680" y="139" text-anchor="middle" font-size="16" fill="#e09a52">Answered</text>
+    <rect x="742" y="118" width="214" height="30" rx="15" fill="none" stroke="#3a2d23" stroke-width="1.5"/>
+    <text x="849" y="139" text-anchor="middle" font-size="16" fill="#b8a999">2 / 2 citations resolved</text>
+
+    <text x="628" y="186" font-size="20" fill="#f5eee6">They load only when a client needs them, not on</text>
+    <text x="628" y="214" font-size="20" fill="#f5eee6"><tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#e9dccd">import httpx</tspan> <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" fill="#e09a52">[E1]</tspan>; the diff moves the import <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" fill="#e09a52">[E2]</tspan>.</text>
+
+    <!-- E1 -->
+    <rect x="628" y="240" width="496" height="100" rx="14" fill="#241c17" stroke="#3a2d23" stroke-width="1.5"/>
+    <text x="646" y="270" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700" fill="#e09a52">E1</text>
+    <text x="682" y="270" font-size="18" fill="#e9dccd">PR #3377 · CHANGELOG.md</text>
+    <circle cx="1036" cy="264" r="5" fill="#7ec8a0"/>
+    <text x="1106" y="270" text-anchor="end" font-size="16" fill="#7ec8a0">verified</text>
+    <text x="646" y="300" font-size="18" font-style="italic" fill="#b8a999">“Ensure certifi and httpcore are only</text>
+    <text x="646" y="324" font-size="18" font-style="italic" fill="#b8a999">imported if required.”</text>
+
+    <!-- E2 -->
+    <rect x="628" y="352" width="496" height="96" rx="14" fill="#241c17" stroke="#3a2d23" stroke-width="1.5"/>
+    <text x="646" y="382" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700" fill="#e09a52">E2</text>
+    <text x="682" y="382" font-size="18" fill="#e9dccd">httpx/_config.py · 29 Oct 2024</text>
+    <circle cx="1036" cy="376" r="5" fill="#7ec8a0"/>
+    <text x="1106" y="382" text-anchor="end" font-size="16" fill="#7ec8a0">verified</text>
+    <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">
+      <text x="646" y="410" fill="#f0908a">- import certifi</text>
+      <text x="646" y="434" fill="#7ec8a0">+     import certifi   <tspan fill="#8f8172"># in SSLContext</tspan></text>
+    </g>
+  </g>
+
+  <text x="1152" y="490" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" fill="#6f6256">illustration · evidence is real (encode/httpx PR #3377)</text>
+</svg>
