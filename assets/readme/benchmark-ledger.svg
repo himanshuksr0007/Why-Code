@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+<title id="title">Decision ledger: commits only versus commits plus PR discussion</title>
+<desc id="desc">Measured 22 November 2026 on full history. httpx golden decisions found: 2 of 12 from commits only, 11 of 12 with PR discussion. Share of httpx records that state the reason: 19% versus 56%. Share of FastAPI records that state the reason, a repository not used for tuning: 4% versus 36%.</desc>
+<rect width="1200" height="520" rx="24" fill="#120e0c"/>
+<g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+<text x="56" y="70" font-size="28" font-weight="700" fill="#f5eee6">Reading PR discussion finds the reasons commits leave out</text>
+<text x="56" y="102" font-size="18" fill="#b8a999">Decision ledger · full history · measured 22 Nov 2026</text>
+<rect x="56" y="128" width="18" height="18" rx="4" fill="#3f88d6"/>
+<text x="84" y="143" font-size="18" fill="#f5eee6">Commits only</text>
+<rect x="234" y="128" width="18" height="18" rx="4" fill="#c9772a"/>
+<text x="262" y="143" font-size="18" fill="#f5eee6">Commits + PR discussion  (<tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">--pull-requests</tspan>)</text>
+<text x="470.0" y="492" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#8f8172">0%</text>
+<path d="M610.0 170V466" stroke="#2a201a" stroke-width="1"/>
+<text x="610.0" y="492" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#8f8172">25%</text>
+<path d="M750.0 170V466" stroke="#2a201a" stroke-width="1"/>
+<text x="750.0" y="492" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#8f8172">50%</text>
+<path d="M890.0 170V466" stroke="#2a201a" stroke-width="1"/>
+<text x="890.0" y="492" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#8f8172">75%</text>
+<path d="M1030.0 170V466" stroke="#2a201a" stroke-width="1"/>
+<text x="1030.0" y="492" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#8f8172">100%</text>
+<path d="M470 170V466" stroke="#3a2d23" stroke-width="1.5"/>
+<text x="56" y="204" font-size="20" font-weight="600" fill="#f5eee6">httpx golden decisions found</text>
+<text x="56" y="232" font-size="18" fill="#8f8172">12 hand-labelled decisions</text>
+<path d="M470 184H559.3Q563.3 184 563.3 188V208Q563.3 212 559.3 212H470Z" fill="#3f88d6"/>
+<text x="575.3" y="205" font-size="18" font-weight="600" fill="#f5eee6">2 / 12</text>
+<path d="M470 216H979.3Q983.3 216 983.3 220V240Q983.3 244 979.3 244H470Z" fill="#c9772a"/>
+<text x="995.3" y="237" font-size="18" font-weight="600" fill="#f5eee6">11 / 12</text>
+<text x="56" y="304" font-size="20" font-weight="600" fill="#f5eee6">httpx records that state the why</text>
+<text x="56" y="332" font-size="18" fill="#8f8172">25 sampled records</text>
+<path d="M470 284H572.4Q576.4 284 576.4 288V308Q576.4 312 572.4 312H470Z" fill="#3f88d6"/>
+<text x="588.4" y="305" font-size="18" font-weight="600" fill="#f5eee6">19%</text>
+<path d="M470 316H779.6Q783.6 316 783.6 320V340Q783.6 344 779.6 344H470Z" fill="#c9772a"/>
+<text x="795.6" y="337" font-size="18" font-weight="600" fill="#f5eee6">56%</text>
+<text x="56" y="404" font-size="20" font-weight="600" fill="#f5eee6">FastAPI records that state the why</text>
+<text x="56" y="432" font-size="18" fill="#8f8172">25 sampled · not used for tuning</text>
+<path d="M470 384H488.4Q492.4 384 492.4 388V408Q492.4 412 488.4 412H470Z" fill="#3f88d6"/>
+<text x="504.4" y="405" font-size="18" font-weight="600" fill="#f5eee6">4%</text>
+<path d="M470 416H667.6Q671.6 416 671.6 420V440Q671.6 444 667.6 444H470Z" fill="#c9772a"/>
+<text x="683.6" y="437" font-size="18" font-weight="600" fill="#f5eee6">36%</text>
+</g></svg>
