@@ -249,6 +249,17 @@ class LedgerStore:
                 self._put_evidence(existing.decision_id, item)
             scope = list(dict.fromkeys([*existing.scope, *decision.scope]))[:10]
             promote = existing.status is Status.PROPOSED and decision.status is Status.ACCEPTED
+            if (
+                decision.source is Source.PULL_REQUEST
+                and existing.source is Source.COMMIT
+                and decision.rationale
+            ):
+                # The PR states the reason; a commit body is usually a bullet
+                # list of fixups. Keep the stated reason.
+                self._db.execute(
+                    "UPDATE decisions SET rationale = ?, source = ? WHERE decision_id = ?",
+                    (decision.rationale, Source.PULL_REQUEST.value, existing.decision_id),
+                )
             self._db.execute(
                 "UPDATE decisions SET scope = ?, confidence = MAX(confidence, ?),"
                 " status = ?, updated_at = ? WHERE decision_id = ?",

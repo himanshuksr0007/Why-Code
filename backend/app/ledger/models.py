@@ -26,6 +26,7 @@ class Source(StrEnum):
     INLINE_MARKER = "inline_marker"
     COMMIT = "commit"
     PR_BLOCK = "pr_block"
+    PULL_REQUEST = "pull_request"  # reasons quoted from a merged PR's text
     MANUAL = "manual"
     AGENT = "agent"
 

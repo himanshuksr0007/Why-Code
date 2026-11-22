@@ -9,6 +9,7 @@ from pathlib import Path
 from app.ledger.git import Git, GitError
 from app.ledger.miners import mine_adrs, mine_commits, mine_markers, reverted_shas
 from app.ledger.models import Action, AuthorityEvent, SignerKind, Source, Status
+from app.ledger.pr_miner import PullRequestSource, mine_pull_requests, pr_number
 from app.ledger.store import LedgerError, LedgerStore
 from app.ledger.verify import currency, verify_evidence
 
@@ -27,6 +28,8 @@ class IndexStats:
     verification: dict[str, int] = field(default_factory=dict)
     currency: dict[str, int] = field(default_factory=dict)
     seconds: float = 0.0
+    prs_read: int = 0
+    notes: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -39,6 +42,9 @@ def index_repository(
     repo: str | None = None,
     commit_limit: int = 1000,
     sources: set[Source] | None = None,
+    github_token: str | None = None,
+    pr_limit: int = 500,
+    pr_cache: str | Path | None = None,
 ) -> IndexStats:
     started = time.monotonic()
     root = Path(root).resolve()
@@ -68,8 +74,28 @@ def index_repository(
         markers = mine_markers(root, files, slug)
         mined += markers
         stats.mined["inline_marker"] = len(markers)
-    commits = git.commits(limit=commit_limit) if Source.COMMIT in enabled else []
+    wants_prs = Source.PULL_REQUEST in enabled
+    commits = (
+        git.commits(limit=commit_limit) if (Source.COMMIT in enabled or wants_prs) else []
+    )
     stats.commits_scanned = len(commits)
+    if wants_prs:
+        # Before the commit miner: when both describe the same change, the
+        # PR's stated reason becomes the record's rationale.
+        if not github_token:
+            stats.mined["pull_request"] = 0
+            stats.notes.append("pull requests skipped: no GitHub token")
+        else:
+            numbers = [n for n in (pr_number(c) for c in commits) if n is not None][:pr_limit]
+            source = PullRequestSource(
+                github_token, cache_path=Path(pr_cache) if pr_cache else None
+            )
+            fetched = source.fetch(slug, numbers)
+            from_prs = mine_pull_requests(commits, fetched, slug, tracked)
+            mined += from_prs
+            stats.mined["pull_request"] = len(from_prs)
+            stats.prs_read = len(fetched)
+            stats.notes += source.errors[:5]
     if Source.COMMIT in enabled:
         from_commits = mine_commits(commits, slug, tracked)
         mined += from_commits

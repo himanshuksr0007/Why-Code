@@ -68,6 +68,7 @@ export const SOURCE_LABEL: Record<DecisionSource, string> = {
   inline_marker: "Code comment",
   commit: "Commit",
   pr_block: "Pull request",
+  pull_request: "PR discussion",
   manual: "Recorded by hand",
   agent: "Coding agent",
 };

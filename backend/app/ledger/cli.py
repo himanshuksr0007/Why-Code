@@ -1,6 +1,7 @@
 """``python -m app.ledger`` — index, query and govern the decision ledger.
 
-index PATH                 mine ADRs, WHY:-style markers and commits; verify; assess
+index PATH                 mine ADRs, WHY:-style markers, commits (and PRs with
+                           --pull-requests); verify; assess
 why [PATH ...] [-q TEXT]   decisions over paths, a search, or governance health
 list / show ID             browse the ledger (show includes the authority log)
 add                        record a decision (flags; in force only with --accept)
@@ -131,6 +132,13 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("index")
     p.add_argument("path")
     p.add_argument("--commits", type=int, default=1000)
+    p.add_argument(
+        "--pull-requests",
+        action="store_true",
+        help="also mine reasons from merged PR descriptions and reviews "
+        "(needs WHYCODE_GITHUB_TOKEN, GITHUB_TOKEN or GH_TOKEN)",
+    )
+    p.add_argument("--pr-limit", type=int, default=500)
 
     p = sub.add_parser("why")
     p.add_argument("targets", nargs="*")
@@ -193,7 +201,28 @@ def main(argv: list[str] | None = None) -> int:
 def _dispatch(args: argparse.Namespace, store: LedgerStore, engine: WhyEngine) -> int:
     cmd = args.cmd
     if cmd == "index":
-        stats = index_repository(args.path, store, repo=args.repo, commit_limit=args.commits)
+        sources = None
+        token = None
+        if args.pull_requests:
+            sources = {Source.ADR, Source.INLINE_MARKER, Source.COMMIT, Source.PULL_REQUEST}
+            token = next(
+                (
+                    os.environ[k].strip()
+                    for k in ("WHYCODE_GITHUB_TOKEN", "GITHUB_TOKEN", "GH_TOKEN")
+                    if os.environ.get(k, "").strip()
+                ),
+                None,
+            )
+        stats = index_repository(
+            args.path,
+            store,
+            repo=args.repo,
+            commit_limit=args.commits,
+            sources=sources,
+            github_token=token,
+            pr_limit=args.pr_limit,
+            pr_cache=f"{args.db}.prs.json" if args.pull_requests else None,
+        )
         _print(stats.as_dict(), True)
         return 0
     if cmd == "mcp":
