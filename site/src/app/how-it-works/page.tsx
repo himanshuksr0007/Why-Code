@@ -1,3 +1,5 @@
+import { GitDiagram, LedgerDiagram, MinersDiagram } from "@/components/diagrams/record-diagrams";
+import { RetrievalDiagram, ValidatorDiagram } from "@/components/diagrams/answer-diagrams";
 import { PipelineAnimation } from "@/components/pipeline-animation";
 import { Card, PageHero, Pill, Section } from "@/components/ui";
 
@@ -37,7 +39,10 @@ export default function HowItWorksPage() {
         title="Decisions come from what your team already wrote."
         intro="Five sources, all read with rules rather than guesses. Each decision keeps a pointer to the exact place it came from."
       >
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mb-6">
+          <MinersDiagram />
+        </div>
+        <div className="stagger grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {SOURCES.map(([name, body]) => (
             <Card key={name}>
               <h3 className="font-mono text-sm text-ink">{name}</h3>
@@ -52,7 +57,10 @@ export default function HowItWorksPage() {
         title="Every quote is verified. Every decision gets a freshness state."
         intro="Verification asks “is this quote really there?”. Currency asks “does this decision still describe the code?”. Both are computed from the repository and git history."
       >
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="mb-6">
+          <GitDiagram />
+        </div>
+        <div className="stagger grid gap-4 lg:grid-cols-2">
           <Card>
             <h3 className="font-medium">Verification</h3>
             <ul className="mt-4 space-y-3 text-sm">
@@ -80,6 +88,9 @@ export default function HowItWorksPage() {
         title="Authority is a log entry, not a checkbox."
         intro="Putting a decision in force, pinning it or withdrawing it each append a signed row: who, why, which files, which evidence. Database triggers reject any edit or deletion of that log."
       >
+        <div className="mb-6">
+          <LedgerDiagram />
+        </div>
         <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
           <pre className="overflow-x-auto rounded-xl border border-line bg-surface p-5 font-mono text-[13px] leading-relaxed">
             <code>
@@ -105,8 +116,13 @@ export default function HowItWorksPage() {
       <Section
         eyebrow="Step 4 · Use"
         title="One record, three ways out."
+        intro="When you ask a question, retrieval gathers the evidence and a validator decides what the model's draft is allowed to say."
       >
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="mb-6 grid gap-4 xl:grid-cols-2">
+          <RetrievalDiagram />
+          <ValidatorDiagram />
+        </div>
+        <div className="stagger grid gap-4 lg:grid-cols-3">
           <Card>
             <h3 className="font-medium">Ask in the app</h3>
             <p className="mt-2 text-sm leading-relaxed text-ink-soft">

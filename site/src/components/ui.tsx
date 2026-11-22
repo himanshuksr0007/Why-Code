@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { Reveal } from "./reveal";
+
 export function Section({
   id,
   eyebrow,
@@ -16,7 +18,8 @@ export function Section({
   className?: string;
 }) {
   return (
-    <section id={id} className={`mx-auto max-w-6xl px-4 pt-24 sm:px-6 ${className}`}>
+    <section id={id} className={`mx-auto max-w-6xl scroll-mt-20 px-4 pt-24 sm:px-6 ${className}`}>
+      <Reveal>
       {eyebrow ? (
         <p className="font-mono text-xs tracking-wider text-ink-faint uppercase">{eyebrow}</p>
       ) : null}
@@ -28,7 +31,12 @@ export function Section({
       {intro ? (
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-ink-soft sm:text-lg">{intro}</p>
       ) : null}
-      {children ? <div className="mt-10">{children}</div> : null}
+      </Reveal>
+      {children ? (
+        <Reveal className="mt-10">
+          <div>{children}</div>
+        </Reveal>
+      ) : null}
     </section>
   );
 }
@@ -37,7 +45,7 @@ export function PageHero({ eyebrow, title, intro }: { eyebrow: string; title: Re
   return (
     <div className="relative overflow-hidden border-b border-line">
       <div className="dot-grid pointer-events-none absolute inset-0" aria-hidden="true" />
-      <div className="relative mx-auto max-w-6xl px-4 pt-20 pb-16 sm:px-6">
+      <div className="hero-in relative mx-auto max-w-6xl px-4 pt-20 pb-16 sm:px-6">
         <p className="font-mono text-xs tracking-wider text-ink-faint uppercase">{eyebrow}</p>
         <h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
           {title}
@@ -49,7 +57,13 @@ export function PageHero({ eyebrow, title, intro }: { eyebrow: string; title: Re
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-xl border border-line bg-surface p-6 ${className}`}>{children}</div>;
+  return (
+    <div
+      className={`rounded-xl border border-line bg-surface p-6 transition-[border-color,transform] duration-300 hover:-translate-y-0.5 hover:border-line-strong ${className}`}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function Code({ children }: { children: ReactNode }) {

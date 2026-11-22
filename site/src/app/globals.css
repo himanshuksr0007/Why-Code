@@ -83,10 +83,133 @@ body {
   animation: rise 0.5s ease-out both;
 }
 
+/* Slow drift on the hero dot grid (one tile per loop, so it is seamless). */
+@keyframes drift {
+  to {
+    background-position: 22px 22px;
+  }
+}
+.dot-grid {
+  animation: drift 14s linear infinite;
+}
+
+/* Hero entrance: children rise one after another. */
+.hero-in > * {
+  animation: rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.hero-in > *:nth-child(2) { animation-delay: 90ms; }
+.hero-in > *:nth-child(3) { animation-delay: 180ms; }
+.hero-in > *:nth-child(4) { animation-delay: 270ms; }
+.hero-in > *:nth-child(5) { animation-delay: 360ms; }
+
+/* Live status dot. */
+@keyframes ping {
+  75%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+.ping {
+  position: relative;
+}
+.ping::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: inherit;
+  animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Header reading-progress bar, driven by scroll where the browser supports it. */
+.scroll-progress {
+  transform: scaleX(0);
+}
+@supports (animation-timeline: scroll()) {
+  .scroll-progress {
+    animation: grow-x linear both;
+    animation-timeline: scroll(root block);
+  }
+}
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Scroll reveal (see components/reveal.tsx). */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.8s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.reveal.is-shown {
+  opacity: 1;
+  transform: none;
+}
+.reveal .stagger > * {
+  opacity: 0;
+}
+.reveal.is-shown .stagger > * {
+  animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.reveal.is-shown .stagger > *:nth-child(2) { animation-delay: 70ms; }
+.reveal.is-shown .stagger > *:nth-child(3) { animation-delay: 140ms; }
+.reveal.is-shown .stagger > *:nth-child(4) { animation-delay: 210ms; }
+.reveal.is-shown .stagger > *:nth-child(5) { animation-delay: 280ms; }
+.reveal.is-shown .stagger > *:nth-child(6) { animation-delay: 350ms; }
+.reveal.is-shown .stagger > *:nth-child(7) { animation-delay: 420ms; }
+.reveal.is-shown .stagger > *:nth-child(8) { animation-delay: 490ms; }
+.reveal.is-shown .stagger > *:nth-child(n + 9) { animation-delay: 560ms; }
+
+/* Diagrams (components/diagrams/kit.tsx): state changes are CSS transitions. */
+.dg {
+  transition:
+    opacity 0.5s ease,
+    fill 0.5s ease,
+    stroke 0.5s ease;
+}
+.dg-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition:
+    stroke-dashoffset 0.9s cubic-bezier(0.2, 0.7, 0.2, 1),
+    stroke 0.5s ease;
+}
+.dg-draw[data-drawn="true"] {
+  stroke-dashoffset: 0;
+}
+.dg-sweep {
+  transform-box: fill-box;
+  transform-origin: left center;
+  transition: transform 1.1s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .flow-line,
   .caret,
-  .rise {
+  .rise,
+  .dot-grid,
+  .hero-in > *,
+  .ping::after,
+  .reveal.is-shown .stagger > * {
     animation: none !important;
+  }
+  .reveal,
+  .reveal .stagger > * {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .dg,
+  .dg-draw,
+  .dg-sweep {
+    transition: none !important;
   }
 }

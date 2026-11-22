@@ -3,11 +3,13 @@ import Link from "next/link";
 import { NAV, SITE } from "@/lib/site";
 
 import { Logo } from "./logo";
+import { Reveal } from "./reveal";
 
 export function SiteFooter() {
   return (
     <footer className="mt-24 border-t border-line">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">
+      <Reveal>
+      <div className="stagger mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">
         <div>
           <div className="flex items-center gap-2 font-semibold">
             <Logo className="size-6" />
@@ -23,7 +25,7 @@ export function SiteFooter() {
           <ul className="mt-3 space-y-2 text-sm">
             {NAV.map((item) => (
               <li key={item.href}>
-                <Link href={item.href} className="text-ink-soft hover:text-ink">
+                <Link href={item.href} className="text-ink-soft transition-colors hover:text-ink">
                   {item.label}
                 </Link>
               </li>
@@ -51,6 +53,7 @@ export function SiteFooter() {
           </ul>
         </div>
       </div>
+      </Reveal>
       <div className="border-t border-line">
         <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-ink-faint sm:px-6">
           Decision-layer ideas credited to{" "}

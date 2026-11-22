@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRightIcon, BookOpenTextIcon, ShieldCheckIcon, CircleSlashIcon } from "lucide-react";
 
 import { AskDemo } from "@/components/ask-demo";
+import { ArchitectureDiagram } from "@/components/diagrams/architecture-diagram";
 import { PipelineAnimation } from "@/components/pipeline-animation";
 import { Card, Section } from "@/components/ui";
 import { SITE } from "@/lib/site";
@@ -33,7 +34,18 @@ const ASKS = [
   },
 ];
 
-const TECH = ["Git", "tree-sitter", "Neo4j", "Decision ledger (SQLite)", "Hybrid retrieval", "MCP", "FastAPI", "Next.js"];
+const TECH = [
+  ["git", "Git"],
+  ["miners", "Rule miners"],
+  ["tree-sitter", "tree-sitter"],
+  ["neo4j", "Neo4j"],
+  ["ledger", "Decision ledger (SQLite)"],
+  ["retrieval", "Hybrid retrieval"],
+  ["distilbert", "DistilBERT"],
+  ["llm", "Citation validator"],
+  ["mcp", "MCP"],
+  ["github-action", "GitHub Action"],
+] as const;
 
 export default function HomePage() {
   return (
@@ -42,9 +54,9 @@ export default function HomePage() {
       <div className="relative overflow-hidden border-b border-line">
         <div className="dot-grid pointer-events-none absolute inset-0" aria-hidden="true" />
         <div className="relative mx-auto grid max-w-6xl gap-12 px-4 pt-20 pb-20 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:items-center lg:pt-28">
-          <div>
+          <div className="hero-in">
             <p className="inline-flex items-center gap-2 rounded-full border border-line-strong px-3 py-1 font-mono text-[11px] text-ink-soft">
-              <span className="size-1.5 rounded-full bg-ok" aria-hidden="true" />
+              <span className="ping size-1.5 rounded-full bg-ok" aria-hidden="true" />
               Open source · core needs no AI key
             </p>
             <h1 className="mt-6 text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
@@ -74,7 +86,9 @@ export default function HomePage() {
               </a>
             </div>
           </div>
-          <AskDemo />
+          <div className="rise" style={{ animationDelay: "300ms" }}>
+            <AskDemo />
+          </div>
         </div>
       </div>
 
@@ -84,7 +98,7 @@ export default function HomePage() {
         title="A memory for your codebase that shows its receipts."
         intro="Think of it as the team member who read every pull request ever merged, wrote down each decision with a link to where it was made, and notices when the code drifts away from what was agreed."
       >
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="stagger grid gap-4 md:grid-cols-3">
           <Card>
             <BookOpenTextIcon className="size-5 text-ink" aria-hidden="true" />
             <h3 className="mt-4 font-medium">1. It reads what you already wrote</h3>
@@ -151,7 +165,7 @@ export default function HomePage() {
         title="ChatGPT and Claude can explain your code. They can’t be its record."
         intro="Frontier models are better than Why-Code at reasoning and writing code — Why-Code even uses one to phrase answers. What a chat can’t be is a shared, checked, durable source of truth that sits in your merge path."
       >
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="stagger grid gap-4 md:grid-cols-3">
           {[
             ["Durable & shared", "The same recorded decisions for everyone and every agent, tomorrow and next year — not one person’s chat history."],
             ["Checked outside the model", "Quotes verified by code against git. A model can’t certify its own citations; a separate checker can."],
@@ -169,12 +183,27 @@ export default function HomePage() {
       </Section>
 
       {/* Tech strip */}
-      <Section eyebrow="Built on" title="Boring, inspectable technology.">
-        <div className="flex flex-wrap gap-2">
-          {TECH.map((t) => (
-            <span key={t} className="rounded-lg border border-line bg-surface px-3.5 py-2 font-mono text-sm text-ink">
-              {t}
-            </span>
+      <Section
+        eyebrow="Built on"
+        title="Boring, inspectable technology."
+        intro="Each one has an animated diagram of how it works inside Why-Code. Pick one to jump straight to it."
+      >
+        <div className="mb-6">
+          <ArchitectureDiagram />
+        </div>
+        <div className="stagger flex flex-wrap gap-2">
+          {TECH.map(([id, name]) => (
+            <Link
+              key={id}
+              href={`/technology#${id}`}
+              className="group inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3.5 py-2 font-mono text-sm text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-ink/50 hover:bg-raised"
+            >
+              {name}
+              <ArrowRightIcon
+                className="size-3.5 -translate-x-1 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100"
+                aria-hidden="true"
+              />
+            </Link>
           ))}
         </div>
         <Link href="/technology" className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-ink hover:underline">

@@ -1,5 +1,7 @@
 import { CheckIcon, MinusIcon, XIcon } from "lucide-react";
 
+import { McpDiagram } from "@/components/diagrams/answer-diagrams";
+import { ChatVsRecordDiagram, RemoveAiDiagram } from "@/components/diagrams/compare-diagrams";
 import { Card, PageHero, Section } from "@/components/ui";
 
 export const metadata = { title: "Why-Code vs. ChatGPT & Claude" };
@@ -89,18 +91,18 @@ const ROWS: { need: string; chat: Mark; chatNote: string; why: Mark; whyNote: st
 function MarkIcon({ mark }: { mark: Mark }) {
   if (mark === "yes")
     return (
-      <span className="inline-flex size-6 items-center justify-center rounded-full bg-ink text-canvas">
+      <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-ink text-canvas">
         <CheckIcon className="size-3.5" aria-label="Yes" />
       </span>
     );
   if (mark === "partial")
     return (
-      <span className="inline-flex size-6 items-center justify-center rounded-full border border-line-strong text-ink-soft">
+      <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-line-strong text-ink-soft">
         <MinusIcon className="size-3.5" aria-label="Partly" />
       </span>
     );
   return (
-    <span className="inline-flex size-6 items-center justify-center rounded-full border border-line text-ink-faint">
+    <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-line text-ink-faint">
       <XIcon className="size-3.5" aria-label="No" />
     </span>
   );
@@ -115,6 +117,14 @@ export default function ComparePage() {
         intro="ChatGPT and Claude are better general reasoners than anything we’ve built, and Why-Code uses a language model too. The difference isn’t intelligence. It’s that Why-Code is a system of record, and a chat window isn’t one."
       />
 
+      <Section
+        eyebrow="The difference"
+        title="A chat gives one person an answer. A record gives everyone the same one."
+        intro="Watch the same question asked twice — once in a chat, once against Why-Code's ledger."
+      >
+        <ChatVsRecordDiagram />
+      </Section>
+
       <Section eyebrow="Side by side" title="Feature by feature.">
         <div className="overflow-x-auto rounded-2xl border border-line">
           <table className="w-full min-w-[720px] text-left text-sm">
@@ -126,9 +136,9 @@ export default function ComparePage() {
                 <th scope="col" className="px-5 py-3 font-medium">Why-Code</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="stagger">
               {ROWS.map((r) => (
-                <tr key={r.need} className="border-t border-line align-top">
+                <tr key={r.need} className="border-t border-line align-top transition-colors hover:bg-surface">
                   <th scope="row" className="px-5 py-4 font-medium text-ink">{r.need}</th>
                   <td className="px-5 py-4">
                     <div className="flex gap-3">
@@ -153,10 +163,12 @@ export default function ComparePage() {
         eyebrow="The test"
         title="Remove the AI. Would anyone still use it?"
         intro="That’s the question that separates a tool from a wrapper. For Why-Code’s ledger the answer is yes: decisions, evidence, verification, currency, the authority log, the PR check and the MCP server all run with no model and no API key. The model makes answers readable. It doesn’t decide what is true."
-      />
+      >
+        <RemoveAiDiagram />
+      </Section>
 
       <Section eyebrow="Limits" title="Where Why-Code falls short today.">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="stagger grid gap-4 md:grid-cols-2">
           {[
             ["Thin live answers", "The hosted app reads up to four ranked files and matching issues for unindexed repos. It refuses rather than guesses, but deep answers need an indexed repository."],
             ["Heuristic commit mining", "Roughly two in three commit-mined decisions on httpx were real design decisions. They start as ‘background’ and are labelled until someone accepts them."],
@@ -175,7 +187,9 @@ export default function ComparePage() {
         eyebrow="Use them together"
         title="The best setup is both."
         intro="Let Claude Code or Cursor write the code. Plug Why-Code in over MCP so the agent asks get_why before it edits, records the decisions it makes, and gets stopped at the PR if it breaks a pinned one."
-      />
+      >
+        <McpDiagram />
+      </Section>
     </>
   );
 }
