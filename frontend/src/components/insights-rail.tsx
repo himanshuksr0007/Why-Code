@@ -5,11 +5,13 @@ import {
   ArrowUpRightIcon,
   CircleDotIcon,
   DatabaseIcon,
+  FileCodeIcon,
   GitCommitHorizontalIcon,
   GitPullRequestIcon,
   Maximize2Icon,
   MessageSquareIcon,
   NetworkIcon,
+  UserIcon,
 } from "lucide-react";
 
 import { GraphCanvas, trimGraph } from "@/components/graph/graph-canvas";
@@ -68,24 +70,14 @@ export function InsightsRail() {
       className="fixed right-4 top-1/2 z-40 hidden w-72 -translate-y-1/2 flex-col gap-4 min-[1400px]:flex"
       aria-label="Session insights"
     >
-      <div
-        aria-hidden={!contributor}
-        className={cn(
-          "grid transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
-          contributor
-            ? "my-0 grid-rows-[1fr] opacity-100"
-            : "-my-2 grid-rows-[0fr] opacity-0",
-        )}
-      >
-        <div className="min-h-0 overflow-hidden">
-          {contributor && (
-            <ContributorCard
-              key={contributor.turnId}
-              contributor={contributor}
-            />
-          )}
-        </div>
-      </div>
+      {contributor ? (
+        <ContributorCard
+          key={contributor.turnId}
+          contributor={contributor}
+        />
+      ) : (
+        <ContributorEmptyCard />
+      )}
 
       <div
         aria-hidden={!latestGraph}
@@ -226,6 +218,7 @@ const CONTRIBUTOR_KIND = {
   pull_request: { label: "Latest PR", Icon: GitPullRequestIcon },
   commit: { label: "Latest commit", Icon: GitCommitHorizontalIcon },
   issue: { label: "Latest issue", Icon: CircleDotIcon },
+  file: { label: "Latest change", Icon: FileCodeIcon },
 } as const;
 
 /**
@@ -235,6 +228,35 @@ const CONTRIBUTOR_KIND = {
  * Rendered only when the evidence carried a real author — see
  * lib/contributor.
  */
+/**
+ * The contributor slot is always present: when the latest answer's
+ * evidence names no author, this placeholder says what will appear
+ * here instead of leaving an unexplained gap in the rail.
+ */
+function ContributorEmptyCard() {
+  return (
+    <section className="rounded-2xl border border-border/40 bg-card/95 p-4 shadow-none backdrop-blur-sm">
+      <header className="mb-3 flex items-center gap-2">
+        <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10">
+          <UserIcon className="size-4 text-primary" aria-hidden="true" />
+        </span>
+        <h2 className="font-mono text-[10px] font-medium tracking-widest text-muted-foreground uppercase">
+          Contributor
+        </h2>
+      </header>
+      <div className="flex items-center gap-3">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-dashed border-border/60 text-muted-foreground">
+          <UserIcon className="size-5" aria-hidden="true" />
+        </span>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          The author of the newest pull request, commit or file behind an
+          answer will appear here.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function ContributorCard({ contributor }: { contributor: TurnContributor }) {
   const { label, Icon } = CONTRIBUTOR_KIND[contributor.kind];
   return (

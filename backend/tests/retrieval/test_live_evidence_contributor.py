@@ -139,3 +139,48 @@ def test_unfetchable_pr_keeps_an_honest_unknown_author():
     assert ev.author == "maintainers"
     assert ev.author_avatar_url is None
     assert ev.title is None
+
+
+LATEST_COMMIT = {
+    "sha": "c1erk9",
+    "commit": {"author": {"name": "Tom Christie", "date": "2026-01-20T09:30:00Z"}},
+    "author": {
+        "login": "tomchristie",
+        "avatar_url": "https://avatars.githubusercontent.com/u/647359?v=4",
+    },
+}
+
+
+class FakeGitHubWithCommits(FakeGitHub):
+    """Adds the per-file latest-commit lookup the author enrichment uses."""
+
+    def __init__(self, search_results, details=None, latest=None):
+        super().__init__(search_results, details)
+        self._latest = latest
+        self.latest_calls = []
+
+    def file_latest_commit(self, repo, path):
+        self.latest_calls.append(path)
+        return self._latest
+
+
+def file_evidence(response):
+    return next(ev for ev in response.evidence if ev.path == "httpx/_client.py")
+
+
+def test_cited_file_gains_the_author_of_its_latest_commit():
+    gh = FakeGitHubWithCommits([PR_784], latest=LATEST_COMMIT)
+    response = ask(make_service(gh))
+    ev = file_evidence(response)
+    assert ev.author == "tomchristie"
+    assert ev.author_avatar_url == "https://avatars.githubusercontent.com/u/647359?v=4"
+    assert ev.commit_sha == "c1erk9"
+    assert ev.created_at == "2026-01-20T09:30:00Z"
+
+
+def test_file_author_stays_placeholder_when_github_does_not_answer():
+    gh = FakeGitHubWithCommits([PR_784], latest=None)
+    response = ask(make_service(gh))
+    ev = file_evidence(response)
+    assert ev.author == "maintainers"
+    assert ev.author_avatar_url is None

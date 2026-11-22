@@ -5,19 +5,21 @@ import type { AskResponse } from "@/lib/api/types";
 import { useChatStore } from "@/lib/chat/store";
 
 /**
- * The person behind the newest PR / commit / issue in the latest
- * answer's own evidence — the rail's contributor card.
+ * The person behind the newest PR / commit / issue / file in the
+ * latest answer's own evidence — the rail's contributor card.
  *
  * The data comes only from the answer's citations: an artifact counts
  * when the backend attached its real GitHub author and avatar to the
- * evidence (live PR/issue evidence does). Placeholder authors and
+ * evidence. Live PR/issue evidence carries its author's identity
+ * directly; for a cited file the backend attaches the author of the
+ * newest commit that touched the file. Placeholder authors and
  * avatar-less evidence never produce a card — the UI shows nobody
  * rather than somebody invented.
  */
 export interface TurnContributor {
   /** The turn the card belongs to — keys the rail's fade-in. */
   turnId: string;
-  kind: "pull_request" | "commit" | "issue";
+  kind: "pull_request" | "commit" | "issue" | "file";
   login: string;
   avatarUrl: string;
   profileUrl: string;
@@ -30,13 +32,23 @@ export interface TurnContributor {
   createdAt: string | null;
 }
 
-const KIND_ORDER = { pull_request: 0, commit: 1, issue: 2 } as const;
+const KIND_ORDER = { pull_request: 0, commit: 1, issue: 2, file: 3 } as const;
+
+/** File citations count too: their author is the newest commit's. */
+function kindFor(sourceType: string): TurnContributor["kind"] | null {
+  if (sourceType === "pull_request") return "pull_request";
+  if (sourceType === "commit") return "commit";
+  if (sourceType === "issue") return "issue";
+  if (sourceType === "changed_file" || sourceType === "doc_file") return "file";
+  return null;
+}
 
 function refLabelFor(
   kind: TurnContributor["kind"],
   url: string | null,
   evidenceId: string,
 ): string | null {
+  if (kind === "file") return null;
   const fromUrl = url?.match(/\/(?:pull|issues|commit)\/(\d+|[0-9a-f]{7,40})$/);
   const fromId = evidenceId.match(/:(\d+)$/);
   const ref = fromUrl?.[1] ?? fromId?.[1];
@@ -53,27 +65,26 @@ export function contributorForResponse(
   if (!response) return null;
   const candidates = coerceCitations(response).filter(
     (citation) =>
-      (citation.source_type === "pull_request" ||
-        citation.source_type === "commit" ||
-        citation.source_type === "issue") &&
+      kindFor(citation.source_type) !== null &&
       citation.author &&
       citation.author !== "maintainers" &&
       citation.author_avatar_url,
   );
   if (candidates.length === 0) return null;
 
-  // Latest first; on a tie (or missing dates) a PR outranks an issue.
+  // Latest first; on a tie (or missing dates) a PR outranks a commit,
+  // then an issue, then a file.
   candidates.sort((a, b) => {
     const byDate = (b.created_at ?? "").localeCompare(a.created_at ?? "");
     if (byDate !== 0) return byDate;
     return (
-      KIND_ORDER[a.source_type as TurnContributor["kind"]] -
-      KIND_ORDER[b.source_type as TurnContributor["kind"]]
+      KIND_ORDER[kindFor(a.source_type) ?? "file"] -
+      KIND_ORDER[kindFor(b.source_type) ?? "file"]
     );
   });
 
   const top = candidates[0];
-  const kind = top.source_type as TurnContributor["kind"];
+  const kind = kindFor(top.source_type) ?? "file";
   const login = String(top.author);
   return {
     turnId,

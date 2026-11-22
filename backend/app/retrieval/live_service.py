@@ -205,6 +205,21 @@ class LiveGitHubClient:
         res = self._get(f"/repos/{repo}/pulls/{number}/files", params={"per_page": 50})
         return res if isinstance(res, list) else []
 
+    def file_latest_commit(self, repo: str, path: str) -> dict[str, Any] | None:
+        """The newest commit that touched `path`, or None.
+
+        The commit's top-level `author` is the GitHub account linked to
+        the commit (login + avatar); it is absent when the commit's
+        email matches no account, and callers must treat that as
+        "author unknown", never fall back to the raw git name.
+        """
+        res = self._get(
+            f"/repos/{repo}/commits", params={"path": path, "per_page": 1}
+        )
+        if isinstance(res, list) and res:
+            return res[0]
+        return None
+
     def file_content(self, repo: str, path: str) -> str | None:
         import base64
         res = self._get(f"/repos/{repo}/contents/{path}")
@@ -910,6 +925,38 @@ class LiveService:
                     created_at=None,
                 )
             )
+
+        # Cited files carry a placeholder author: attach the GitHub
+        # user behind the newest commit that touched each cited file,
+        # so the UI can name the person behind the change (e.g. who ran
+        # a migration). One commits lookup per cited path. When GitHub
+        # does not answer, or the commit is linked to no GitHub account,
+        # the placeholder stays — an author is never invented.
+        file_latest_commit = getattr(self.gh, "file_latest_commit", None)
+        if file_latest_commit is not None:
+            latest_by_path: dict[str, dict[str, Any] | None] = {}
+            for view in evidence_views:
+                if not view.path:
+                    continue
+                if view.author and view.author != "maintainers":
+                    continue
+                if view.path not in latest_by_path:
+                    latest_by_path[view.path] = file_latest_commit(
+                        repo, view.path
+                    )
+                commit = latest_by_path[view.path]
+                if not commit:
+                    continue
+                gh_user = commit.get("author") or {}
+                if not gh_user.get("login"):
+                    continue
+                view.author = gh_user["login"]
+                view.author_avatar_url = gh_user.get("avatar_url")
+                view.commit_sha = commit.get("sha") or view.commit_sha
+                if not view.created_at:
+                    view.created_at = (
+                        (commit.get("commit") or {}).get("author") or {}
+                    ).get("date")
 
         trace = RetrievalTrace(
             exact_matches=len(key_files),
