@@ -255,6 +255,10 @@ export function coerceCitations(payload: unknown): Citation[] {
       if (item.evidence_id) evidenceMap.set(String(item.evidence_id), item);
       if (item.alias) evidenceMap.set(String(item.alias), item);
       if (item.path) evidenceMap.set(String(item.path), item);
+      if (typeof item.pr_number === "number")
+        evidenceMap.set(`PR #${item.pr_number}`, item);
+      if (typeof item.issue_number === "number")
+        evidenceMap.set(`Issue #${item.issue_number}`, item);
     }
   }
 
@@ -275,6 +279,16 @@ export function coerceCitations(payload: unknown): Citation[] {
         const matched = evidenceMap.get(str);
         if (matched) {
           return toCitationFromEvidence(matched, index);
+        }
+
+        // Citation strings usually read "<path>: <label>" (an em dash
+        // or hyphen can separate instead): the leading segment is the
+        // evidence key, so try it before building an author-less
+        // citation from the string alone.
+        const lead = str.split(/: | — | - /)[0]?.trim();
+        const leadMatched = lead ? evidenceMap.get(lead) : undefined;
+        if (leadMatched) {
+          return toCitationFromEvidence(leadMatched, index);
         }
 
         let title: string | null = null;
