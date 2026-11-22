@@ -168,6 +168,34 @@ Every provider call goes through `app/intent/llm/limits.py`, which enforces the 
 
 With the shipped `.env` (100 requests / 50K tokens per day on Groq's 1K / 200K caps), repeated test runs cannot exhaust the key: the guard refuses with `QuotaExceededError` and tells you which variable or ledger to reset.
 
+## Answer prompt and DistilBERT intent
+
+Live `/ask` answers are built in two steps before the model is called:
+
+1. **Intent** — `app/nlp/intent.py` tells what kind of question was asked:
+   `rationale`, `history`, `ownership`, `behaviour`, `location`, `comparison`
+   or `general`. Keyword rules decide when they find a clear signal; otherwise
+   the question is embedded with DistilBERT
+   (`typeform/distilbert-base-uncased-mnli`) and matched against labelled
+   example questions (`EXAMPLES`), whose nearest neighbours vote. On questions
+   written after tuning: 10/12 correct (keywords alone 9/12). Zero-shot NLI
+   with the same model scored 12/24 and is not used.
+2. **Prompt** — `app/retrieval/prompt.py` turns that intent into a
+   reader-friendly layout (e.g. *In short → Why → Trade-offs → Where to look*
+   for a "why" question) and appends the fixed evidence rules, which always
+   override the layout. Edit this file to change how answers read.
+
+DistilBERT is optional:
+
+```bash
+pip install transformers torch --index-url https://download.pytorch.org/whl/cpu  # or: the `nlp` extra
+```
+
+Without it (or with `WHYCODE_NLP_ENABLED=0`) a keyword classifier returns the
+same result shape. The intent only shapes presentation; evidence fetching,
+citation validation and refusals are unchanged. The model (~270 MB) is
+downloaded once on first use and shared by the process.
+
 ## Environment
 
 | Variable | Required | Default |
@@ -191,6 +219,9 @@ With the shipped `.env` (100 requests / 50K tokens per day on Groq's 1K / 200K c
 | `WHYCODE_WEBHOOK_SECRET` | — | — (webhook receiver is 503 until set) |
 | `WHYCODE_TEST_NEO4J_URI` | — | — |
 | `WHYCODE_TEST_LLM` | — | — |
+| `WHYCODE_TEST_NLP` | — | — (opt-in real-model intent test) |
+| `WHYCODE_NLP_ENABLED` | — | auto (on when `transformers` is installed) |
+| `WHYCODE_NLP_MODEL` | — | `typeform/distilbert-base-uncased-mnli` |
 
 The full configuration reference — including LLM caps and mail options — is the
 [Configuration table in the root README](../README.md#configuration).
