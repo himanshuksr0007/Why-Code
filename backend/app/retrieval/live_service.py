@@ -908,12 +908,25 @@ class LiveService:
             if v.issue_number:
                 by_label[f"issue #{v.issue_number}"] = v
         answer_text = clean_markdown(str(data.get("answer", "")))
-        tokens = [str(c) for c in data.get("citations", [])] + re.findall(r"\[(E\d+)\]", answer_text)
+        # Models write citations as [E1], [E1, E2], [E1][E2] or "E1: path";
+        # accept every form so a correctly cited answer is not refused for
+        # its punctuation. Resolution against the pool stays strict.
+        inline = [
+            alias
+            for group in re.findall(r"\[([^\[\]]{1,60})\]", answer_text)
+            for alias in re.findall(r"\bE\d+\b", group, flags=re.IGNORECASE)
+        ]
+        tokens = [str(c) for c in data.get("citations", []) or []] + inline
         cited: list[EvidenceView] = []
         invalid: list[str] = []
         for token in tokens:
             key = token.strip().strip("[]`").strip()
-            view = by_alias.get(key.upper()) or by_label.get(key.split(":", 1)[0].strip().lower())
+            lead = re.match(r"E\d+\b", key, flags=re.IGNORECASE)
+            view = (
+                by_alias.get(key.upper())
+                or (by_alias.get(lead.group(0).upper()) if lead else None)
+                or by_label.get(key.split(":", 1)[0].strip().lower())
+            )
             if view is None:
                 if key and key not in invalid:
                     invalid.append(key)

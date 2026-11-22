@@ -124,6 +124,34 @@ def test_invented_citation_is_dropped_and_lowers_confidence() -> None:
     assert any("E99" in c for c in response.caveats)
 
 
+def test_grouped_and_labelled_citations_resolve() -> None:
+    service, gen = _service({})
+    gen.payload = {"answer_status": "answered", "answer": "x", "citations": [], "caveats": []}
+    _ask(service)
+    pr = _alias(gen.prompts[0], "PR #42")
+    src = _alias(gen.prompts[0], "widget/client.py")
+    # Inline "[E1, E2]" with no citations list: previously refused.
+    gen.payload = {
+        "answer_status": "answered",
+        "answer": f"Retries are off because they duplicated requests [{src}, {pr}].",
+        "citations": [],
+        "caveats": [],
+    }
+    response = _ask(service)
+    assert response.answer_status is AnswerStatus.ANSWERED
+    assert {e.path or e.pr_number for e in response.evidence} == {"widget/client.py", 42}
+    # "E1: path" in the citations list resolves by its alias.
+    gen.payload = {
+        "answer_status": "answered",
+        "answer": "Retries are off.",
+        "citations": [f"{src}: widget/client.py"],
+        "caveats": [],
+    }
+    response = _ask(service)
+    assert response.answer_status is AnswerStatus.ANSWERED
+    assert response.citation_valid is True
+
+
 def test_answer_with_no_resolvable_citation_is_refused() -> None:
     service, _ = _service(
         {

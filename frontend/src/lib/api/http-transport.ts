@@ -42,8 +42,18 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!response.ok) {
+    // Prefer the backend's own explanation (FastAPI `detail`), e.g. "try
+    // again in a moment", over a bare status line.
+    let detail: string | undefined;
+    try {
+      const body = (await response.json()) as { detail?: unknown };
+      if (typeof body.detail === "string" && body.detail.trim()) detail = body.detail;
+    } catch {
+      // Non-JSON error body: fall back to the status line.
+    }
     throw new Error(
-      `Why-Code API ${path} failed: ${response.status} ${response.statusText}`,
+      detail ??
+        `Why-Code API ${path} failed: ${response.status} ${response.statusText}`,
     );
   }
   return (await response.json()) as T;

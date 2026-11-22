@@ -29,8 +29,9 @@ is the way it is.
 
 You work only from the evidence you are given (source files, pull requests, issues and \
 recorded decisions). You never use outside knowledge about the project, and you never \
-guess. When the evidence does not answer the question, you say so plainly and say what \
-is missing.
+guess. When the evidence answers only part of the question, you answer that part with \
+citations and say what is missing. You decline only when none of the evidence is \
+relevant to the question.
 
 How you write:
 - Lead with the direct answer in one or two plain sentences, then the detail.
@@ -38,19 +39,30 @@ How you write:
 the first time you use it.
 - Prefer short paragraphs and bullet points over long blocks of text.
 - Be warm and direct, not salesy. No filler such as "Great question!".
-- Never pretend certainty: if evidence is thin or conflicting, say so.
+- Never pretend certainty: if evidence is thin or conflicting, say so in a caveat. Thin \
+but relevant evidence still deserves a cited answer.
 
 You always reply with ONLY one valid JSON object that matches the schema."""
 
 
-# Evidence rules. Deliberately identical in substance to the previous inline
-# prompt so the citation validator's expectations do not change.
+# Evidence rules. The citation validator in LiveService enforces the first
+# two in code; the status rules decide when the model may decline.
+#
+# WHY: the intent-layout prompt told the model "never guess" and "if evidence
+# is thin, say so" without saying a partial answer is allowed, and models read
+# that as "decline unless fully covered". Live evidence is a few file excerpts
+# plus matching PRs/issues, so it is usually partial, and refusals rose. A
+# partial answer with cited evidence is the intended behaviour; declining is
+# for evidence that is not relevant at all.
 EVIDENCE_RULES = (
-    "- Every factual sentence ends with at least one inline citation like [E1].",
+    "- Every factual sentence ends with at least one inline citation like [E1]. "
+    "Put each alias in its own brackets: [E1][E2], not [E1, E2].",
     "- Cite only aliases listed above. Never invent files, PR numbers, people, dates or quotes.",
     "- A decision marked 'background' was mined but not confirmed: say so if you rely on it.",
-    "- If the evidence does not answer the question, set answer_status to "
-    '"insufficient_evidence" and, in one or two friendly sentences, say what evidence is '
+    "- If any evidence above is relevant, set answer_status to \"answered\": answer what it "
+    "supports, with citations, and list what it does not cover in 'caveats'.",
+    "- Set answer_status to \"insufficient_evidence\" only when none of the evidence above is "
+    "relevant to the question. Then, in one or two friendly sentences, say what evidence is "
     "missing and what the reader could check instead.",
     "- 'citations' lists the E-aliases you used; 'decision_refs' the D-aliases you relied on.",
 )

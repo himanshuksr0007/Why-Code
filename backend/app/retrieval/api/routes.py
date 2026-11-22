@@ -37,6 +37,13 @@ from app.retrieval.structure import (
 )
 from app.workspace.ratelimit import SlidingWindowRateLimiter
 
+# Shown when the live answer path failed for a transient reason; distinct
+# from an evidence refusal so users retry instead of concluding "no evidence".
+LIVE_UNAVAILABLE = (
+    "Why-Code couldn't finish this answer because a service it depends on "
+    "(the language model or GitHub) failed or is busy. Please try again in a moment."
+)
+
 
 def build_router(
     service: RetrievalService | None,
@@ -228,6 +235,7 @@ def build_router(
         params = body.parameters()
         if not params.repo:
             params = params.model_copy(update={"repo": repo})
+        live_failed = False
         if live_service is not None and (
             getattr(live_service, "generator", None) is not None
             or custom_provider is not None
@@ -240,6 +248,7 @@ def build_router(
             except Exception as exc:
                 import logging
                 logging.getLogger("whycode").error("LiveService answer error: %s", exc, exc_info=True)
+                live_failed = True
             else:
                 return finish(body, response)
             finally:
@@ -249,6 +258,12 @@ def build_router(
                     record_usage(body, usage_sink)
         if service is not None:
             response = service.ask(params)
+            # WHY: after a live failure (model rate limit, bad JSON, GitHub
+            # outage) the graph service can only refuse for a repository it
+            # has not ingested. Showing that refusal told users "no evidence"
+            # when the real cause was a transient error, so say so instead.
+            if live_failed and response.answer_status is AnswerStatus.INSUFFICIENT_EVIDENCE:
+                raise HTTPException(status_code=503, detail=LIVE_UNAVAILABLE)
             if custom_provider is not None and model_service is not None:
                 from app.intent.llm.provider import RecordingProvider
                 recorder = RecordingProvider(custom_provider)
@@ -257,6 +272,8 @@ def build_router(
                 )
                 record_usage(body, recorder.totals())
             return finish(body, response)
+        if live_failed:
+            raise HTTPException(status_code=503, detail=LIVE_UNAVAILABLE)
         raise HTTPException(status_code=503, detail="retrieval service is not configured")
 
     @router.get("/evidence/{evidence_id}", response_model=EvidenceDetail)
