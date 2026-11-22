@@ -42,6 +42,7 @@ python -m app.ledger export --path ../path/to/checkout  # writes .whycode/decisi
 | `inline_marker` | `WHY:`, `DECISION:`, `TRADEOFF:`, `ADR:`, `RATIONALE:`, `REJECTED:` in any comment syntax, uppercase only (like `TODO:`), with continuation lines | Background, scoped to the file |
 | `commit` | Commit messages that state a choice (*switch to, migrate, replace … with, drop, deprecate, in favour of …*) **and** a reason (*because, so that, to avoid, instead of, …*) | Background, scoped to the non-test files it changed |
 | `pr_block` | A decisions block in a PR description (below) | Proposed when the PR opens; **in force when it merges** |
+| `pull_request` | With `index --pull-requests`: the description, reviews, review threads, comments and closed issues of each merged PR a scanned commit names (`Title (#123)` or `Merge pull request #123`). Only sentences that state a reason are kept, quoted verbatim with a link. Template boilerplate, checklists, code, struck-through text and bot PRs are ignored; test-, docs- and lock-only changes are skipped; a mechanical change (move, rename, refactor …) needs a strong reason. Needs `WHYCODE_GITHUB_TOKEN`, `GITHUB_TOKEN` or `GH_TOKEN`; responses are cached in `<db>.prs.json` | Background, scoped to the non-test, non-docs files it changed. Merges into the commit's record for the same change, and its stated reason replaces the commit body as the rationale |
 | `manual` / `agent` | CLI, API, MCP `record_decision` | Proposed (an agent can't put its own decision in force) |
 
 The same decision found by two sources becomes one record with two evidence
@@ -168,7 +169,26 @@ Indexing on this container (shallow clones, `--commits 1000`):
 | npryce/adr-tools | 92 | 159 | 9 ADRs + 2 from commits | 11 / 11 | 0.09 s |
 | repowise-dev/repowise | 8,299 | 300 | 89 from commits | 89 / 89 | 1.7 s |
 
-These are throughput and verification figures, **not** a precision benchmark.
+### With `--pull-requests` (22 Nov 2026)
+
+Full history, run against the 15-case golden set in
+`backend/app/intent/evaluation/golden/decisions.jsonl` (12 decisions, 3
+non-decisions):
+
+| | Commits only | With PR text |
+| --- | ---: | ---: |
+| httpx golden decisions found | 2 / 12 | 11 / 12 (10 with the right reason, 1 partial) |
+| httpx non-decisions left alone | 3 / 3 | 3 / 3 |
+| httpx records that state the why (25 sampled) | 19% | 56% |
+| FastAPI records that state the why (25 sampled) | 4% | 36% |
+| httpx index time (1,270 PRs read) | 1.2 s | 31 s first run, 4.6 s cached |
+
+The PR rules were written while looking at the httpx golden PRs, so httpx
+is not a clean holdout; FastAPI is. The one golden miss (#3323) has no merge
+commit on the default branch. Remaining noise is mostly bug-fix PRs that
+explain a bug's cause.
+
+The table above (commit mining only) is throughput and verification, **not** a precision benchmark.
 A hand review of the 18 httpx commit decisions found roughly two-thirds to be
 real design decisions. The rest are tooling or doc changes. They start as
 *background*, so they reach agents only when asked and always carry that label.

@@ -19,6 +19,7 @@ export type DecisionSource =
   | "inline_marker"
   | "commit"
   | "pr_block"
+  | "pull_request"
   | "manual"
   | "agent";
 
