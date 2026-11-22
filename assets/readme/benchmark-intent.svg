@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
+<title id="title">Question-intent classifier accuracy</title>
+<desc id="desc">Correct intent on 24 hand-labelled httpx questions: zero-shot NLI 12 of 24 (rejected), DistilBERT few-shot 18 of 24, keyword rules 21 of 24, keywords plus DistilBERT 22 of 24 (shipped).</desc>
+<rect width="1200" height="430" rx="24" fill="#120e0c"/>
+<g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+<text x="56" y="70" font-size="28" font-weight="700" fill="#f5eee6">Picking the answer layout: question-intent accuracy</text>
+<text x="56" y="102" font-size="18" fill="#b8a999">24 hand-labelled httpx questions · correct intent out of 24</text>
+<text x="470.0" y="400" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#8f8172">0%</text>
+<path d="M610.0 132V374" stroke="#2a201a" stroke-width="1"/>
+<text x="610.0" y="400" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#8f8172">25%</text>
+<path d="M750.0 132V374" stroke="#2a201a" stroke-width="1"/>
+<text x="750.0" y="400" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#8f8172">50%</text>
+<path d="M890.0 132V374" stroke="#2a201a" stroke-width="1"/>
+<text x="890.0" y="400" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#8f8172">75%</text>
+<path d="M1030.0 132V374" stroke="#2a201a" stroke-width="1"/>
+<text x="1030.0" y="400" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#8f8172">100%</text>
+<path d="M470 132V374" stroke="#3a2d23" stroke-width="1.5"/>
+<text x="56" y="162" font-size="20" font-weight="600" fill="#f5eee6">Zero-shot NLI (DistilBERT)</text>
+<text x="56" y="184" font-size="16" fill="#8f8172">rejected</text>
+<path d="M470 144H746.0Q750.0 144 750.0 148V172Q750.0 176 746.0 176H470Z" fill="#5b4a3d"/>
+<text x="762.0" y="167" font-size="18" font-weight="600" fill="#f5eee6">12 / 24</text>
+<text x="56" y="224" font-size="20" font-weight="600" fill="#f5eee6">DistilBERT, few-shot</text>
+<text x="56" y="246" font-size="16" fill="#8f8172">nearest labelled examples</text>
+<path d="M470 206H886.0Q890.0 206 890.0 210V234Q890.0 238 886.0 238H470Z" fill="#5b4a3d"/>
+<text x="902.0" y="229" font-size="18" font-weight="600" fill="#f5eee6">18 / 24</text>
+<text x="56" y="286" font-size="20" font-weight="600" fill="#f5eee6">Keyword rules</text>
+<text x="56" y="308" font-size="16" fill="#8f8172">no model</text>
+<path d="M470 268H956.0Q960.0 268 960.0 272V296Q960.0 300 956.0 300H470Z" fill="#5b4a3d"/>
+<text x="972.0" y="291" font-size="18" font-weight="600" fill="#f5eee6">21 / 24</text>
+<text x="56" y="348" font-size="20" font-weight="700" fill="#f5eee6">Keywords + DistilBERT</text>
+<text x="56" y="370" font-size="16" fill="#8f8172">shipped</text>
+<path d="M470 330H979.3Q983.3 330 983.3 334V358Q983.3 362 979.3 362H470Z" fill="#c9772a"/>
+<text x="995.3" y="353" font-size="18" font-weight="600" fill="#f5eee6">22 / 24</text>
+</g></svg>
