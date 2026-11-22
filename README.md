@@ -125,18 +125,6 @@ These are speed and verification figures, not precision. A hand review found rou
 httpx commit decisions to be real design decisions. That's why commit-mined decisions start as
 *background* and say so until someone accepts them.
 
-### Answer layout: question-intent detection
-
-<p align="center">
-  <img src="assets/readme/benchmark-intent.svg" width="100%" alt="Bar chart of correct intent on 24 httpx questions: zero-shot NLI 12, DistilBERT few-shot 18, keyword rules 21, keywords plus DistilBERT 22." />
-</p>
-
-Why-Code detects what kind of question was asked (`rationale`, `history`, `ownership`, `location`…)
-so a *why* answer reads as *In short → Why → Trade-offs → Where to look*. On 24 hand-labelled httpx
-questions the shipped hybrid got 22 right. On 12 held-out questions written after tuning, the hybrid
-got 10 / 12 and keywords alone got 9 / 12. A DistilBERT call takes about 35 ms on CPU. The intent only
-shapes the layout: it never changes which evidence is fetched or whether an answer is refused.
-
 ## Comparison
 
 ### Why-Code vs. a chat assistant (ChatGPT, Claude)
