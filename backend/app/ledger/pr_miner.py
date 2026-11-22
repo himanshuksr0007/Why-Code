@@ -37,9 +37,10 @@ from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import httpx
+if TYPE_CHECKING:  # httpx is imported lazily: the ledger CLI runs in CI
+    import httpx  # (action.yml) with only pydantic and pyyaml installed.
 
 from app.ledger.git import Commit
 from app.ledger.miners import _NOISE_SUBJECT, _NON_SCOPE
@@ -220,6 +221,8 @@ class PullRequestSource:
         wanted = [n for n in dict.fromkeys(numbers) if str(n) not in bucket]
         batches = [wanted[i : i + BATCH_SIZE] for i in range(0, len(wanted), BATCH_SIZE)]
         if batches:
+            import httpx
+
             headers = {"Authorization": f"Bearer {self.token}", "User-Agent": "whycode-ledger"}
             with httpx.Client(timeout=self.timeout, headers=headers) as client:
 
